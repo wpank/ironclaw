@@ -1,0 +1,27 @@
+id: dream_consolidation.rare_dependency_failure
+feature: dream_consolidation
+owner: src/agent
+input:
+  session_fixture: rare_dependency_failure_session.json
+  later_query: "Why does this dependency fail only on CI?"
+mocked_dependencies:
+  llm: deterministic_summary_model
+  memory_store: ephemeral_dual_backend_contract
+baseline:
+  variant: no_background_consolidation
+variant:
+  variant: bounded_dream_replay
+oracle:
+  type: later_retrieval_usefulness
+  expected_memory_tags:
+    - derived
+    - llm_generated
+    - dependency_failure
+expected_metrics:
+  useful_memory_hit_rate_delta_min_pp: 10
+guardrails:
+  max_background_cost_microusd: 25000
+  forbid_sensitive_data_leak: true
+artifacts:
+  retain_derived_memories: redacted
+

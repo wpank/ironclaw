@@ -1,0 +1,27 @@
+id: provider_conductor.latency_ramp
+feature: provider_conductor
+owner: crates/ironclaw_llm
+input:
+  request_class: medium_code_reasoning
+  sequence_length: 100
+mocked_dependencies:
+  provider_a:
+    latency_ms_sequence: [900, 950, 1100, 1350, 1700, 2300]
+    error_rate_after_step: 0.15
+  provider_b:
+    latency_ms_sequence: [1200, 1180, 1190, 1210]
+    error_rate_after_step: 0.01
+baseline:
+  variant: reactive_circuit_breaker
+variant:
+  variant: holt_forecast_bias
+oracle:
+  type: avoided_degradation
+expected_metrics:
+  degraded_provider_spend_reduction_pct_min: 50
+guardrails:
+  max_healthy_provider_false_positive_rate: 0.03
+  max_oscillation_count: 1
+artifacts:
+  retain_health_series: true
+

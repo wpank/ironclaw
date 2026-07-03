@@ -1,0 +1,37 @@
+id: cascade_router.simple_lookup
+feature: cascade_router
+owner: crates/ironclaw_llm
+input:
+  prompt: "What is the local time in Berlin?"
+  risk: low
+  contains_private_data: false
+mocked_dependencies:
+  providers:
+    cheap:
+      latency_ms: 650
+      cost_microusd: 120
+      quality_pass: true
+    primary:
+      latency_ms: 1500
+      cost_microusd: 900
+      quality_pass: true
+baseline:
+  variant: current_static_router
+  expected_provider: primary
+variant:
+  variant: linucb_shadow
+  expected_provider: cheap
+oracle:
+  type: deterministic_answer_shape
+  must_include:
+    - Berlin
+expected_metrics:
+  min_cost_reduction_pct: 20
+guardrails:
+  max_quality_regression_pp: 2
+  max_p95_latency_regression_pct: 10
+  forbid_policy_violations: true
+artifacts:
+  write_jsonl: true
+  retain_raw_prompt: false
+

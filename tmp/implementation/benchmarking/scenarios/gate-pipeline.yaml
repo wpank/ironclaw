@@ -1,0 +1,28 @@
+id: progressive_gates.webhook_signature
+feature: progressive_gates
+owner: src/tools
+input:
+  change_description: "Add webhook route with signature validation."
+  touched_files:
+    - src/channels/web/routes.rs
+    - src/channels/web/auth.rs
+mocked_dependencies:
+  command_runner: fixture
+baseline:
+  variant: current_no_progressive_gate
+  escaped_defect: true
+variant:
+  variant: compile_lint_unit_security
+  expected_blocking_rung: security_review
+oracle:
+  type: defect_presence
+  defect: "missing body limit regression test"
+expected_metrics:
+  escaped_defect_rate_delta_max: -0.2
+guardrails:
+  max_false_block_rate: 0.05
+  max_gate_wall_clock_ms: 120000
+  require_artifact_redaction: true
+artifacts:
+  retain_stdout_stderr: redacted
+
