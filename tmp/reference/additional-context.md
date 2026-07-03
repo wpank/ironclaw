@@ -1,7 +1,7 @@
 # Additional Context
 
-This file records cross-document caveats that apply to the captured Roko
-reference set.
+This file records cross-document caveats that apply to the captured reference
+set.
 
 ## Provenance
 
@@ -9,7 +9,7 @@ reference set.
 - Do not assume those labels are accessible checkout paths.
 - Do not add path dependencies to Roko crates from IronClaw.
 - Count-heavy claims should be treated as catalog metadata unless regenerated
-  from local evidence.
+  from local evidence in the same pass.
 
 ## Terminology
 

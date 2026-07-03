@@ -1,187 +1,96 @@
 # Feature Rollout Runbooks
 
-Each runbook follows the same path:
+All runbooks use the same stages:
 
 ```text
-local fixture -> shadow -> canary -> limited default -> full default
+off -> local fixture -> shadow -> canary -> limited -> default -> flag cleanup
 ```
 
-Do not skip shadow mode for features that change model routing, memory writes,
-tool execution, approvals, or persistence.
+Every stage emits feature exposure events and metric events. Shadow never
+changes user-visible behavior.
 
-## 1. HDC Memory Search
+## HDC Memory Search
 
-Flag:
+Flag: `experimental.hdc_memory_search`, default `off`.
+
+Config:
 
 ```toml
 [experimental.hdc_memory_search]
 enabled = false
 mode = "off" # off | shadow | canary | default
-max_candidates = 200
 ```
 
-Steps:
+Promote when top-5 relevance improves by at least 10pp and p95 search latency
+stays within +10%. Roll back by setting `enabled=false`; memory search falls back
+to the existing full-text/vector path.
 
-1. Compute fingerprints on write but do not use them in ranking.
-2. Record shadow candidate overlap with current FTS/vector search.
-3. Enable HDC as a third RRF input for 5% of eligible searches.
-4. Promote only if relevance improves and p95 search latency stays inside the
-   configured budget.
+## Cascade Router
 
-Rollback:
+Flag: `experimental.cascade_router`, default `off`.
 
-```text
-set mode = "off"
-keep fingerprint column/table
-ignore HDC candidates in ranking
-```
+Runbook:
 
-Primary metric: top-5 relevance.
-Guardrails: p95 latency, memory storage growth, duplicate-write false positives.
+1. Local: run `scenarios/cascade-router.yaml`.
+2. Shadow: log candidate provider and reward while static routing acts.
+3. Canary: allow candidate only for low-risk eligible requests.
+4. Limited/default: expand only if cost improves and quality/safety guardrails
+   pass.
 
-## 2. Cascade Router
+Rollback: set `enabled=false`; `SmartRoutingProvider` or equivalent static
+router is authoritative.
 
-Flag:
+## Progressive Gates
 
-```toml
-[experimental.cascade_router]
-enabled = false
-mode = "shadow" # off when disabled; shadow | canary | default after enablement
-min_observations_per_arm = 100
-quality_floor = 0.98
-```
+Flag: `experimental.progressive_gates`, default `off`.
 
-Steps:
+Runbook:
 
-1. Shadow-score candidate providers while current routing remains authoritative.
-2. Log selected arm, static-rule reason, bandit score, cost estimate, and
-   fallback reason.
-3. Canary only low-risk, non-tool, non-secret-bearing requests.
-4. Expand to broader traffic only after quality and latency guardrails pass.
+1. Local: run `scenarios/gate-pipeline.yaml`.
+2. Shadow: run gates after existing validation and record verdicts only.
+3. Canary: block only code-generation/tool-building flows covered by tests.
+4. Default: keep rung selection bounded by task complexity.
 
-Rollback:
+Rollback: disable the flag; the caller skips `GatePipeline` construction.
 
-```text
-set enabled = false
-discard in-memory bandit state
-preserve audit events for postmortem
-```
+## Dream Consolidation
 
-Primary metric: cost/request.
-Guardrails: quality pass rate, p95 latency, fallback rate, safety bypass count.
+Flag: `experimental.dream_consolidation`, default `off`.
 
-## 3. Progressive Gates
+Runbook:
 
-Flag:
+1. Local: run `scenarios/dream-consolidation.yaml` with deterministic LLM.
+2. Shadow: generate redacted derived memories but hide them from retrieval.
+3. Canary: expose promoted memories only above confidence threshold.
+4. Limited/default: enforce background budget and taint propagation.
 
-```toml
-[experimental.progressive_gates]
-enabled = false
-max_rung_default = "unit_test"
-artifact_limit_bytes = 262144
-```
+Rollback: disable the scheduled job and filter derived memory tags from search.
+Do not delete memories; preserve origin ids for audit.
 
-Steps:
+## Provider Conductor
 
-1. Run gates in report-only mode for generated code changes.
-2. Compare gate verdicts with existing test/CI outcomes.
-3. Start blocking only on compile and lint failures.
-4. Add higher rungs by risk tier after false-block rate is measured.
+Flag: `experimental.provider_conductor`, default `off`.
 
-Rollback:
+Runbook:
 
-```text
-set enabled = false
-keep gate verdict history
-do not delete artifacts until retention job expires them
-```
+1. Local: run `scenarios/provider-degradation.yaml`.
+2. Observe: record health signals without changing circuit state.
+3. Canary: bias away from predicted failures for eligible providers.
+4. Default: allow active pre-trip only after false-positive and oscillation
+   guardrails pass.
 
-Primary metric: escaped defect rate.
-Guardrails: false block rate, artifact redaction failures, wall-clock overhead.
+Rollback: set mode to `observe` or `off`; reactive circuit breaker behavior
+remains authoritative.
 
-## 4. Dream Consolidation
+## Signal Content Addressing
 
-Flag:
+Flag: `experimental.signal_records`, default `off`.
 
-```toml
-[experimental.dream_consolidation]
-enabled = false
-mode = "manual"
-daily_budget_microusd = 25000
-max_memories_written_per_run = 20
-```
+Runbook:
 
-Steps:
+1. Local: run `scenarios/memory-dedup.yaml`.
+2. Shadow: write candidate signal rows without changing retrieval ranking.
+3. Canary: enable soft dedupe for eligible workspaces.
+4. Default: keep exact hash identity and near-duplicate decisions auditable.
 
-1. Manual-only local runs on fixture conversations.
-2. Shadow recommendations without writing memory.
-3. Enable memory writes with `Derived` and `LlmGenerated` taints.
-4. Promote memories only after later retrieval confirms utility.
-
-Rollback:
-
-```text
-disable scheduled dream job
-filter derived memories from retrieval if confidence < threshold
-preserve source episode links
-```
-
-Primary metric: later retrieval usefulness.
-Guardrails: background spend, sensitive-data leakage, low-confidence memory
-pollution.
-
-## 5. Provider Conductor
-
-Flag:
-
-```toml
-[experimental.provider_conductor]
-enabled = false
-mode = "observe" # ignored while disabled; observe before active
-forecast_horizon_seconds = 300
-```
-
-Steps:
-
-1. Observe latency/error/cost only.
-2. Emit health hints without affecting routing.
-3. Bias routing away from degraded providers after repeated confirmed forecasts.
-4. Integrate with the existing circuit breaker, not beside it.
-
-Rollback:
-
-```text
-set mode = "observe"
-ignore routing bias
-preserve health metrics for analysis
-```
-
-Primary metric: degraded-provider spend avoided.
-Guardrails: oscillation count, healthy-provider false positives, latency.
-
-## 6. Signal Content Addressing
-
-Flag:
-
-```toml
-[experimental.signal_records]
-enabled = false
-dedupe_mode = "observe" # observe | soft | hard
-```
-
-Steps:
-
-1. Compute hashes and report duplicate candidates.
-2. Soft dedupe by linking duplicates without blocking writes.
-3. Hard dedupe only after false-positive review.
-
-Rollback:
-
-```text
-set dedupe_mode = "observe"
-keep duplicate links
-allow all writes
-```
-
-Primary metric: duplicate storage reduction.
-Guardrails: false dedupe, query latency, DB migration parity.
+Rollback: disable dedupe/ranking use; persisted signal rows remain inert.

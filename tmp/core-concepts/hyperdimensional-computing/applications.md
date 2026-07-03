@@ -99,59 +99,11 @@ For non-causal entries (Insights, Heuristics, Warnings, StrategyFragments), the 
 4. Bind the source to a "source" role vector (if present)
 5. Bundle all components into the final fingerprint
 
-```rust
-fn encode_generic_entry(self, entry: &KnowledgeEntry) -> HdcVector {
-    let mut vectors = vec![
-        text_hv(&entry.content),
-        role_hv("kind").bind(&text_hv(entry.kind.as_str())),
-    ];
-
-    if !entry.tags.is_empty() {
-        let tags: Vec<HdcVector> = entry.tags.iter()
-            .map(|tag| text_hv(tag))
-            .collect();
-        let tag_refs: Vec<&HdcVector> = tags.iter().collect();
-        vectors.push(HdcVector::bundle(&tag_refs));
-    }
-
-    if let Some(source) = entry.source.as_deref() {
-        let trimmed = source.trim();
-        if !trimmed.is_empty() {
-            vectors.push(role_hv("source").bind(&text_hv(trimmed)));
-        }
-    }
-
-    let refs: Vec<&HdcVector> = vectors.iter().collect();
-    HdcVector::bundle(&refs)
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### Helper Functions
 
-```rust
-fn role_hv(role: &str) -> HdcVector {
-    HdcVector::from_seed(format!("role:{role}").as_bytes())
-}
-
-fn text_hv(text: &str) -> HdcVector {
-    HdcVector::from_seed(normalize_text(text).as_bytes())
-}
-
-fn normalize_text(text: &str) -> String {
-    text.chars()
-        .map(|ch| {
-            if ch.is_alphanumeric() || ch.is_whitespace() {
-                ch.to_ascii_lowercase()
-            } else {
-                ' '
-            }
-        })
-        .collect::<String>()
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 Text normalization ensures that "Borrow-Checker" and "borrow checker" produce the same vector.
 
@@ -179,61 +131,13 @@ The `RoleFillerEncoder` provides higher-level encoding where each attribute of a
 
 *Source: `crates/roko-neuro/src/hdc.rs`*
 
-```rust
-/// Structured role-filler HDC encoding.
-pub(crate) struct RoleFillerEncoder;
-
-impl RoleFillerEncoder {
-    pub(crate) fn encode_structured(roles_and_fillers: &[(String, String)]) -> HdcVector {
-        if roles_and_fillers.is_empty() {
-            return HdcVector::zeros();
-        }
-        let bound: Vec<HdcVector> = roles_and_fillers
-            .iter()
-            .map(|(role, filler)| role_hv(role).bind(&text_hv(filler)))
-            .collect();
-        let refs: Vec<&HdcVector> = bound.iter().collect();
-        HdcVector::bundle(&refs)
-    }
-
-    /// Extract the filler for a given role by unbinding (XOR is its own inverse).
-    pub(crate) fn query_role(composite: &HdcVector, role: &str) -> HdcVector {
-        composite.bind(&role_hv(role))
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### CausalLink Encoding with Directional Permutation
 
 CausalLinks require special encoding to capture directionality. Without permutation, `bind(hv_cause, hv_effect)` would be identical to `bind(hv_effect, hv_cause)` due to XOR's commutativity. Permutation breaks this symmetry:
 
-```rust
-const CAUSE_SHIFT: usize = 1;
-const EFFECT_SHIFT: usize = 2;
-
-fn encode_causal_link(self, entry: &KnowledgeEntry) -> HdcVector {
-    let Some(parts) = CausalLinkParts::from_entry(entry) else {
-        return self.encode_generic_entry(entry);
-    };
-
-    let mut vectors = vec![
-        text_hv(&entry.content),
-        role_hv("kind").bind(&text_hv(entry.kind.as_str())),
-        // Asymmetric permutation: cause at shift 1, effect at shift 2
-        role_hv("cause").permute(CAUSE_SHIFT).bind(&text_hv(&parts.cause)),
-        role_hv("effect").permute(EFFECT_SHIFT).bind(&text_hv(&parts.effect)),
-        // Directional edge: separate permutation for cause vs effect
-        role_hv("causal_edge").bind(
-            &text_hv(&parts.cause).permute(CAUSE_SHIFT)
-                .bind(&text_hv(&parts.effect).permute(EFFECT_SHIFT)),
-        ),
-        role_hv("strength").bind(&strength_hv(parts.strength)),
-    ];
-
-    let refs: Vec<&HdcVector> = vectors.iter().collect();
-    HdcVector::bundle(&refs)
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 This ensures "high complexity -> more review" produces a **different** vector than "more review -> high complexity". The test confirms this:
 
@@ -253,31 +157,7 @@ fn directional_causal_encoding_distinguishes_reversal() {
 
 ### Causal Content Parsing
 
-```rust
-fn parse_causal_content(content: &str) -> Option<(String, String)> {
-    // Try arrow separators first
-    for separator in ["->", "=>", "\u{2192}"] {
-        if let Some((cause, effect)) = split_once_trimmed(content, separator) {
-            return Some((cause, effect));
-        }
-    }
-    // Then try natural language separators
-    for separator in [
-        " causes ", " caused ", " leads to ", " lead to ",
-        " results in ", " result in ", " triggers ", " trigger ",
-        " drives ", " drive ",
-    ] {
-        if let Some(idx) = content.to_ascii_lowercase().find(separator) {
-            let cause = content[..idx].trim().to_string();
-            let effect = content[idx + separator.len()..].trim().to_string();
-            if !cause.is_empty() && !effect.is_empty() {
-                return Some((cause, effect));
-            }
-        }
-    }
-    None
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ---
 
@@ -339,51 +219,7 @@ flowchart TB
 
 ### The ResonanceDetector
 
-```rust
-pub(crate) struct ResonanceDetector {
-    min_similarity: f64,   // Default: 0.526
-    max_results: usize,    // Default: 20
-}
-
-impl ResonanceDetector {
-    pub(crate) fn new() -> Self {
-        Self { min_similarity: 0.526, max_results: 20 }
-    }
-
-    /// Detect resonant pairs across knowledge domains. O(n^2) — suitable for up to ~10K entries.
-    pub(crate) fn detect_resonances(&self, entries: &[KnowledgeEntry]) -> Vec<ResonancePair> {
-        let encoder = KnowledgeHdcEncoder;
-        let encoded: Vec<(HdcVector, String)> = entries.iter()
-            .map(|e| {
-                let hv = encoder.encode_entry(e);
-                let domain = extract_domain(e);
-                (hv, domain)
-            })
-            .collect();
-
-        let mut pairs = Vec::new();
-        for i in 0..encoded.len() {
-            for j in (i + 1)..encoded.len() {
-                if encoded[i].1 == encoded[j].1 { continue; } // skip same-domain
-                let sim = f64::from(encoded[i].0.similarity(&encoded[j].0));
-                if sim >= self.min_similarity {
-                    pairs.push(ResonancePair {
-                        entry_a: entries[i].content.clone(),
-                        entry_b: entries[j].content.clone(),
-                        similarity: sim,
-                        domain_a: encoded[i].1.clone(),
-                        domain_b: encoded[j].1.clone(),
-                    });
-                }
-            }
-        }
-        pairs.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity)
-            .unwrap_or(std::cmp::Ordering::Equal));
-        pairs.truncate(self.max_results);
-        pairs
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 *Source: `crates/roko-neuro/src/hdc.rs`*
 
@@ -405,41 +241,11 @@ fingerprint(symbol) = bind(role_vector(kind), bundle(name_vector, context_vector
 
 **Role vectors** — one per symbol kind:
 
-```rust
-fn role_vector(kind: &SymbolKind) -> [u64; WORDS] {
-    let seed: &[u8] = match kind {
-        SymbolKind::Function => b"roko:role:function",
-        SymbolKind::Struct   => b"roko:role:struct",
-        SymbolKind::Enum     => b"roko:role:enum",
-        SymbolKind::Trait    => b"roko:role:trait",
-        SymbolKind::Const    => b"roko:role:const",
-        SymbolKind::Type     => b"roko:role:type",
-        SymbolKind::Module   => b"roko:role:module",
-        SymbolKind::Impl     => b"roko:role:impl",
-        _                    => b"roko:role:unknown",
-    };
-    vector_from_seed(seed)
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Name encoding via character trigrams** — captures sub-word structure:
 
-```rust
-fn encode_name(name: &str) -> [u64; WORDS] {
-    let chars: Vec<char> = name.chars().collect();
-    if chars.len() < 3 {
-        return vector_from_seed(name.as_bytes());
-    }
-    let trigrams: Vec<[u64; WORDS]> = chars
-        .windows(3)
-        .map(|w| {
-            let trigram: String = w.iter().collect();
-            vector_from_seed(trigram.as_bytes())
-        })
-        .collect();
-    bundle(&trigrams)
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 This means `parse_config` and `parse_input` share the trigrams "par", "ars", "rse", "se_" and will have moderate similarity. `parse_config` and `render_output` share no trigrams and will be quasi-orthogonal.
 
@@ -471,35 +277,7 @@ pub fn fingerprint_file(source: &SourceFile) -> HdcFingerprint {
 
 ### Integration into the Workspace Index
 
-```rust
-pub struct HdcQuery {
-    pub anchor: crate::hdc::HdcFingerprint,
-    pub min_similarity: f64,
-    pub max_results: usize,
-}
-
-impl CodeIndex {
-    pub fn hdc_search(&self, query: &HdcQuery) -> Vec<SearchResult> {
-        let mut results: Vec<SearchResult> = self.symbol_index.iter()
-            .filter_map(|(path, symbol, fingerprint)| {
-                let sim = query.anchor.similarity(fingerprint);
-                if sim >= query.min_similarity {
-                    Some(SearchResult {
-                        path: path.clone(),
-                        symbol: symbol.clone(),
-                        score: sim,
-                    })
-                } else {
-                    None
-                }
-            })
-            .collect();
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
-        results.truncate(query.max_results);
-        results
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 *Source: `crates/roko-index/src/workspace.rs`*
 
@@ -544,35 +322,7 @@ pub struct AntiKnowledgeConflict {
 
 When assembling context for an agent prompt, the knowledge store uses a weighted composite score where HDC similarity carries the highest weight:
 
-```rust
-/// Context assembly weights for scoring knowledge entries during retrieval.
-///
-/// Per spec:
-/// - HDC similarity: 40%
-/// - Pheromone/keyword weight: 30%
-/// - Predictive Foraging utility: 20%
-/// - Freshness/recency: 10%
-pub struct ContextAssemblyWeights {
-    pub hdc_similarity: f64,        // Default: 0.40
-    pub keyword_relevance: f64,     // Default: 0.30
-    pub pf_utility: f64,            // Default: 0.20
-    pub freshness: f64,             // Default: 0.10
-    pub cross_domain_bonus: f64,    // Default: 0.15
-    pub tier_injection: bool,       // Default: true
-}
-
-impl ContextAssemblyWeights {
-    pub fn composite(
-        &self, keyword: f64, hdc: f64, recency: f64, utility: f64, is_cross_domain: bool,
-    ) -> f64 {
-        let base = self.hdc_similarity * hdc
-            + self.keyword_relevance * keyword
-            + self.pf_utility * utility
-            + self.freshness * recency;
-        if is_cross_domain { base * (1.0 + self.cross_domain_bonus) } else { base }
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 *Source: `crates/roko-neuro/src/knowledge_store.rs`*
 
@@ -586,40 +336,7 @@ HDC similarity gets the plurality weight (40%) because it captures structural se
 
 **Problem**: A user runs `memory_write` twice with slightly different phrasings of the same fact.
 
-```rust
-fn deduplicate_before_write(
-    new_content: &str,
-    new_tags: &[String],
-    existing: &[(Uuid, Vec<u8>, String)], // (id, fingerprint_bytes, summary)
-) -> DeduplicationResult {
-    let new_hv = encode_memory(new_content, new_tags);
-
-    let mut best: Option<(Uuid, f32, String)> = None;
-    for (id, fp_bytes, summary) in existing {
-        if let Ok(bytes) = <[u8; 1280]>::try_from(fp_bytes.as_slice()) {
-            let existing_hv = HdcVector::from_bytes(&bytes);
-            let sim = new_hv.similarity(&existing_hv);
-            if sim > best.as_ref().map(|b| b.1).unwrap_or(0.0) {
-                best = Some((*id, sim, summary.clone()));
-            }
-        }
-    }
-
-    match best {
-        Some((id, sim, summary)) if sim >= 0.90 => DeduplicationResult::Duplicate {
-            existing_id: id,
-            similarity: sim,
-            message: format!("Near-identical memory exists (sim={:.3}): {}", sim, summary),
-        },
-        Some((id, sim, summary)) if sim >= 0.70 => DeduplicationResult::Similar {
-            existing_id: id,
-            similarity: sim,
-            message: format!("Similar memory exists (sim={:.3}): {}", sim, summary),
-        },
-        _ => DeduplicationResult::Novel,
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Validation targets with curated encoders**:
 - "Rust's borrow checker prevents data races" vs "The borrow checker in Rust ensures memory safety without data races" should score above the resonance threshold only if the encoder normalizes shared roles such as `rust`, `borrow_checker`, `memory_safety`, and `data_race`.
@@ -632,24 +349,7 @@ Plain `from_seed()` text hashing does not infer paraphrases by itself; semantic 
 
 **Problem**: Given a user message, select the most relevant SKILL.md files.
 
-```rust
-struct SkillIndex {
-    profiles: Vec<(String, HdcVector)>,  // (skill_id, fingerprint)
-}
-
-impl SkillIndex {
-    fn top_matches(&self, message: &str, k: usize) -> Vec<(&str, f32)> {
-        let query = text_hv(message);
-        let mut scored: Vec<(&str, f32)> = self.profiles.iter()
-            .map(|(id, fp)| (id.as_str(), query.similarity(fp)))
-            .collect();
-        scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-        scored.truncate(k);
-        // Filter out noise-level matches
-        scored.into_iter().filter(|(_, sim)| *sim > 0.52).collect()
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Expected behavior for "how do I fix a lifetime error in my Rust code?"**:
 - Rust lifetime and borrow-checker skills should outrank generic Rust or Python debugging skills when skill profiles include curated tags such as `rust`, `lifetime`, `borrow_checker`, and `compiler_error`.
@@ -659,30 +359,7 @@ impl SkillIndex {
 
 **Problem**: The heartbeat system receives messages from multiple channels. Routine messages should not trigger unnecessary processing.
 
-```rust
-struct NoveltyDetector {
-    context: DecayingBundleAccumulator,
-    context_fingerprint: Option<HdcVector>,
-    dirty: bool,
-}
-
-impl NoveltyDetector {
-    fn novelty_score(&mut self, message: &str) -> f32 {
-        if self.context.count == 0 {
-            return 1.0;
-        }
-        if self.dirty {
-            self.context_fingerprint = Some(self.context.finish());
-            self.dirty = false;
-        }
-        let context_fp = self.context_fingerprint.as_ref().unwrap();
-        let message_hv = text_hv(message);
-        let sim = message_hv.similarity(context_fp);
-        // High similarity to context → low novelty
-        (1.0 - (sim - 0.5).max(0.0) * 2.0).max(0.0)
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Example novelty scores** (decay_factor = 0.95, after observing 50 routine "build succeeded" messages):
 - "build succeeded" → novelty ≈ 0.02 (seen many times, very routine)
@@ -693,26 +370,7 @@ impl NoveltyDetector {
 
 **Problem**: Before proposing a new function, check whether a similar function already exists.
 
-```rust
-fn find_similar_functions(
-    new_fn: &Symbol,
-    new_fn_context: &str,
-    index: &CodeIndex,
-    threshold: f64,
-) -> Vec<SimilarityMatch> {
-    let new_fp = fingerprint_symbol(new_fn, new_fn_context.as_bytes());
-    let query = HdcQuery {
-        anchor: new_fp,
-        min_similarity: threshold,
-        max_results: 10,
-    };
-    index.hdc_search(&query).into_iter().map(|r| SimilarityMatch {
-        path: r.path,
-        symbol_name: r.symbol.name.clone(),
-        similarity: r.score,
-    }).collect()
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Concrete examples** (threshold = 0.55):
 - `fn parse_json_config(path: &str)` vs `fn parse_toml_config(path: &str)` → sim ≈ 0.64 (same structure, different format)

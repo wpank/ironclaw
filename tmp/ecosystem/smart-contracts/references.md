@@ -1,8 +1,8 @@
 # References
 
 Status: curated references for the NEAR-native smart contract notes in this
-folder. Links were checked for relevance while revising this folder on
-2026-07-03.
+folder. Verify the current standard, SDK version, and RPC behavior before
+implementing against any referenced protocol.
 
 Navigation: [README](./README.md) |
 [NEAR Contracts](./near-contracts.md) |

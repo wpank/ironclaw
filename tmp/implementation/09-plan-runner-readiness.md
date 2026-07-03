@@ -1,64 +1,55 @@
 # Plan Runner Readiness
 
-This supplemental note converts the captured plan catalog into execution
-readiness criteria for IronClaw-style automation.
+Plan-runner automation is useful only after the plan schema is strict and dry
+runs are reproducible.
 
-## 1. Plan Validation Command
+## Plan Validation
 
-```text
-ironclaw-plan validate tmp/implementation/benchmarking/scenarios/*.yaml
-ironclaw-plan validate captured-plan tasks.toml
-```
+Required fields per task:
 
-Required checks:
+- `id`
+- `tier`
+- `description`
+- `target_files`
+- `caller_boundary`
+- `feature_flag`
+- `verification_commands`
+- `rollback`
 
-- TOML parses.
-- every task has id, tier, description, target files, and verification commands.
-- dependency ids resolve.
-- no task writes outside allowed workspace.
-- anti-patterns and acceptance contracts are present for non-mechanical tasks.
+Reject plans with unknown fields, missing rollback, or target files outside the
+declared ownership scope.
 
-## 2. Dry Run Output
-
-```json
-{
-  "plan_id": "P19-cascade-router-acp",
-  "tasks": 8,
-  "waves": 3,
-  "blocked": [],
-  "estimated_files": [
-    "crates/ironclaw_llm/src/smart_routing.rs"
-  ],
-  "verification_commands": [
-    "cargo test -p ironclaw_llm cascade_router"
-  ]
-}
-```
-
-## 3. Execution Evidence
-
-Every executed plan should produce:
+## Dry Run Output
 
 ```text
-plan-run/
-  plan.toml
-  dry-run.json
-  execution-log.jsonl
-  gate-verdicts.jsonl
-  changed-files.txt
-  summary.md
+plan_id
+task_count
+owned_files
+feature_flags
+verification_commands
+estimated_runtime
+blocked_reasons
 ```
 
-## 4. Readiness Levels
+Dry run must not edit files, call live providers, or create DB rows.
+
+## Execution Evidence
+
+Each executed task records:
+
+- run id and task id;
+- files changed;
+- commands run and exit codes;
+- feature exposure and metric ids if applicable;
+- rollback command or flag value.
+
+## Readiness Levels
 
 | Level | Meaning |
-|---|---|
-| cataloged | plan is documented only |
-| schema-valid | plan parses and dependencies resolve |
-| dry-run-valid | waves, files, and verification commands are known |
-| executable | runner can execute tasks in a fixture workspace |
-| production-ready | rollback, gates, and artifacts are audited |
+| --- | --- |
+| 0 | plan parses only |
+| 1 | dry run resolves files and commands |
+| 2 | hermetic execution works with fixtures |
+| 3 | caller-level tests and rollback evidence captured |
 
-The captured plan catalog is a strong source of implementation patterns, but it
-should be treated as `cataloged` until an IronClaw-native runner validates and
-dry-runs a plan.
+Do not use plan-runner output as implementation evidence until level 3.

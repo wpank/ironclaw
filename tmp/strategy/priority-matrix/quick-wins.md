@@ -127,6 +127,10 @@ Do not:
 - Stop at unit tests for token trees.
 - Leave process cleanup to drop semantics.
 
-## Week-One Shape
+## First-Pass Shape
 
-For one developer, a realistic first week is PR 1, PR 2, and the metadata-only part of PR 3. PR 4 should wait until there is enough trace data or a representative harness. PR 6 is a quick win only if the test harness for subprocess cancellation already exists; otherwise treat it as a reliability mini-project.
+For one developer, a realistic first pass is PR 1, PR 2, and the metadata-only
+part of PR 3. PR 4 should wait until there is enough trace data or a
+representative harness. PR 6 is a quick win only if the test harness for
+subprocess cancellation already exists; otherwise treat it as a reliability
+mini-project.

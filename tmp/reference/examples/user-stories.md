@@ -1,8 +1,8 @@
 # User Stories
 
 These stories describe the user-visible reason to build each capability. The
-acceptance checks are intentionally phrased so they can become caller-level
-tests or benchmark fixture assertions.
+acceptance checks are phrased so they can become caller-level tests or
+benchmark fixture assertions.
 
 ## Individual User: Stop Repeating My Preferences
 

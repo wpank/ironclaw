@@ -1,8 +1,8 @@
 # v2 Implementation Summary
 
 This is the concise IronClaw implementation bridge for the captured Roko v2
-spec and v2-depth materials. It intentionally avoids live-source assumptions;
-captured paths are provenance labels.
+spec and v2-depth materials. It avoids external-source assumptions; captured
+paths are provenance labels.
 
 ## Translation Priorities
 

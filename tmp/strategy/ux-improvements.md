@@ -1,6 +1,9 @@
 # IronClaw UX Improvements
 
-This document distills captured Roko interface patterns into IronClaw UX work. It is not a request to copy Roko styling or structure. The goal is clearer feedback across REPL, TUI, and web while preserving IronClaw's current channel architecture.
+This document distills captured interface patterns into IronClaw UX work. It is
+not a request to copy external styling or structure. The goal is clearer
+feedback across REPL, TUI, and web while preserving IronClaw's current channel
+architecture.
 
 Primary IronClaw areas:
 
@@ -12,8 +15,8 @@ Primary IronClaw areas:
 
 ## Captured UX Lessons
 
-| Captured Roko pattern | Useful lesson for IronClaw |
-|-----------------------|----------------------------|
+| Captured pattern | Useful lesson for IronClaw |
+|------------------|----------------------------|
 | Shared CLI symbols | Use a small, consistent visual vocabulary for running, success, warning, error, tool, and gate states. |
 | Phase labels while streaming | Replace generic "thinking" with concrete phases such as planning, calling tool, waiting, verifying, summarizing. |
 | Collapsed tool calls | Show one concise line by default, with expandable details for arguments and output. |
@@ -26,7 +29,8 @@ Primary IronClaw areas:
 | Replay-aware SSE | Reconnect and replay are infrastructure concerns, not per-widget logic. |
 | Numbered setup wizard | Setup should show step count, validation result, and recovery path. |
 
-Captured path names are listed in [priority-matrix/references.md](priority-matrix/references.md).
+Captured source-path names are listed in
+[priority-matrix/references.md](priority-matrix/references.md) for provenance.
 
 ## Priority 1: REPL Feedback
 
@@ -107,7 +111,7 @@ Recommendations:
 
 Do not:
 
-- Port Roko's palette or theme names.
+- Port external palettes or theme names.
 - Add nested panels for simple single-turn interactions.
 
 Measurement:
@@ -186,9 +190,9 @@ Target pattern:
   next: inspect first compiler error
 ```
 
-## Captured Roko Context To Keep
+## Captured Context
 
-Keep:
+Use:
 
 - Consistent state symbols and labels.
 - Collapsed tool and gate displays.
@@ -196,10 +200,10 @@ Keep:
 - Replay-aware web transport.
 - Setup step numbering.
 
-Discard:
+Do not carry forward:
 
-- Roko branding, palette, and theme names.
-- Live upstream links.
+- External branding, palettes, and theme names.
+- Live source-repo links.
 - Full dashboard scope unless a current IronClaw workflow needs it.
 - Large copied code examples.
 

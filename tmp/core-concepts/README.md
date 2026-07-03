@@ -1,6 +1,6 @@
 # Core Concepts
 
-This category covers the foundational building blocks that underpin Roko's intelligence: a universal data representation, a fast similarity engine, the mathematical toolkit those systems rest on, and the architectural framework that ties them together. Everything else in this collection builds on the vocabulary established here.
+This category covers foundational concepts from the captured source corpus and translates them into IronClaw-native design options: a universal data representation, a fast similarity engine, supporting mathematical tools, and the architectural framework that ties them together. Captured `roko-*` paths are provenance labels only, not live checkout requirements.
 
 ## Documents
 

@@ -1,7 +1,7 @@
 # Cross-Reference Map
 
-This map connects the first analysis batch, the later deep dives, and the
-supplemental implementation layers.
+This map connects concept docs, implementation sketches, fixtures, and examples.
+It is a navigation aid, not proof that every referenced idea is implemented.
 
 | Primary doc | Must also read | Reason |
 |---|---|---|

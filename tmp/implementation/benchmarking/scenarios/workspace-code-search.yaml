@@ -2,11 +2,12 @@ schema_version: 1
 id: code_search.symbol_graph_rrf
 feature: workspace_code_search
 feature_flag_id: flag.workspace_code_search
+flag_default: "off"
 owner: src/workspace
 stage: local
 repetitions: 50
 input:
-  fixture_repo: polyglot_small
+  fixture_corpus: polyglot_small_synthetic
   query: "where is webhook signature validation performed?"
 mocked_dependencies:
   parser: fixture_tree_sitter
@@ -21,8 +22,17 @@ oracle:
     symbol: validate_webhook_secret
 expected_metrics:
   top5_symbol_recall_delta_min_pp: 15
+  top5_symbol_recall_min: 0.80
 guardrails:
   max_index_time_ms_per_kloc: 250
   max_memory_growth_pct: 20
+  forbid_private_path_in_metrics: true
+metric_bounds:
+  pct_values_min: 0
+  pct_values_max: 100
+  rate_values_min: 0.0
+  rate_values_max: 1.0
+  latency_ms_min: 0
 artifacts:
   retain_index_snapshot: true
+  retain_source_bodies: false

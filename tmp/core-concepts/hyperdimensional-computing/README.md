@@ -2,7 +2,7 @@
 
 **Source namespace**: captured `roko-primitives`, `roko-neuro`, and `roko-index` material.
 **Priority**: HIGH — optional structural similarity signal for memory, skill matching, and tool selection.
-**Status**: source-derived design proposal for IronClaw; performance and quality claims require local validation before rollout.
+**Status**: source-derived design proposal for IronClaw; captured paths are provenance labels only, and performance/quality claims require local validation before rollout.
 
 ---
 
@@ -10,7 +10,7 @@
 
 Hyperdimensional Computing (HDC), also known as Vector Symbolic Architectures (VSA), represents information as 10,240-bit binary vectors and manipulates them with four simple algebraic operations. It needs no model inference and uses bitwise CPU operations for comparison. The captured Roko baseline reports very low per-comparison latency; IronClaw should treat those numbers as benchmark targets until measured on its own CI and deployment hardware.
 
-The core insight: **in sufficiently high-dimensional spaces, random vectors are almost certainly near-orthogonal.** Any measured similarity significantly above 0.5 is therefore a genuine structural signal, not noise.
+The core insight: **in sufficiently high-dimensional spaces, random vectors are almost certainly near-orthogonal.** Similarity significantly above 0.5 is a candidate structural signal that still needs encoder and corpus validation.
 
 **What HDC is NOT**: HDC is not a neural network. It does not learn weights. It provides a **compositional algebra** for building structured representations from atomic symbols — like how arithmetic lets you compose numbers with +, −, ×.
 

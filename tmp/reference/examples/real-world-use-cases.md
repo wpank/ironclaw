@@ -33,7 +33,7 @@ Measurement:
 - Cost/request before and after.
 - User correction rate.
 - Fallback-to-primary rate.
-- p95 latency.
+- latency distribution.
 
 Benchmark fixture: [`tmp/implementation/benchmarking/scenarios/cascade-router.yaml`](../../implementation/benchmarking/scenarios/cascade-router.yaml).
 
@@ -62,7 +62,7 @@ IronClaw flow:
 Measurement:
 
 - Duplicate memory rate.
-- relevance@10 for memory search.
+- memory-search relevance.
 - Number of stale memories pruned or downweighted.
 
 Benchmark fixture: [`tmp/implementation/benchmarking/scenarios/memory-dedup.yaml`](../../implementation/benchmarking/scenarios/memory-dedup.yaml).
@@ -228,7 +228,7 @@ IronClaw flow:
 
 Measurement:
 
-- time to first useful retrieval.
+- time to useful retrieval.
 - repeated failure rate.
 - derived memory precision.
 - background cost.

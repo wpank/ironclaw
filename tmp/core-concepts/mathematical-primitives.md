@@ -3,7 +3,9 @@
 **Source provenance**: `roko-primitives` crate (`crates/roko-primitives/src/`)
 **Priority**: LOW for general use — HIGH for specialized analytics, loop detection, multi-source consistency
 **Relevant task identifiers**: TA-06 (manifolds), TA-09 (TDA), TA-10 (robust statistics), TA-13 (sheaves), TA-14 (tropical algebra)
-**GitHub source references**: ``crates/roko-primitives/src/``
+**Captured source identifiers**: `crates/roko-primitives/src/`
+
+Captured paths are provenance labels only. Rebuild any useful primitive as IronClaw-native code and validate claimed timings locally.
 
 ---
 
@@ -17,7 +19,7 @@
 6. [Tropical Algebra (Max-Plus Semiring)](#4-tropical-algebra-max-plus-semiring)
 7. [Robust Statistics](#5-robust-statistics)
 8. [Additional Primitives: HDC and Codebooks](#6-additional-primitives-hdc-and-codebooks)
-9. [IronClaw Full Integration Plan](#ironclaw-full-integration-plan)
+9. [IronClaw Integration Plan](#ironclaw-integration-plan)
 10. [Numerical Stability Analysis](#numerical-stability-analysis)
 11. [Complexity and Scalability Assessment](#complexity-and-scalability-assessment)
 12. [Related Documents](#related-documents)
@@ -84,7 +86,7 @@ roko-primitives crate
 
 ## 1. Topological Data Analysis (TDA)
 
-**GitHub source**: `crates/roko-primitives/src/tda.rs` (575 lines)
+**Captured source identifier**: `crates/roko-primitives/src/tda.rs`
 
 **What problem does TDA solve for an AI agent?** An agent stuck in a retry loop produces a time series of execution latencies that *looks* statistically normal — mean latency might be 200ms, variance might be low — but the agent is cycling through the same bad states over and over. TDA detects this by analyzing the *shape* of the data in phase space rather than its statistics. A retry loop leaves a topological fingerprint (a persistent 1-cycle) that neither mean nor variance can see.
 
@@ -135,25 +137,7 @@ Takens' Embedding Theorem (1981) [2] proves that this construction preserves the
 
 **Implementation** (lines 141–158 of tda.rs):
 
-```rust
-// `crates/roko-primitives/src/tda.rs`
-
-pub fn takens_embedding(series: &[f64], dim: usize, tau: usize) -> Vec<Vec<f64>> {
-    if dim == 0 || tau == 0 || series.len() < (dim - 1) * tau + 1 {
-        return Vec::new();
-    }
-    let n = series.len() - (dim - 1) * tau;
-    let mut points = Vec::with_capacity(n);
-    for i in 0..n {
-        let mut point = Vec::with_capacity(dim);
-        for d in 0..dim {
-            point.push(series[i + d * tau]);
-        }
-        points.push(point);
-    }
-    points
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### Simplicial Complexes and Persistent Homology
 
@@ -181,92 +165,11 @@ Points far from diagonal = genuine topological structure
 
 **Core data types** (lines 20–89):
 
-```rust
-// `crates/roko-primitives/src/tda.rs`
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct PersistencePoint {
-    pub birth: f64,
-    pub death: f64,
-    pub dimension: usize,  // 0 = connected component, 1 = loop, 2 = void
-}
-
-impl PersistencePoint {
-    pub fn persistence(&self) -> f64 { self.death - self.birth }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct PersistenceDiagram {
-    pub points: Vec<PersistencePoint>,
-}
-
-impl PersistenceDiagram {
-    pub fn points_at_dim(&self, dim: usize) -> Vec<&PersistencePoint> {
-        self.points.iter().filter(|p| p.dimension == dim).collect()
-    }
-    pub fn total_persistence(&self) -> f64 {
-        self.points.iter().map(|p| p.persistence()).sum()
-    }
-    pub fn max_persistence_at_dim(&self, dim: usize) -> f64 {
-        self.points_at_dim(dim).iter()
-            .map(|p| p.persistence())
-            .fold(0.0_f64, f64::max)
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Vietoris-Rips with Union-Find** (lines 184–409): The algorithm sorts all pairwise distances, then sweeps them in order. When an edge connects two separate components, they merge (H0 event). When an edge closes a cycle among already-connected points, a loop is born (H1 event). Union-Find with path compression makes the H0 tracking O(α(n)) per operation.
 
-```rust
-// `crates/roko-primitives/src/tda.rs`
-
-pub fn vietoris_rips(points: &[Vec<f64>], max_dim: usize) -> PersistenceDiagram {
-    let n = points.len();
-    if n == 0 { return PersistenceDiagram::default(); }
-
-    // Compute all pairwise distances — O(n²)
-    let dist = distance_matrix(points);
-
-    // Sort edges by distance — O(n² log n)
-    let mut edges: Vec<(f64, usize, usize)> = Vec::with_capacity(n * (n - 1) / 2);
-    for i in 0..n {
-        for j in (i + 1)..n { edges.push((dist[i][j], i, j)); }
-    }
-    edges.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
-
-    let mut diagram = PersistenceDiagram::default();
-    let mut uf = UnionFind::new(n);
-
-    for (epsilon, i, j) in &edges {
-        let epsilon = *epsilon;
-        if let Some((_, birth)) = uf.union(*i, *j, epsilon) {
-            // H0: two components merged
-            if epsilon > birth {
-                diagram.points.push(PersistencePoint { birth, death: epsilon, dimension: 0 });
-            }
-        } else if max_dim >= 1 {
-            // H1: edge creates a cycle — check if a triangle would kill it
-            let shared = (0..n).filter(|&k| k != *i && k != *j)
-                .find(|&k| dist[*i][k] <= epsilon && dist[*j][k] <= epsilon);
-            if shared.is_none() {
-                let kill_epsilon = edges.iter()
-                    .find(|(e2, a, b)| *e2 > epsilon &&
-                        ((*a == *i && dist[*b][*j] <= *e2) || (*b == *j && dist[*i][*a] <= *e2)))
-                    .map(|(e2, _, _)| *e2)
-                    .unwrap_or(epsilon * 2.0);
-                if kill_epsilon > epsilon {
-                    diagram.points.push(PersistencePoint {
-                        birth: epsilon, death: kill_epsilon, dimension: 1,
-                    });
-                }
-            }
-        }
-    }
-    let max_dist = edges.last().map(|(d, _, _)| *d).unwrap_or(1.0);
-    diagram.points.push(PersistencePoint { birth: 0.0, death: max_dist, dimension: 0 });
-    diagram
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Complexity**: O(n² log n) time, O(n²) space.
 
@@ -278,40 +181,7 @@ For rigorous treatment of persistent homology and its stability properties, see 
 
 For each persistence point `(b, d)`, the tent function `λ(t) = min(t - b, d - t)` creates a triangle with height `(d-b)/2`. The level-0 landscape is the maximum tent function value at each parameter value.
 
-```rust
-// `crates/roko-primitives/src/tda.rs`
-
-pub fn persistence_landscape(
-    diagram: &PersistenceDiagram,
-    dim: usize,
-    resolution: usize,
-) -> Vec<f64> {
-    let points: Vec<&PersistencePoint> = diagram.points_at_dim(dim);
-    if points.is_empty() || resolution == 0 {
-        return vec![0.0; resolution];
-    }
-    let min_birth = points.iter().map(|p| p.birth).fold(f64::INFINITY, f64::min);
-    let max_death = points.iter().map(|p| p.death).fold(f64::NEG_INFINITY, f64::max);
-    if (max_death - min_birth).abs() < f64::EPSILON {
-        return vec![0.0; resolution];
-    }
-    let step = (max_death - min_birth) / resolution as f64;
-    (0..resolution).map(|k| {
-        let t = min_birth + (k as f64 + 0.5) * step;
-        points.iter()
-            .map(|p| if t >= p.birth && t <= p.death { (t - p.birth).min(p.death - t) } else { 0.0 })
-            .fold(0.0_f64, f64::max)
-    }).collect()
-}
-
-pub fn landscape_distance(a: &[f64], b: &[f64]) -> f64 {
-    let n = a.len().min(b.len());
-    let sum_sq: f64 = (0..n).map(|i| (a[i] - b[i]).powi(2)).sum();
-    let extra_a: f64 = a[n..].iter().map(|x| x.powi(2)).sum();
-    let extra_b: f64 = b[n..].iter().map(|x| x.powi(2)).sum();
-    (sum_sq + extra_a + extra_b).sqrt()
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Bottleneck distance** (lines 95–128): The maximum over all matched pairs of L∞ distance, for when you need the stability-theorem-compatible distance between two diagrams. Use landscape distance for monitoring (fast, statistical); use bottleneck distance for anomaly classification (theoretically grounded).
 
@@ -356,93 +226,11 @@ An AI agent stuck in a retry loop generates latency traces with a topological si
 
 **Complete implementation**:
 
-```rust
-use roko_primitives::tda::{takens_embedding, vietoris_rips};
-
-#[derive(Debug, Clone)]
-pub enum AgentBehavior {
-    Normal,
-    PossibleLoop { loop_strength: f64 },
-    Converging,
-    Diverging { complexity: f64 },
-    InsufficientData,
-}
-
-/// Analyze recent agent turn latencies for behavioral anomalies using TDA.
-///
-/// Requires at least 20 data points. Pure function: no I/O, no side effects.
-/// Total cost for n=30: < 0.1 ms. Safe to call inline in the agent loop.
-///
-/// Integration: call from src/agent/session.rs or src/observability/
-/// after each agent turn.
-pub fn detect_agent_behavior(turn_latencies: &[f64]) -> AgentBehavior {
-    const LOOP_THRESHOLD: f64 = 0.3;
-    const CONVERGENCE_THRESHOLD: f64 = 0.05;
-
-    if turn_latencies.len() < 20 {
-        return AgentBehavior::InsufficientData;
-    }
-
-    // Normalize to [0, 1] for scale-invariant topology
-    let min_val = turn_latencies.iter().cloned().fold(f64::INFINITY, f64::min);
-    let max_val = turn_latencies.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
-    let range = (max_val - min_val).max(f64::EPSILON);
-    let normalized: Vec<f64> = turn_latencies.iter()
-        .map(|&x| (x - min_val) / range)
-        .collect();
-
-    // Step 1: Embed into 2D phase space
-    let embedded = takens_embedding(&normalized, 2, 3);
-    if embedded.is_empty() { return AgentBehavior::InsufficientData; }
-
-    // Step 2: Persistent homology
-    let diagram = vietoris_rips(&embedded, 1);
-
-    // Step 3: H1 persistence > threshold = loop
-    let h1_max = diagram.max_persistence_at_dim(1);
-    if h1_max > LOOP_THRESHOLD {
-        return AgentBehavior::PossibleLoop { loop_strength: h1_max };
-    }
-
-    // Step 4: Low avg H0 = converging (data clusters tightly)
-    let h0_features = diagram.points_at_dim(0);
-    if !h0_features.is_empty() {
-        let avg_h0 = h0_features.iter().map(|p| p.persistence()).sum::<f64>()
-            / h0_features.len() as f64;
-        if avg_h0 < CONVERGENCE_THRESHOLD {
-            return AgentBehavior::Converging;
-        }
-    }
-
-    // Step 5: High total persistence = diverging
-    let total = diagram.total_persistence();
-    if total > LOOP_THRESHOLD * h0_features.len() as f64 * 2.0 {
-        return AgentBehavior::Diverging { complexity: total };
-    }
-
-    AgentBehavior::Normal
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Integration in `src/agent/session.rs`**:
 
-```rust
-// After each turn:
-let recent_latencies: Vec<f64> = self.turn_log.last_n(30)
-    .map(|t| t.duration_ms as f64)
-    .collect();
-
-match detect_agent_behavior(&recent_latencies) {
-    AgentBehavior::PossibleLoop { loop_strength } => {
-        debug!("TDA: H1 persistence={:.3} — possible retry loop", loop_strength);
-        // Trigger intervention: break the loop, change strategy
-    }
-    AgentBehavior::Converging => {
-        debug!("TDA: agent converging, H0 features shrinking");
-    }
-    _ => {}
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Why does this work for retry loops?** A simple two-point alternation is better detected as a periodicity/regime-switch signal than as meaningful persistent H1 topology. TDA becomes useful when the embedded trace visits three or more recurring states, such as `[100, 250, 180, 100, 250, 180, ...]`, where the delay embedding forms a loop-like point cloud. Keep a simpler periodicity check beside TDA for binary alternation.
 
@@ -473,7 +261,7 @@ match detect_agent_behavior(&recent_latencies) {
 
 ## 2. Cellular Sheaves
 
-**GitHub source**: `crates/roko-primitives/src/sheaf.rs` (789 lines)
+**Captured source identifier**: `crates/roko-primitives/src/sheaf.rs`
 
 **What problem does this solve for an AI agent?** When multiple information sources (web search, file reads, LLM reasoning, memory recall) contribute knowledge to a task, they sometimes contradict each other. Pairwise comparison finds *that* two sources disagree but cannot say *which* is the outlier when a contradiction is transitive (A agrees with B, B agrees with C, but A contradicts C). The sheaf Laplacian identifies the structural outlier using the global consistency of the entire network simultaneously.
 
@@ -498,68 +286,7 @@ Pairwise comparison finds A vs D disagree on `correctness`. But it doesn't tell 
 
 **Restriction maps**: Each edge has two restriction maps projecting each oracle's predictions into a shared "comparison space" — the dimensions where they overlap.
 
-```rust
-// `crates/roko-primitives/src/sheaf.rs`
-
-pub type NodeId = u32;
-
-/// A linear map between vector spaces (stored row-major).
-#[derive(Debug, Clone)]
-pub struct RestrictionMap {
-    pub rows: usize,
-    pub cols: usize,
-    pub data: Vec<f64>,
-}
-
-impl RestrictionMap {
-    pub fn identity(dim: usize) -> Self {
-        let mut data = vec![0.0; dim * dim];
-        for i in 0..dim { data[i * dim + i] = 1.0; }
-        Self { rows: dim, cols: dim, data }
-    }
-
-    /// Projection onto selected indices: projection(4, &[0, 2]) extracts
-    /// components 0 and 2 from a 4D vector.
-    pub fn projection(vertex_dim: usize, indices: &[usize]) -> Self {
-        let edge_dim = indices.len();
-        let mut data = vec![0.0; edge_dim * vertex_dim];
-        for (row, &col) in indices.iter().enumerate() {
-            if col < vertex_dim { data[row * vertex_dim + col] = 1.0; }
-        }
-        Self { rows: edge_dim, cols: vertex_dim, data }
-    }
-
-    pub fn apply(&self, v: &[f64]) -> Vec<f64> {
-        assert_eq!(v.len(), self.cols);
-        let mut out = vec![0.0; self.rows];
-        for i in 0..self.rows {
-            for j in 0..self.cols {
-                out[i] += self.data[i * self.cols + j] * v[j];
-            }
-        }
-        out
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct CellularSheaf {
-    stalk_dims: HashMap<NodeId, usize>,
-    edges: Vec<SheafEdge>,
-}
-
-impl CellularSheaf {
-    pub fn add_vertex(&mut self, node: NodeId, dim: usize) {
-        self.stalk_dims.insert(node, dim);
-    }
-
-    /// Convenience: identity edge between two vertices of the same dimension.
-    pub fn add_identity_edge(&mut self, src: NodeId, tgt: NodeId) {
-        let dim = *self.stalk_dims.get(&src).expect("source vertex not found");
-        let map = RestrictionMap::identity(dim);
-        self.edges.push(SheafEdge { src, tgt, map_src: map.clone(), map_tgt: map });
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### The Coboundary Operator and Inconsistency Score
 
@@ -582,53 +309,7 @@ Edges:  A-B, B-C, A-C (all identity maps, dimension 2)
 Inconsistency score = 324 / 204 ≈ 1.59 — very high; C is the outlier.
 ```
 
-```rust
-// `crates/roko-primitives/src/sheaf.rs`
-// Lines 330-367
-
-impl CellularSheaf {
-    /// Scale-invariant inconsistency score: ‖δs‖² / ‖s‖²
-    /// Returns 0.0 for perfectly consistent predictions.
-    pub fn inconsistency_score(
-        &self,
-        predictions: &HashMap<NodeId, Vec<f64>>,
-    ) -> Option<f64> {
-        let nodes = self.ordered_nodes();
-        let n = self.total_vertex_dim();
-
-        // Flatten predictions into concatenated section vector
-        let mut section = vec![0.0_f64; n];
-        for &node in &nodes {
-            let pred = predictions.get(&node)?;
-            let offset = self.stalk_offset(&nodes, node);
-            section[offset..offset + pred.len()].copy_from_slice(pred);
-        }
-
-        let s_norm_sq: f64 = section.iter().map(|x| x * x).sum();
-        if s_norm_sq < f64::EPSILON { return Some(0.0); }
-
-        let (delta, n_rows, n_cols) = self.coboundary_matrix();
-        let mut ds = vec![0.0_f64; n_rows];
-        for i in 0..n_rows {
-            for j in 0..n_cols {
-                ds[i] += delta[i * n_cols + j] * section[j];
-            }
-        }
-
-        let ds_norm_sq: f64 = ds.iter().map(|x| x * x).sum();
-        Some(ds_norm_sq / s_norm_sq)
-    }
-
-    /// Returns (NodeId, fraction_of_total_inconsistency) for the outlier source.
-    /// Uses per-vertex Laplacian energy: sᵀ(Ls) restricted to each vertex's stalk block.
-    pub fn most_inconsistent(
-        &self,
-        predictions: &HashMap<NodeId, Vec<f64>>,
-    ) -> Option<(NodeId, f64)> {
-        // ... builds Laplacian, computes L*s, returns vertex with max energy contribution
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **The sheaf Laplacian** L = δᵀδ is symmetric positive-semidefinite. Its minimum eigenvalue reveals whether *any* consistent section exists:
 - `λ_min = 0.0`: A globally consistent section exists — all sources can agree in principle.
@@ -655,66 +336,7 @@ flowchart TD
 
 ### Practical Application: Multi-Source Verification
 
-```rust
-use roko_primitives::sheaf::CellularSheaf;
-use std::collections::HashMap;
-
-pub enum ConsistencyResult {
-    Consistent,
-    Inconsistent { score: f64, outlier_source: u32, outlier_fraction: f64 },
-    StructuralContradiction { score: f64, min_eigenvalue: f64 },
-}
-
-/// Check consistency of claims from multiple information sources.
-///
-/// Each source provides an equal-dimensional vector of confidence-weighted
-/// fact assertions: e.g., [factual_accuracy, completeness, relevance].
-///
-/// Integration: call from src/workspace/ when aggregating search results.
-pub fn check_source_consistency(
-    sources: &[(u32, Vec<f64>)],
-    inconsistency_threshold: f64,
-) -> ConsistencyResult {
-    if sources.is_empty() { return ConsistencyResult::Consistent; }
-
-    let dim = sources[0].1.len();
-    let mut sheaf = CellularSheaf::new();
-    for (i, _) in sources.iter().enumerate() { sheaf.add_vertex(i as u32, dim); }
-    for i in 0..sources.len() {
-        for j in (i + 1)..sources.len() {
-            sheaf.add_identity_edge(i as u32, j as u32);
-        }
-    }
-
-    let mut predictions = HashMap::new();
-    for (i, (_, facts)) in sources.iter().enumerate() {
-        predictions.insert(i as u32, facts.clone());
-    }
-
-    let score = match sheaf.inconsistency_score(&predictions) {
-        Some(s) => s,
-        None => return ConsistencyResult::Consistent,
-    };
-
-    if score < inconsistency_threshold { return ConsistencyResult::Consistent; }
-
-    let (outlier_idx, fraction) = match sheaf.most_inconsistent(&predictions) {
-        Some(r) => r,
-        None => return ConsistencyResult::Consistent,
-    };
-
-    let min_eig = min_eigenvalue(&sheaf).unwrap_or(0.0);
-    if min_eig > 0.01 {
-        return ConsistencyResult::StructuralContradiction { score, min_eigenvalue: min_eig };
-    }
-
-    ConsistencyResult::Inconsistent {
-        score,
-        outlier_source: sources[outlier_idx as usize].0,
-        outlier_fraction: fraction,
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### Sheaf Benchmarking
 
@@ -732,7 +354,7 @@ For n nodes with stalk dimension d (total dimension N = n*d):
 
 ## 3. Riemannian Geometry
 
-**GitHub source**: `crates/roko-primitives/src/manifold.rs` (828 lines)
+**Captured source identifier**: `crates/roko-primitives/src/manifold.rs`
 
 **What problem does this solve for an AI agent?** When an agent needs to change its LLM configuration (temperature, token budget, context window, tool budget), the cheapest path is not a straight line through parameter space — because configuration costs are non-linear. Doubling temperature more than doubles unpredictability. The Riemannian metric encodes these non-linear costs, and geodesic computation finds the minimum-disruption path between two configurations.
 
@@ -754,66 +376,7 @@ where Γᵏᵢⱼ are the **Christoffel symbols** encoding how the metric bends 
 
 ### Key API
 
-```rust
-// `crates/roko-primitives/src/manifold.rs`
-
-const DIM: usize = 4;
-pub type Point = [f64; DIM];
-
-pub struct MetricTensor {
-    metric_fn: Box<dyn Fn(&Point) -> [[f64; 4]; 4] + Send + Sync>,
-}
-
-impl MetricTensor {
-    /// Euclidean (flat) metric — straight-line paths are optimal.
-    pub fn flat() -> Self { /* identity matrix everywhere */ }
-
-    /// Cost metric for IronClaw configuration space:
-    /// - Temperature: quadratic cost (volatile at extremes)
-    /// - Max tokens: linear cost
-    /// - Context window: linear cost
-    /// - Tool budget: quadratic cost (expensive at high usage)
-    pub fn execution_cost() -> Self {
-        Self::new(|x: &Point| {
-            mat4_diag(&[
-                1.0 + x[0] * x[0],       // temperature: quadratic
-                1.0 + x[1].abs() * 0.01, // max tokens: linear
-                1.0 + x[2].abs() * 0.001,// context: linear
-                1.0 + x[3] * x[3] * 0.1, // tool budget: quadratic
-            ])
-        })
-    }
-}
-
-/// Integrate a geodesic using 4th-order Runge-Kutta.
-///
-/// Returns a sequence of (position, velocity) pairs along the geodesic.
-/// On flat metric: straight line. On execution_cost(): path bends away
-/// from high-cost configuration regions.
-pub fn geodesic_rk4(
-    metric: &MetricTensor,
-    start: Point,
-    velocity: Point,  // initial direction and speed
-    steps: usize,     // 100 is typical
-    dt: f64,          // step size (0.01 for steps=100)
-    h: f64,           // finite-difference step for Christoffel (1e-5)
-) -> Vec<GeodesicPoint> { /* RK4 integration */ }
-
-/// Find minimum-disruption path from current to target configuration.
-/// Returns 10 intermediate waypoints to apply gradually.
-///
-/// Integration: call from src/agent/ when task context changes significantly.
-pub fn optimal_config_transition(
-    current: Point,
-    target: Point,
-    metric: &MetricTensor,
-) -> Vec<Point> {
-    let mut velocity = [0.0_f64; DIM];
-    for i in 0..DIM { velocity[i] = (target[i] - current[i]) / 100.0; }
-    let path = geodesic_rk4(metric, current, velocity, 100, 0.01, 1e-5);
-    path.iter().step_by(10).map(|gp| gp.position).collect()
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Frechet mean** (lines 494–556): The intrinsic average on the manifold — minimizes sum of squared geodesic distances. For flat space it equals the arithmetic mean; for curved space it accounts for curvature. Uses gradient descent with shrinking step size `1 / (1 + iter * 0.1)` for convergence. See `frechet_mean()`.
 
@@ -849,13 +412,13 @@ flowchart TD
 
 ## 4. Tropical Algebra (Max-Plus Semiring)
 
-**GitHub source**: `crates/roko-primitives/src/tropical.rs` (698 lines)
+**Captured source identifier**: `crates/roko-primitives/src/tropical.rs`
 
 **What problem does this solve for an AI agent?** Piecewise-linear decision functions — "which tool to use?", "which model to pick?" — have exact, analyzable decision boundaries. Tropical algebra makes these boundaries explicit, and the adversarial distance tells you how robust a given decision is: how much you would need to perturb the input to flip the selection to a different tool or model.
 
 ### The Max-Plus Semiring
 
-**What this means**: Tropical algebra replaces standard arithmetic with two operations: max (plays the role of addition) and standard addition (plays the role of multiplication). This shift from smooth operations to piecewise-linear ones makes every tropical polynomial exactly a max-over-affine-functions — and that is precisely the form of a ReLU neural network decision function [12].
+**What this means**: Tropical algebra replaces standard arithmetic with two operations: max (plays the role of addition) and standard addition (plays the role of multiplication). This shift from smooth operations to piecewise-linear ones makes every tropical polynomial a max-over-affine-functions — and that is precisely the form of a ReLU neural network decision function [12].
 
 ```
 Tropical addition:       a (trop+) b = max(a, b)
@@ -885,131 +448,21 @@ You need a perturbation of magnitude 2.0 to flip the decision.
 
 ### Implementation
 
-```rust
-// `crates/roko-primitives/src/tropical.rs`
-// Lines 38-99
-
-use std::ops::{Add, Mul};
-
-#[derive(Clone, Copy, Debug)]
-pub struct TropicalF64(pub f64);
-
-impl TropicalF64 {
-    pub const ZERO: Self = Self(f64::NEG_INFINITY);
-    pub const ONE: Self = Self(0.0);
-    pub fn is_zero(&self) -> bool { self.0 == f64::NEG_INFINITY }
-    /// Tropical exponentiation: a^n = n*a (standard multiplication).
-    pub fn trop_pow(self, n: i32) -> Self {
-        if self.is_zero() { return Self::ZERO; }
-        Self(self.0 * n as f64)
-    }
-}
-
-/// Tropical addition: max(a, b)
-impl Add for TropicalF64 {
-    type Output = Self;
-    fn add(self, rhs: Self) -> Self { Self(self.0.max(rhs.0)) }
-}
-
-/// Tropical multiplication: a + b (standard), with -inf absorption
-impl Mul for TropicalF64 {
-    type Output = Self;
-    fn mul(self, rhs: Self) -> Self {
-        if self.is_zero() || rhs.is_zero() { return Self::ZERO; }
-        Self(self.0 + rhs.0)
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### Tropical Polynomials and Active Terms
 
-```rust
-// `crates/roko-primitives/src/tropical.rs`
-
-#[derive(Debug, Clone)]
-pub struct TropicalTerm {
-    pub coefficient: TropicalF64,
-    pub exponents: Vec<i32>,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct TropicalPolynomial {
-    pub terms: Vec<TropicalTerm>,
-}
-
-impl TropicalPolynomial {
-    pub fn evaluate(&self, point: &[TropicalF64]) -> TropicalF64 {
-        let mut result = TropicalF64::ZERO;
-        for term in &self.terms {
-            let mut val = term.coefficient;
-            for (exp, x) in term.exponents.iter().zip(point.iter()) {
-                val = val * x.trop_pow(*exp);
-            }
-            result = result + val;  // tropical add = max
-        }
-        result
-    }
-
-    /// Which linear piece is active at this point?
-    pub fn active_term(&self, point: &[TropicalF64]) -> Option<usize> { /* argmax */ }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### Tropical Attention (Hardmax)
 
 **What this means**: Standard softmax attention blends all keys with soft probabilities — smooth, but not interpretable. Tropical (hardmax) attention selects the single best-matching key. The score gap to the second-best key equals twice the adversarial distance.
 
-```rust
-// `crates/roko-primitives/src/tropical.rs`
-// Lines 341-377
-
-/// Tropical (hardmax) attention: select the key with highest dot product + value bias.
-/// Returns (best_score, best_key_index).
-pub fn tropical_attention(
-    q: &[f64],
-    keys: &[Vec<f64>],
-    values: &[f64],
-) -> (f64, usize) {
-    assert!(!keys.is_empty() && keys.len() == values.len());
-    let mut best_val = f64::NEG_INFINITY;
-    let mut best_idx = 0;
-    for (j, key) in keys.iter().enumerate() {
-        let score = q.iter().zip(key.iter()).map(|(a, b)| a * b).sum::<f64>() + values[j];
-        if score > best_val { best_val = score; best_idx = j; }
-    }
-    (best_val, best_idx)
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### Adversarial Distance
 
-```rust
-// `crates/roko-primitives/src/tropical.rs`
-// Lines 387-416
-
-/// Minimum L-inf perturbation needed to flip which term wins in a tropical polynomial.
-///
-/// This is the distance from the current point to the nearest decision boundary
-/// (the tropical hypersurface where two terms tie).
-/// Returns None if fewer than 2 finite-valued terms.
-pub fn adversarial_distance(poly: &TropicalPolynomial, point: &[TropicalF64]) -> Option<f64> {
-    let mut scores: Vec<f64> = poly.terms.iter()
-        .map(|term| {
-            let mut val = term.coefficient.0;
-            for (exp, x) in term.exponents.iter().zip(point.iter()) {
-                if x.is_zero() { return f64::NEG_INFINITY; }
-                val += (*exp as f64) * x.0;
-            }
-            val
-        })
-        .collect();
-    scores.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
-    if scores.len() < 2 || !scores[0].is_finite() || !scores[1].is_finite() {
-        return None;
-    }
-    Some((scores[0] - scores[1]) / 2.0)
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 From Zhang et al. [12] and Alfarra et al. [16]:
 > "Decision boundaries of ReLU networks are tropical hypersurfaces formed by the union of zonotope convex hulls. Adversarial examples live on or near these hypersurfaces."
@@ -1037,30 +490,7 @@ flowchart LR
 
 ### Practical Application: Tool Dispatch Robustness
 
-```rust
-/// Analyze robustness of tool selection at the current input.
-/// Low adversarial distance = fragile selection = require higher confidence threshold.
-///
-/// Integration: call from src/tools/dispatch.rs before dispatching
-/// a high-stakes tool call.
-pub fn tool_dispatch_robustness_check(
-    input_features: &[f64],
-    tool_biases: &[f64],
-    tool_feature_weights: &[Vec<f64>],
-) -> f64 {
-    let poly = TropicalPolynomial {
-        terms: tool_biases.iter()
-            .zip(tool_feature_weights.iter())
-            .map(|(&bias, weights)| TropicalTerm {
-                coefficient: TropicalF64(bias),
-                exponents: weights.iter().map(|&w| w as i32).collect(),
-            })
-            .collect(),
-    };
-    let trop_input: Vec<TropicalF64> = input_features.iter().map(|&x| TropicalF64(x)).collect();
-    adversarial_distance(&poly, &trop_input).unwrap_or(0.0)
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### Tropical Benchmarking
 
@@ -1078,7 +508,7 @@ pub fn tool_dispatch_robustness_check(
 
 ## 5. Robust Statistics
 
-**GitHub source**: `crates/roko-primitives/src/robust_stats.rs` (169 lines)
+**Captured source identifier**: `crates/roko-primitives/src/robust_stats.rs`
 
 **What problem does this solve for an AI agent?** Standard metrics are fragile: one 30-second network timeout makes the mean latency useless for SLO monitoring. One anomalous LLM call inflates variance estimates. Robust statistics maintains accurate aggregate metrics even when a significant fraction of observations are corrupted or adversarial.
 
@@ -1099,26 +529,7 @@ Outliers in AI agent systems come from network timeouts, model retries, adversar
 
 **Breakdown point**: equal to the trim fraction α.
 
-```rust
-// `crates/roko-primitives/src/robust_stats.rs`
-// Lines 18-36
-
-/// Trimmed mean with breakdown point = trim_pct.
-/// trim_pct: fraction to trim from EACH end (0.0 to 0.499).
-pub fn trimmed_mean(values: &[f64], trim_pct: f64) -> Option<f64> {
-    if values.is_empty() { return None; }
-    let trim_pct = trim_pct.clamp(0.0, 0.499);
-    let mut sorted = values.to_vec();
-    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    let n = sorted.len();
-    let trim_count = (n as f64 * trim_pct).floor() as usize;
-    let lo = trim_count;
-    let hi = n.saturating_sub(trim_count);
-    if lo >= hi { return None; }
-    let trimmed = &sorted[lo..hi];
-    Some(trimmed.iter().sum::<f64>() / trimmed.len() as f64)
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Worked example**:
 ```
@@ -1136,27 +547,7 @@ mean      = 201.8  (catastrophically wrong)
 
 The constant 1.4826 is `1 / Phi^-1(3/4)` where `Phi^-1` is the standard normal quantile function. This makes MAD an unbiased estimator of σ for normally distributed data.
 
-```rust
-// `crates/roko-primitives/src/robust_stats.rs`
-// Lines 46-54
-
-/// MAD with 50% breakdown point.
-/// Consistency factor 1.4826 makes MAD approximately equal to std_dev for Gaussian data.
-pub fn mad(values: &[f64]) -> Option<f64> {
-    if values.is_empty() { return None; }
-    let med = median(values)?;
-    let abs_devs: Vec<f64> = values.iter().map(|x| (x - med).abs()).collect();
-    Some(median(&abs_devs)? * 1.4826)
-}
-
-/// Flag observations as anomalous: |x - median| > k * MAD.
-/// For k=3, this approximates a 3-sigma test but is robust to outliers.
-pub fn mad_anomalies(values: &[f64], k: f64) -> Vec<bool> {
-    let med = match median(values) { Some(m) => m, None => return vec![] };
-    let scale = match mad(values) { Some(m) => m, None => return vec![false; values.len()] };
-    values.iter().map(|&x| (x - med).abs() > k * scale).collect()
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Worked example with outlier**:
 ```
@@ -1170,24 +561,7 @@ std_dev = ~446   (destroyed)
 
 **What this means**: The median of all pairwise averages `(x_i + x_j)/2`. Achieves **96% asymptotic efficiency** relative to the arithmetic mean for Gaussian data while maintaining a **29.3% breakdown point**. This is the best efficiency-robustness tradeoff available for a location estimator.
 
-```rust
-// `crates/roko-primitives/src/robust_stats.rs`
-// Lines 62-74
-
-/// Hodges-Lehmann: median of all pairwise averages.
-/// Breakdown point: 29.3%. Efficiency: 96% vs arithmetic mean. Complexity: O(n^2 log n).
-pub fn hodges_lehmann(values: &[f64]) -> Option<f64> {
-    if values.is_empty() { return None; }
-    let n = values.len();
-    let mut pairwise: Vec<f64> = Vec::with_capacity(n * (n + 1) / 2);
-    for i in 0..n {
-        for j in i..n {
-            pairwise.push((values[i] + values[j]) / 2.0);
-        }
-    }
-    median(&pairwise)
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Use `hodges_lehmann` when**: aggregating estimates from multiple providers where each could be adversarially manipulated. `trimmed_mean` is sufficient for single-source outlier resistance.
 
@@ -1206,43 +580,7 @@ pub fn hodges_lehmann(values: &[f64]) -> Option<f64> {
 
 ### Practical Application: Robust LLM Cost Estimation
 
-```rust
-use roko_primitives::robust_stats::{trimmed_mean, mad, hodges_lehmann, median};
-
-/// Robust EMA update that resists timeout spikes.
-///
-/// Replaces standard EMA's single "last observation" with a trimmed mean
-/// of the recent window, filtering extreme values before feeding the EMA.
-///
-/// Integration: replace EMA updates in src/estimation/ with this function.
-/// For trend-aware forecasting, combine with Holt smoothing from
-/// ../execution-verification/conductor-anomaly.md (Section 8).
-pub fn robust_ema_update(
-    current_ema: f64,
-    recent_observations: &[f64],
-    alpha: f64,
-    trim_pct: f64,
-) -> f64 {
-    let robust_input = trimmed_mean(recent_observations, trim_pct)
-        .unwrap_or(current_ema);
-    current_ema * (1.0 - alpha) + robust_input * alpha
-}
-
-/// Anomaly detection for LLM response latencies using MAD.
-pub fn is_latency_anomalous(latency_ms: f64, recent_latencies: &[f64], k: f64) -> bool {
-    let Some(med) = median(recent_latencies) else { return false; };
-    let Some(scale) = mad(recent_latencies) else { return false; };
-    (latency_ms - med).abs() > k * scale
-}
-
-/// Aggregate cost estimates from multiple providers using Hodges-Lehmann.
-/// Resists adversarially inflated estimates from compromised providers.
-/// Falls back to median for fewer than 3 providers.
-pub fn aggregate_cost_estimates(provider_estimates: &[f64]) -> Option<f64> {
-    if provider_estimates.len() < 3 { return median(provider_estimates); }
-    hodges_lehmann(provider_estimates)
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Concrete impact** — 30-second window with one network timeout:
 
@@ -1294,7 +632,7 @@ A 10,240-bit binary vector (`[u64; 160]`, 1,280 bytes, `Copy`, stack-allocated) 
 - **Bundle** (majority vote): Superposition of multiple concepts.
 - **Similarity** (normalized Hamming distance): [0.0, 1.0]; random vectors score ~0.5, identical score 1.0.
 
-Performance: `~5 ns` for bind (160 XOR instructions), `~50 ns` for similarity (XOR + hardware POPCNT on x86/ARM).
+Captured performance target: `~5 ns` for bind and `~50 ns` for similarity on suitable CPU paths. Re-measure before using these values in IronClaw planning.
 
 ### Codebook and PatternStore (`codebook.rs`, 544 lines)
 
@@ -1310,7 +648,7 @@ Three-tier model routing: T0 (suppress, no LLM call), T1 (Haiku-class), T2 (Opus
 
 ---
 
-## IronClaw Full Integration Plan
+## IronClaw Integration Plan
 
 ### Integration Architecture Diagram
 
@@ -1406,51 +744,7 @@ pub fn fuse_relevance_scores(scores_per_backend: &[Vec<f64>]) -> Vec<f64> {
 
 New module `src/observability/tda_monitor.rs`:
 
-```rust
-use roko_primitives::tda::{
-    takens_embedding, vietoris_rips, bottleneck_distance, PersistenceDiagram,
-};
-
-pub struct TdaMonitorConfig {
-    pub min_window_size: usize,         // default: 20
-    pub tau: usize,                      // default: 3
-    pub loop_threshold: f64,             // default: 0.3 (H1 persistence)
-    pub convergence_threshold: f64,      // default: 0.05 (avg H0)
-    pub regime_change_threshold: f64,    // default: 0.5 (bottleneck distance)
-}
-
-pub struct TdaMonitor {
-    config: TdaMonitorConfig,
-    diagram_history: Vec<PersistenceDiagram>,
-    metric_window: Vec<f64>,
-}
-
-impl TdaMonitor {
-    /// Record a new turn metric. Returns behavioral assessment when enough data is available.
-    /// Auto-bounds the sliding window to 2x min_window_size.
-    pub fn record(&mut self, metric: f64) -> Option<AgentBehavior> {
-        self.metric_window.push(metric);
-        let max_window = self.config.min_window_size * 2;
-        if self.metric_window.len() > max_window {
-            let drain = self.metric_window.len() - max_window;
-            self.metric_window.drain(0..drain);
-        }
-        if self.metric_window.len() < self.config.min_window_size { return None; }
-        self.analyze()
-    }
-}
-
-// Integration in src/agent/session.rs:
-// let mut monitor = TdaMonitor::new(TdaMonitorConfig::default());
-// After each turn:
-// if let Some(behavior) = monitor.record(turn_latency_ms) {
-//     match behavior {
-//         AgentBehavior::PossibleLoop { .. } => debug!("TDA: retry loop detected"),
-//         AgentBehavior::RegimeChange { .. } => debug!("TDA: regime change"),
-//         _ => {}
-//     }
-// }
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### Tier 3: Sheaf Consistency
 

@@ -18,20 +18,20 @@ This document explains the Model Context Protocol (MCP), the Agent Client Protoc
 6. [Transport Layer: Three Implementations](#6-transport-layer-three-implementations)
 7. [OAuth 2.1 Authentication](#7-oauth-21-authentication)
 8. [The McpClientStore: Multi-Tenant Safety](#8-the-mcpclientstore-multi-tenant-safety)
-9. [MCP 2025-11-25: Latest Specification Features](#9-mcp-2025-11-25-latest-specification-features)
-10. [MCP 2026 Release Candidate: Stateless Core and Extensions](#10-mcp-2026-release-candidate-stateless-core-and-extensions)
+9. [MCP 2025-11-25 Compatibility Notes](#9-mcp-2025-11-25-compatibility-notes)
+10. [MCP 2026-Era Proposals: Stateless Core and Extensions](#10-mcp-2026-era-proposals-stateless-core-and-extensions)
 11. [The ACP Protocol: Agent-to-Editor Communication (Zed ACP)](#11-the-acp-protocol-agent-to-editor-communication-zed-acp)
-12. [Roko ACP: Multi-Agent Workflow Layer](#12-roko-acp-multi-agent-workflow-layer)
+12. [Captured Workflow ACP: Multi-Agent Coordination Layer](#12-captured-workflow-acp-multi-agent-coordination-layer)
 13. [ACP Workflow Pipeline State Machine](#13-acp-workflow-pipeline-state-machine)
 14. [ACP Streaming Session Updates](#14-acp-streaming-session-updates)
 15. [ACP Permission-Based Action Gates](#15-acp-permission-based-action-gates)
-16. [The Five Roko MCP Crates](#16-the-five-roko-mcp-crates)
+16. [Captured MCP Component Set](#16-captured-mcp-component-set)
 17. [Builtin Tool System](#17-builtin-tool-system)
 18. [Editor Integration: VS Code, Zed, and JetBrains](#18-editor-integration-vs-code-zed-and-jetbrains)
 19. [Practical Editor Integration Workflows](#19-practical-editor-integration-workflows)
 20. [Exposing IronClaw Tools as an MCP Server](#20-exposing-ironclaw-tools-as-an-mcp-server)
 21. [Benchmarking: Protocol Overhead Measurement](#21-benchmarking-protocol-overhead-measurement)
-22. [Full Implementation Plan for IronClaw](#22-full-implementation-plan-for-ironclaw)
+22. [Candidate Implementation Plan for IronClaw](#22-candidate-implementation-plan-for-ironclaw)
 23. [ACP vs MCP Comparison](#23-acp-vs-mcp-comparison)
 24. [Specification References](#24-specification-references)
 25. [Related Documents](#25-related-documents)
@@ -42,9 +42,9 @@ This document explains the Model Context Protocol (MCP), the Agent Client Protoc
 
 ### The Model Context Protocol (MCP)
 
-MCP is an open standard published by Anthropic that defines how AI assistants connect to external tool servers. It was released in November 2024 and its specification is maintained at https://modelcontextprotocol.io/specification/2025-11-25.
+MCP is an open standard for connecting AI assistants to external tool servers. Use the versioned specification that matches the server and client under test; this document uses IronClaw's current client surface and versioned examples as reference material.
 
-MCP answers a specific question: how should an LLM discover what external tools exist, and how should it call them? Prior to MCP, every AI product built bespoke integrations — a GitHub plugin, a Notion plugin, a filesystem plugin — each with its own API surface, authentication scheme, and error model. MCP standardizes all of this into a JSON-RPC 2.0 wire protocol that any language can implement.
+MCP answers a specific question: how should an LLM discover what external tools exist, and how should it call them? Prior integrations often used bespoke API surfaces, authentication schemes, and error models. MCP standardizes that interaction as a JSON-RPC 2.0 wire protocol that any language can implement.
 
 The protocol version IronClaw implements is `2024-11-05`, defined in `src/tools/mcp/protocol.rs`:
 
@@ -53,9 +53,7 @@ The protocol version IronClaw implements is `2024-11-05`, defined in `src/tools/
 pub const PROTOCOL_VERSION: &str = "2024-11-05";
 ```
 
-The 2025-11-25 revision is the current stable specification. The 2026 release candidate (locked May 21, 2026; shipping July 28, 2026) introduces a stateless protocol core, the Extensions framework, the Tasks extension, MCP Apps, and authorization hardening. These are covered in Sections 9 and 10.
-
-The MCP ecosystem has grown from roughly 100 servers at launch in November 2024 to over 19,831 on Glama's registry by March 2026, making it the dominant protocol for AI tool integration.
+Later MCP revisions and proposals add features beyond IronClaw's current client. Treat Sections 9 and 10 as versioned compatibility notes and verify the live specification before implementation.
 
 ### The Agent Client Protocol (ACP)
 
@@ -113,8 +111,8 @@ graph TB
     end
 
     subgraph External MCP Servers
-        HT --> |HTTPS| GH[GitHub MCP Server]
-        HT --> |HTTPS + OAuth| NO[Notion MCP Server]
+        HT --> |HTTPS| GH[Hosted MCP Server]
+        HT --> |HTTPS + OAuth| NO[OAuth MCP Server]
         ST --> |subprocess| FS[Filesystem MCP Server]
         UT --> |socket| LC[Local Custom Server]
     end
@@ -797,7 +795,7 @@ sequenceDiagram
     IC->>IC: Generate PKCE code_verifier + code_challenge (SHA-256)
     IC->>U: Open browser to authorization_endpoint?...&code_challenge=...
     U->>AS: User authenticates and approves
-    AS-->>U: Redirect to http://localhost:{port}/callback?code=...
+    AS-->>U: Redirect to configured loopback callback with code
     U->>IC: HTTP callback received on local listener
 
     IC->>AS: POST token_endpoint {code, code_verifier, ...}
@@ -834,9 +832,9 @@ mcp_{server_name}_access_token
 mcp_{server_name}_refresh_token
 ```
 
-For example, a server named `notion` stores:
-- `mcp_notion_access_token`
-- `mcp_notion_refresh_token`
+For example, a server named `docs` stores:
+- `mcp_docs_access_token`
+- `mcp_docs_refresh_token`
 
 The factory uses these keys to detect existing tokens:
 
@@ -879,7 +877,7 @@ flowchart TD
     I --> D
 ```
 
-The custom-Authorization-header short-circuit prevents DCR (Dynamic Client Registration) side effects when the user has manually configured a static token. This is tested by factory regression tests in `src/tools/mcp/factory.rs` (bug `nearai/ironclaw#1948`).
+The custom-Authorization-header short-circuit prevents DCR (Dynamic Client Registration) side effects when the user has manually configured a static token. Keep a factory regression test for this path so static-token configuration does not trigger unexpected registration side effects.
 
 ---
 
@@ -929,9 +927,9 @@ The canonical JSON serialization sorts object keys recursively so `{"a":1,"b":2}
 
 ---
 
-## 9. MCP 2025-11-25: Latest Specification Features
+## 9. MCP 2025-11-25 Compatibility Notes
 
-The 2025-11-25 specification (current stable, at https://modelcontextprotocol.io/specification/2025-11-25) adds several capabilities beyond what IronClaw currently implements:
+The 2025-11-25 specification adds several capabilities beyond what IronClaw currently implements. Verify the live spec and server behavior before advertising any capability:
 
 ### Client Features (Server-Initiated)
 
@@ -943,11 +941,11 @@ The 2025-11-25 specification (current stable, at https://modelcontextprotocol.io
   "id": 5,
   "method": "elicitation/create",
   "params": {
-    "message": "Please provide your GitHub personal access token",
+    "message": "Please choose the project scope for this tool call",
     "requestedSchema": {
       "type": "object",
       "properties": {
-        "token": { "type": "string", "format": "password" }
+        "project": { "type": "string" }
       }
     }
   }
@@ -1013,13 +1011,13 @@ Tool `inputSchema` now supports JSON Schema 2020-12 features, including `$defs`,
 
 ---
 
-## 10. MCP 2026 Release Candidate: Stateless Core and Extensions
+## 10. MCP 2026-Era Proposals: Stateless Core and Extensions
 
-The 2026-07-28 release candidate (locked May 21, 2026; shipping July 28, 2026) represents the most significant architectural change since MCP's launch. Source: [MCP 2026-07-28 Release Candidate](https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/).
+The captured notes reference 2026-era MCP proposals around stateless core behavior, extensions, tasks, app surfaces, and authorization hardening. Treat this section as compatibility planning until the relevant version is finalized and supported by the servers IronClaw needs to interoperate with.
 
 ### Stateless Protocol Core
 
-The most significant change: MCP is now stateless at the protocol layer. The `initialize` handshake and `Mcp-Session-Id` header that previously pinned clients to specific server instances are replaced with per-request metadata. This enables horizontal scaling with a plain round-robin load balancer — no sticky sessions, no shared session stores.
+The proposed change: MCP becomes stateless at the protocol layer. The `initialize` handshake and `Mcp-Session-Id` header used by older servers would be replaced or reduced by per-request metadata. This can simplify horizontal scaling, but IronClaw should negotiate the session model per server version instead of assuming one model globally.
 
 **Impact on IronClaw**: `McpSessionManager` in `src/tools/mcp/session.rs` and the `Mcp-Session-Id` capture logic in `src/tools/mcp/http_transport.rs` become compatibility shims for legacy servers. New servers implementing the 2026 spec will not require them. A version negotiation step during `initialize` should select the appropriate session model.
 
@@ -1089,9 +1087,9 @@ Servers can ship interactive HTML interfaces rendered in sandboxed iframes. UI a
 
 **Impact on IronClaw**: The gateway web UI (`crates/ironclaw_gateway/`) could render MCP App iframes for servers that provide them.
 
-### Authorization Hardening (2026)
+### Authorization Hardening
 
-Six improvements align MCP with OAuth 2.0 and OpenID Connect:
+Candidate improvements align MCP with OAuth 2.0 and OpenID Connect:
 1. Validate `iss` parameter per RFC 9207
 2. Declare `application_type` during Dynamic Client Registration
 3. Bind credentials to specific authorization servers
@@ -1099,11 +1097,11 @@ Six improvements align MCP with OAuth 2.0 and OpenID Connect:
 5. Mandate OAuth 2.1 (removes implicit flow, PKCE required)
 6. Deprecate stateful initialization (reduces attack surface)
 
-IronClaw's existing `src/tools/mcp/auth.rs` PKCE implementation is already aligned with points 3 and 5.
+IronClaw's existing `src/tools/mcp/auth.rs` PKCE implementation is relevant to credential binding and PKCE requirements, but compatibility should be tested against the final spec.
 
-### Deprecated Features (2026)
+### Features to Treat as Compatibility-Only
 
-The 2026 spec formally deprecates:
+The captured proposal treats these features as deprecated or compatibility-only:
 - **Roots** — servers querying client filesystem roots
 - **Sampling** — servers requesting client-side LLM invocations
 - **Logging** — `logging/setLevel` capability
@@ -1191,8 +1189,16 @@ The editor passes available MCP server endpoints so the agent can use them witho
 ```json
 {
   "mcpServers": [
-    { "name": "github", "url": "https://mcp.github.com", "token": "..." },
-    { "name": "filesystem", "command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "/project"] }
+    {
+      "name": "code-hosting",
+      "url": "https://mcp.example.invalid",
+      "credentialRef": "mcp_code_hosting"
+    },
+    {
+      "name": "filesystem",
+      "command": "mcp-filesystem-server",
+      "args": ["--root", "/project"]
+    }
   ]
 }
 ```
@@ -1243,27 +1249,18 @@ The editor passes available MCP server endpoints so the agent can use them witho
 
 ### Ecosystem Adoption
 
-| Agent | ACP support |
-|-------|-------------|
-| Gemini CLI | Native via `--acp` flag |
-| Claude Code | Via `claude-agent-acp` adapter |
-| OpenAI Codex | Via `codex-acp` adapter |
-| IronClaw | Not yet (Phase 2b target — see Section 22) |
-
-| Editor | ACP support |
-|--------|-------------|
-| Zed | Native (built ACP) |
-| VS Code | Via extension (in progress) |
-| JetBrains (IntelliJ, PyCharm, WebStorm) | Via partnership with Zed (announced Oct 2025) |
-| Neovim | Via plugin |
+ACP client and adapter support changes quickly. Treat editor and agent support
+as an implementation-time compatibility check, not a stable claim in this
+design note. For IronClaw, ACP remains a candidate adapter surface described in
+Section 22.
 
 ---
 
-## 12. Roko ACP: Multi-Agent Workflow Layer
+## 12. Captured Workflow ACP: Multi-Agent Coordination Layer
 
-ACP (Agent Communication Protocol) in the captured workflow source is a higher-level workflow protocol distinct from the editor ACP above. It extends MCP's tool invocation model with session lifecycle, workflow state, streaming events, and permission gates.
+ACP (Agent Communication Protocol) in the captured workflow source is a higher-level workflow protocol distinct from the editor ACP above. It extends MCP's tool invocation model with session lifecycle, workflow state, streaming events, and permission gates. In IronClaw, this should be an adapter/facade over the existing agent runner and approval path, not a replacement agent loop.
 
-### Roko ACP Core Concepts
+### Captured Workflow ACP Core Concepts
 
 | Concept | Description |
 |---------|-------------|
@@ -1273,7 +1270,7 @@ ACP (Agent Communication Protocol) in the captured workflow source is a higher-l
 | Event | A streaming update sent over SSE to the client |
 | Artifact | A named output produced by a workflow step |
 
-### Roko ACP Session Lifecycle
+### Captured Workflow ACP Session Lifecycle
 
 ```mermaid
 stateDiagram-v2
@@ -1293,7 +1290,7 @@ stateDiagram-v2
     Active --> [*] : DELETE /sessions/{id}
 ```
 
-### Roko ACP Wire Types
+### Captured Workflow ACP Wire Types
 
 ACP uses JSON-RPC 2.0 with extended method names:
 
@@ -1311,7 +1308,7 @@ ACP uses JSON-RPC 2.0 with extended method names:
 {"jsonrpc":"2.0","method":"session.event","params":{"type":"step_completed","step_id":"s1","artifacts":[...]}}
 ```
 
-### Roko ACP JSON-RPC Request Types
+### Captured Workflow ACP JSON-RPC Request Types
 
 ```rust
 // Roko reference: `crates/roko-acp/src/types.rs`
@@ -1351,7 +1348,7 @@ pub enum AcpErrorCode {
 
 ## 13. ACP Workflow Pipeline State Machine
 
-Roko ACP workflows are directed graphs of steps. Each step has a type, inputs, and optional gate requirements.
+Captured workflow ACP examples model workflows as directed graphs of steps. In IronClaw, graph execution should submit work through the existing agent/runtime boundary and reuse the existing tool, checkpoint, gate, retry, and completion paths.
 
 ### Step Types
 
@@ -1474,7 +1471,7 @@ A code review workflow submitted via ACP:
 
 ## 14. ACP Streaming Session Updates
 
-Roko ACP uses Server-Sent Events (SSE) for real-time streaming from agent to client. Events are sent on a long-lived GET connection established by the client.
+The captured workflow ACP uses Server-Sent Events (SSE) for real-time streaming from agent to client. Events are sent on a long-lived GET connection established by the client.
 
 ### SSE Event Types
 
@@ -1536,7 +1533,7 @@ async fn stream_acp_events(&self, session_id: &str)
 
 ## 15. ACP Permission-Based Action Gates
 
-Gates are the mechanism by which Roko ACP enforces human-in-the-loop control over sensitive operations. When a workflow step requires a gate, execution pauses at that step and a `gate_opened` event is delivered to the client.
+Gates are the mechanism by which the captured workflow ACP enforces human-in-the-loop control over sensitive operations. When a workflow step requires a gate, execution pauses at that step and a `gate_opened` event is delivered to the client.
 
 ### Gate Classification
 
@@ -1593,9 +1590,9 @@ IronClaw's tool annotations already carry this information via `McpToolAnnotatio
 
 ---
 
-## 16. The Five Roko MCP Crates
+## 16. Captured MCP Component Set
 
-The captured MCP implementation is split across five source identifiers:
+The captured MCP implementation is split across these source identifiers. They are provenance labels, not required IronClaw crate boundaries:
 
 ### Crate 1: roko-mcp-types
 
@@ -1688,7 +1685,9 @@ pub enum ServerTransport {
 
 ### Crate 4: roko-acp
 
-The Agent Communication Protocol implementation built on top of MCP.
+The captured Agent Communication Protocol implementation built on top of MCP.
+This is source provenance only; IronClaw should not copy the workflow queue as a
+separate execution loop.
 
 Reference: `crates/roko-acp/src/lib.rs`
 
@@ -1703,7 +1702,7 @@ pub struct AcpServer {
 pub struct AcpSession {
     pub id: SessionId,
     pub state: RwLock<SessionState>,
-    pub workflow_queue: Arc<WorkflowQueue>,
+    pub workflow_queue: Arc<WorkflowQueue>, // captured shape, not an IronClaw runner
     pub event_tx: broadcast::Sender<AcpEvent>,
     pub client_capabilities: ClientCapabilities,
 }
@@ -1845,9 +1844,9 @@ Or for the HTTP transport with an already-running IronClaw daemon:
 {
   "context_servers": {
     "ironclaw": {
-      "url": "http://localhost:7832/mcp",
+      "url": "<configured-mcp-http-url>",
       "headers": {
-        "Authorization": "Bearer ${IRONCLAW_API_KEY}"
+        "Authorization": "Bearer ${IRONCLAW_MCP_TOKEN}"
       }
     }
   }
@@ -1869,9 +1868,9 @@ For ACP (the richer agent integration), Zed launches IronClaw as an ACP subproce
 }
 ```
 
-### JetBrains Integration
+### Other Editor Integrations
 
-JetBrains announced partnership with Zed in October 2025 to bring ACP to IntelliJ IDEA, PyCharm, and WebStorm. The JetBrains integration follows the same ACP subprocess model:
+Any editor integration that supports an ACP-style subprocess can use the same basic launch model. Verify the editor's current ACP support and security model before documenting a product-specific setup:
 
 ```json
 // .idea/agents.json
@@ -1980,12 +1979,12 @@ sequenceDiagram
     participant IC as IronClaw
     participant MS as New MCP Server
 
-    Dev->>IC: ironclaw mcp add --name notion --url https://mcp.notion.com
+    Dev->>IC: ironclaw mcp add --name docs --url https://mcp.example.invalid
 
     IC->>MS: GET /.well-known/oauth-authorization-server
     MS-->>IC: {authorization_endpoint, token_endpoint}
 
-    IC->>Dev: "Open browser to authorize Notion access"
+    IC->>Dev: "Open browser to authorize server access"
     Dev->>MS: Authorize in browser
     MS-->>IC: OAuth callback with code
 
@@ -1993,10 +1992,10 @@ sequenceDiagram
     MS-->>IC: {capabilities: {tools: {listChanged: true}}, serverInfo: {...}}
 
     IC->>MS: tools/list
-    MS-->>IC: {tools: [{name:"notion_search_pages", ...}, ...]}
+    MS-->>IC: {tools: [{name:"docs_search", ...}, ...]}
 
-    Note over IC: 12 tools registered in ToolRegistry
-    IC-->>Dev: "Notion connected. 12 tools available."
+    Note over IC: discovered tools registered in ToolRegistry
+    IC-->>Dev: "MCP server connected."
 ```
 
 ### Workflow 5: Background Heartbeat with Editor Notification
@@ -2012,13 +2011,13 @@ sequenceDiagram
 
     HB->>IC: heartbeat triggered
     IC->>IC: memory_search("recent project changes")
-    IC->>MS: tools/call {name:"github_list_prs", state:"open"}
-    MS-->>IC: [{"title":"Fix MCP session isolation", "state":"open"}]
+    IC->>MS: tools/call {name:"list_open_items", state:"open"}
+    MS-->>IC: [{"title":"Review pending integration change", "state":"open"}]
 
-    Note over IC: PR needs reviewer
-    IC->>IC: memory_write("PR #1234 open: MCP session isolation fix")
+    Note over IC: item needs reviewer
+    IC->>IC: memory_write("Open item needs review")
 
-    IC->>Ed: message {channel:"vscode", text:"PR #1234 needs review"}
+    IC->>Ed: message {channel:"editor", text:"Open item needs review"}
     Ed->>Dev: Notification toast in VS Code
 ```
 
@@ -2051,7 +2050,7 @@ async fn mcp_handler(
     State(state): State<Arc<McpServerState>>,
     auth: McpAuthContext,
     Json(request): Json<McpRequest>,
-) -> Json<McpResponse> {
+) -> Result<Json<McpResponse>, McpServerError> {
     let user_id = state.auth.require_user(&auth)?;
     match request.method.as_str() {
         "initialize" => {
@@ -2067,12 +2066,12 @@ async fn mcp_handler(
                 }),
                 instructions: Some("IronClaw AI assistant tools".to_string()),
             };
-            Json(McpResponse {
+            Ok(Json(McpResponse {
                 jsonrpc: "2.0".to_string(),
                 id: request.id,
-                result: Some(serde_json::to_value(result).unwrap()),
+                result: Some(to_json_or_error(result)?),
                 error: None,
-            })
+            }))
         }
         "tools/list" => {
             let tools: Vec<McpTool> = state.tool_registry
@@ -2086,45 +2085,49 @@ async fn mcp_handler(
                 })
                 .collect();
             let result = ListToolsResult { tools };
-            Json(McpResponse {
+            Ok(Json(McpResponse {
                 jsonrpc: "2.0".to_string(),
                 id: request.id,
-                result: Some(serde_json::to_value(result).unwrap()),
+                result: Some(to_json_or_error(result)?),
                 error: None,
-            })
+            }))
         }
         "tools/call" => {
-            let params = request.params.unwrap_or_default();
-            let tool_name = params["name"].as_str().unwrap_or("");
-            let arguments = params["arguments"].clone();
-            let ctx = JobContext::for_user(&state.user_id);
+            let Some(params) = request.params else {
+                return Ok(Json(invalid_params(request.id, "missing params")));
+            };
+            let Some(tool_name) = params.get("name").and_then(|v| v.as_str()) else {
+                return Ok(Json(invalid_params(request.id, "missing tool name")));
+            };
+            let arguments = params.get("arguments").cloned().unwrap_or_default();
+            let ctx = JobContext::for_user(&user_id);
 
             // MUST go through ToolDispatcher — never state.workspace or store directly
             match state.dispatcher.dispatch(tool_name, arguments, &ctx).await {
                 Ok(output) => {
                     let content = vec![ContentBlock::Text { text: output.content }];
                     let result = CallToolResult { content, is_error: false };
-                    Json(McpResponse {
+                    Ok(Json(McpResponse {
                         jsonrpc: "2.0".to_string(),
                         id: request.id,
-                        result: Some(serde_json::to_value(result).unwrap()),
+                        result: Some(to_json_or_error(result)?),
                         error: None,
-                    })
+                    }))
                 }
                 Err(e) => {
                     let content = vec![ContentBlock::Text { text: e.to_string() }];
                     let result = CallToolResult { content, is_error: true };
-                    Json(McpResponse {
+                    Ok(Json(McpResponse {
                         jsonrpc: "2.0".to_string(),
                         id: request.id,
-                        result: Some(serde_json::to_value(result).unwrap()),
+                        result: Some(to_json_or_error(result)?),
                         error: None,
-                    })
+                    }))
                 }
             }
         }
         _ => {
-            Json(McpResponse {
+            Ok(Json(McpResponse {
                 jsonrpc: "2.0".to_string(),
                 id: request.id,
                 result: None,
@@ -2133,7 +2136,7 @@ async fn mcp_handler(
                     message: "Method not found".to_string(),
                     data: None,
                 }),
-            })
+            }))
         }
     }
 }
@@ -2155,8 +2158,8 @@ pub struct McpServerArgs {
     #[arg(long, default_value = "stdio")]
     pub mode: McpServerMode,
 
-    /// HTTP bind address (for --mode http)
-    #[arg(long, default_value = "127.0.0.1:7832")]
+    /// HTTP bind address (for --mode http). Default should come from config.
+    #[arg(long)]
     pub bind: String,
 }
 
@@ -2169,15 +2172,15 @@ pub enum McpServerMode { Stdio, Http }
 
 ### What to Measure
 
-| Metric | Description | Target |
-|--------|-------------|--------|
-| Initialization latency | Time from first `initialize` to `initialized_notification` | < 100ms (HTTP), < 50ms (stdio) |
-| Tool discovery time | Time for `tools/list` with 50 tools | < 200ms |
-| Tool invocation RTT | Round-trip for `tools/call` on simple tool | < 50ms (local) |
-| Session establishment | Time to create a usable MCP session | < 150ms |
-| SSE event lag | Time from tool completion to event delivery | < 20ms |
-| OAuth token refresh | Full PKCE refresh cycle | < 2000ms |
-| Multi-tenant isolation overhead | Delta when 10 users share server | < 5% |
+| Metric | Description | Required report fields |
+|--------|-------------|------------------------|
+| Initialization latency | Time from first `initialize` to `initialized_notification` | transport, server type, p50/p95/p99 |
+| Tool discovery time | Time for `tools/list` at representative tool counts | tool count, schema size, p50/p95/p99 |
+| Tool invocation RTT | Round-trip for `tools/call` on simple and realistic tools | transport, payload bytes, p50/p95/p99 |
+| Session establishment | Time to create a usable MCP session | stateful/stateless model, auth mode |
+| SSE event lag | Time from tool completion to event delivery | server flush behavior, proxy path |
+| OAuth token refresh | Full refresh path | provider, network, retry behavior |
+| Multi-tenant isolation overhead | Delta when multiple users share server config | user count, lock contention, cache hit rate |
 
 ### Benchmark Harness
 
@@ -2190,7 +2193,7 @@ use tokio::runtime::Runtime;
 use crate::tools::mcp::{McpClient, McpSessionManager, McpProcessManager};
 
 fn bench_initialize_handshake(c: &mut Criterion) {
-    let rt = Runtime::new().unwrap();
+    let rt = Runtime::new().expect("benchmark runtime");
     let server_url = rt.block_on(spawn_echo_mcp_server());
 
     c.bench_function("mcp_initialize_http", |b| {
@@ -2201,23 +2204,23 @@ fn bench_initialize_handshake(c: &mut Criterion) {
                 let config = McpServerConfig::new("bench", &server_url);
                 let client = create_client_from_config(
                     config, &session_manager, &process_manager, None, "bench-user"
-                ).await.unwrap();
-                black_box(client.initialize().await.unwrap());
+                ).await.expect("benchmark client");
+                black_box(client.initialize().await.expect("initialize"));
             });
         });
     });
 }
 
 fn bench_multi_tenant_isolation(c: &mut Criterion) {
-    let rt = Runtime::new().unwrap();
+    let rt = Runtime::new().expect("benchmark runtime");
     let manager = McpSessionManager::new();
-    let server_name = McpServerName::new("bench").unwrap();
+    let server_name = McpServerName::new("bench").expect("valid server name");
     let num_users = 100;
 
     rt.block_on(async {
         for i in 0..num_users {
             manager.get_or_create(
-                &format!("user-{}", i), &server_name, "http://localhost"
+                &format!("user-{}", i), &server_name, "https://mcp.example.invalid"
             ).await;
         }
     });
@@ -2241,35 +2244,18 @@ criterion_group!(benches, bench_initialize_handshake, bench_multi_tenant_isolati
 criterion_main!(benches);
 ```
 
-### Expected Results (reference hardware: M2 MacBook Pro)
+### Reporting Guidance
 
-| Benchmark | Expected P50 | Expected P99 |
-|-----------|-------------|-------------|
-| HTTP initialize | 45ms | 120ms |
-| Stdio initialize | 18ms | 45ms |
-| `tools/list` (50 tools) | 8ms | 25ms |
-| `tools/call` (echo) | 3ms | 12ms |
-| Session `get_or_create` | 2µs | 8µs |
-| Session `update_id` | 2µs | 8µs |
-| 100-user lookup | 180µs | 400µs |
-| Surface signature (50 tools) | 35µs | 80µs |
-
-### Protocol Overhead vs Direct API Calls
-
-MCP adds approximately:
-- **1 round-trip initialization**: one-time cost amortized across all tool calls in a session
-- **JSON-RPC framing**: ~200 bytes overhead per request/response
-- **Session header forwarding**: ~50 bytes per request
-
-For a typical agent that makes 20 tool calls per turn, the per-turn protocol overhead is:
-- HTTP transport: ~4ms total (20 x 0.2ms framing)
-- Stdio transport: ~1ms total (20 x 0.05ms framing)
-
-This is negligible compared to LLM inference time (typically 2-30 seconds).
+Do not publish expected latency, throughput, or overhead numbers until they are
+measured on the target hardware and transport. Report raw samples, p50/p95/p99,
+payload sizes, server implementation, authentication mode, and whether the
+session model is stateful or stateless. For overhead comparisons, include the
+direct-call baseline, JSON-RPC payload bytes, initialization cost, and any
+session or authorization headers.
 
 ---
 
-## 22. Full Implementation Plan for IronClaw
+## 22. Candidate Implementation Plan for IronClaw
 
 ### Phase 1: Enhanced MCP Client (Immediate)
 
@@ -2379,12 +2365,12 @@ Do not advertise `sampling` in `initialize` until the handler exists and all app
 
 #### 1.4 Server-Name Newtype Hardening
 
-`McpServerConfig.name` is still a `String`. Converting to `McpServerName` throughout eliminates an entire class of allowlist bypass bugs. The factory already validates through `McpServerName::new` — the remaining work is annotated `// TODO(type-safety PR 4 of 4)` in `src/tools/mcp/factory.rs`:
+`McpServerConfig.name` is still a `String`. Converting to `McpServerName` throughout eliminates an entire class of allowlist bypass bugs. The factory already validates through `McpServerName::new`; the remaining work is the final type-safety migration in `src/tools/mcp/factory.rs`:
 
 ```rust
 // Current (partial migration):
 pub struct McpServerConfig {
-    pub name: String,  // TODO: change to McpServerName
+    pub name: String,  // planned: change to McpServerName
     ...
 }
 
@@ -2478,133 +2464,48 @@ pub async fn run_acp_stdio_loop(
 ) -> Result<(), AcpError> {
     let stdin = tokio::io::BufReader::new(tokio::io::stdin());
     let stdout = tokio::io::stdout();
-    // JSON-RPC 2.0 dispatch loop over stdin/stdout
-    // For each turn/start: run agent loop, stream turn/event notifications
-    // On completion: send turn/complete with content + diagnostics
+    // JSON-RPC 2.0 adapter over stdin/stdout.
+    // For each turn/start: submit through the existing IronClaw runtime,
+    // stream projected turn/event notifications, then return turn/complete.
     todo!()
 }
 ```
 
-### Phase 3: Roko ACP Session and Workflow Layer (Long Term)
+### Phase 3: Captured Workflow ACP Facade (Long Term)
 
-Add Roko-style ACP coordination on top of IronClaw's existing agent loop.
+Do not add a second scheduler, planner, executor, or agent loop for captured
+workflow ACP. If IronClaw adopts this surface, implement it as a protocol facade
+that translates sessions, workflow submissions, stream subscriptions, and gate
+resolutions into existing IronClaw/Reborn runtime calls.
 
-#### 3.1 ACP Session Management
+Required constraints:
 
-```rust
-// New: src/agent/acp_session.rs
+- Session creation authenticates a user and creates protocol state only; it does
+  not create a new execution loop.
+- Workflow submission becomes an untrusted inbound request or product-workflow
+  command routed through the existing runner/driver/executor path.
+- Tool calls still go through `ToolDispatcher::dispatch()` and existing
+  approval, sandbox, audit, and rate-limit paths.
+- Gate resolution maps to the existing approval system; ACP gate state should
+  not maintain a separate source of truth.
+- Streaming events are projections of existing turn/job/tool events, not a
+  parallel event model that can disagree with runtime state.
+- Checkpointing, retries, cancellation, and completion are owned by the existing
+  runtime path.
 
-pub struct AcpSessionManager {
-    sessions: RwLock<HashMap<SessionId, Arc<AcpSession>>>,
-}
+Candidate facade endpoints:
 
-pub struct AcpSession {
-    pub id: SessionId,
-    pub user_id: String,
-    pub state: RwLock<AcpSessionState>,
-    pub event_tx: broadcast::Sender<AcpEvent>,
-    pub workflow_queue: Arc<tokio::sync::Mutex<Vec<Workflow>>>,
-}
-
-#[derive(Clone, PartialEq)]
-pub enum AcpSessionState {
-    Initializing,
-    Active,
-    Running { workflow_id: WorkflowId },
-    Gated { gate_id: String },
-    Completed,
-    Failed { reason: String },
-}
-
-impl AcpSession {
-    pub async fn submit_workflow(&self, workflow: Workflow) -> Result<WorkflowId> {
-        let mut queue = self.workflow_queue.lock().await;
-        let id = WorkflowId::new();
-        queue.push(workflow);
-        let _ = self.event_tx.send(AcpEvent::WorkflowStarted { workflow_id: id.clone() });
-        Ok(id)
-    }
-
-    pub async fn resolve_gate(&self, gate_id: &str, approved: bool) -> Result<()> {
-        let mut state = self.state.write().await;
-        if let AcpSessionState::Gated { gate_id: gid } = &*state {
-            if gid == gate_id {
-                if approved {
-                    *state = AcpSessionState::Active;
-                    let _ = self.event_tx.send(AcpEvent::GateClosed {
-                        gate_id: gate_id.to_string(), approved: true
-                    });
-                } else {
-                    *state = AcpSessionState::Failed {
-                        reason: "Gate rejected".to_string()
-                    };
-                }
-            }
-        }
-        Ok(())
-    }
-}
+```text
+POST   /api/acp/sessions
+DELETE /api/acp/sessions/{id}
+POST   /api/acp/sessions/{id}/workflow
+POST   /api/acp/sessions/{id}/gates/{gate_id}
+GET    /api/acp/sessions/{id}/events
 ```
 
-#### 3.2 ACP HTTP Endpoints
-
-```rust
-// New: src/channels/web/handlers/acp.rs
-
-pub fn acp_router() -> Router<AppState> {
-    Router::new()
-        .route("/sessions", post(create_session))
-        .route("/sessions/:id", delete(delete_session))
-        .route("/sessions/:id/workflow", post(submit_workflow))
-        .route("/sessions/:id/gates/:gate_id", post(resolve_gate))
-        .route("/sessions/:id/events", get(stream_events))
-}
-
-async fn stream_events(
-    Path(session_id): Path<String>,
-    State(state): State<AppState>,
-) -> Sse<impl Stream<Item = Event>> {
-    let session = state.acp_sessions.get(&session_id).await.unwrap();
-    let rx = session.event_tx.subscribe();
-    let stream = BroadcastStream::new(rx).filter_map(|event| {
-        let json = serde_json::to_string(&event.ok()?).ok()?;
-        Some(Ok::<_, Infallible>(Event::default().data(json)))
-    });
-    Sse::new(stream).keep_alive(KeepAlive::default())
-}
-```
-
-#### 3.3 Gate Integration with Existing ApprovalRequirement
-
-Map IronClaw's tool approval system to ACP gates:
-
-```rust
-// src/agent/acp_gate_bridge.rs
-
-pub fn approval_to_gate_policy(requirement: ApprovalRequirement, tool_name: &str) -> GatePolicy {
-    match requirement {
-        ApprovalRequirement::Never => GatePolicy::NoGate,
-        ApprovalRequirement::UnlessAutoApproved => GatePolicy::TrustBased {
-            trusted_tools: vec![tool_name.to_string()],
-        },
-        ApprovalRequirement::Always => GatePolicy::RequireApproval,
-    }
-}
-
-pub fn mcp_annotation_to_gate(tool: &McpTool) -> GatePolicy {
-    if tool.requires_approval() {
-        GatePolicy::RequireApproval
-    } else if let Some(ann) = &tool.annotations {
-        if ann.side_effects_hint {
-            GatePolicy::RiskBased { risk_threshold: RiskLevel::Medium }
-        } else {
-            GatePolicy::NoGate
-        }
-    } else {
-        GatePolicy::NoGate
-    }
-}
-```
+Tests should drive the facade through the real caller boundary and assert that
+the underlying runner, dispatcher, approval, and audit calls receive the same
+arguments as normal agent-initiated work.
 
 ### Phase 4: Server-Side MCP Exposure with Tools/Call Audit Trail
 
@@ -2658,7 +2559,7 @@ graph TB
         Z5[Editor Context Injection]
     end
 
-    subgraph Roko ACP
+    subgraph Captured Workflow ACP
         A1[Session Lifecycle]
         A2[Workflow Pipelines]
         A3[SSE Streaming Events]
@@ -2669,10 +2570,10 @@ graph TB
     end
 
     Zed ACP --> |passes through| MCP
-    Roko ACP --> |built on| MCP
+    Captured Workflow ACP --> |may use| MCP
 ```
 
-| Dimension | MCP | Zed ACP | Roko ACP |
+| Dimension | MCP | Editor ACP | Captured workflow ACP |
 |-----------|-----|---------|----------|
 | Scope | Tool discovery and invocation | Editor-to-agent communication | Multi-agent workflow orchestration |
 | State | Stateful (2025); Stateless (2026) | Stateful sessions | Stateful sessions and workflow queues |
@@ -2680,18 +2581,18 @@ graph TB
 | Streaming | SSE for tool results | Streaming turn events (notifications) | SSE for ongoing workflow events |
 | Human-in-loop | None (approval is client-side) | None specified | First-class permission gates |
 | Multi-agent | Not specified | Not specified | Explicit agent-to-agent delegation |
-| Editor support | Via any MCP client | Native Zed, JetBrains, VS Code | Editor-specific bridge adapters |
-| Standard | Anthropic open standard (2024) | Zed Industries open standard (2025) | Roko internal (influenced by MCP) |
+| Editor support | Via compatible MCP clients | Depends on editor ACP support | Requires bridge adapter |
+| Standard | Versioned MCP specification | Versioned editor-agent protocol | Captured internal workflow design |
 | Auth | OAuth 2.1 with PKCE | Inherited from host editor | Inherits from MCP + session tokens |
 | Workflow model | Single request-response | Turn-based conversation | DAG of steps with parallel forks |
 | Artifact model | ContentBlock in response | Response content + diagnostics | Named persistent artifacts per step |
-| IronClaw status | Full client, server planned (Phase 2) | Not implemented (Phase 2b) | Not implemented (Phase 3) |
+| IronClaw status | Client implemented; server exposure is candidate work | Candidate adapter | Candidate facade only; no second agent loop |
 
 ---
 
 ## 24. Specification References
 
-### Current Specifications
+### Versioned Specifications and References
 
 | Document | URL |
 |----------|-----|

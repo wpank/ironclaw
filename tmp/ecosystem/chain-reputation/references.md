@@ -2,7 +2,7 @@
 
 [Back to overview](./README.md)
 
-These references justify the concepts used in this folder. They are not source-code dependencies, and the design should remain understandable without access to any external repository.
+These references justify the concepts used in this folder. They are not source-code dependencies, and the design should remain understandable without access to any external repository. Before implementing against any named protocol, verify the current standard and threat model in the owning project.
 
 1. J. R. Douceur, "The Sybil Attack," IPTPS, 2002. Defines the Sybil problem: one actor can present many identities unless a system introduces a trusted identity authority or meaningful cost.
 
@@ -32,7 +32,7 @@ These references justify the concepts used in this folder. They are not source-c
 
 14. R. Fielding et al., HTTP/1.1 RFC 2616, 1999; later HTTP semantics RFCs. HTTP 402 remains a reserved/payment-related status code rather than a complete payment protocol.
 
-15. Coinbase, "x402: An Open Protocol for HTTP-Native Payments," protocol documentation. Useful reference for the request/payment/retry pattern; NEAR requires its own authorization design.
+15. HTTP 402 and x402-style payment protocol documentation. Useful references for the request/payment/retry pattern; NEAR requires its own authorization design.
 
 16. ERC-3009, "Transfer With Authorization." EVM token authorization model useful for x402-style flows on compatible chains.
 
@@ -42,7 +42,7 @@ These references justify the concepts used in this folder. They are not source-c
 
 19. NEAR Protocol, NEP-141 Fungible Token Standard. Basis for NEAR token settlement if KORAI is implemented as a fungible token.
 
-20. S. Nakamoto, "Bitcoin: A Peer-to-Peer Electronic Cash System," 2008. Background for halving-style emission schedules. KORAI-style emissions should be separately simulated.
+20. S. Nakamoto, "Bitcoin: A Peer-to-Peer Electronic Cash System," 2008. Background for halving-style emission schedules. Any application-token emission schedule should be separately simulated.
 
 21. J. Moon, L. Moser, "On Cliques in Graphs," Israel Journal of Mathematics, 1965. Worst-case bound for the number of maximal cliques.
 

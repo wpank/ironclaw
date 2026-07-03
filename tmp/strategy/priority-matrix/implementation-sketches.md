@@ -1,6 +1,9 @@
 # Implementation Sketches
 
-These sketches define the smallest useful IronClaw-native slice for the top candidates. They are contracts and review prompts, not copied code. Before coding any item, read the relevant subsystem spec and verify the current code path.
+These sketches define the smallest useful IronClaw-native slice for the top
+candidates. They are contracts and review prompts, not porting instructions.
+Before coding any item, read the relevant subsystem spec and verify the current
+code path.
 
 ## 1. Robust Statistics
 
@@ -31,7 +34,7 @@ Minimal shape:
 - Compute a BLAKE3 hash from normalized memory content at write time.
 - Look up an existing entry with the same hash in the same scope.
 - Merge by updating metadata such as `access_count`, `last_seen_at`, or source list.
-- Return a tool-visible message that says the write merged with an existing memory.
+- Return a tool-visible message when the write merges with an existing memory.
 
 Caller-level test:
 

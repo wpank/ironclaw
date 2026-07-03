@@ -36,16 +36,17 @@ Out of scope:
 
 ## Why NEAR
 
-NEAR gives agent contracts a named account model, low transaction cost,
-storage staking, and asynchronous cross-contract calls. Those properties are a
-good fit for agent workflows where accounts need human-readable identities,
-token escrow, and explicit callback handling.
+NEAR gives agent contracts a named account model, storage staking, and
+asynchronous cross-contract calls. Those properties are a good fit for agent
+workflows where accounts need human-readable identities, token escrow, and
+explicit callback handling. Cost claims should come from the benchmark plan,
+not from this architecture overview.
 
 Important NEAR constraints:
 
 - A contract is deployed to an account, and account names are part of the trust
-  surface. Use predictable subaccounts such as `registry.ironclaw.testnet`
-  during testnet work.
+  surface. Use documented, environment-specific subaccounts during testnet work
+  and avoid baking account names into product logic.
 - Storage must be funded. Any registration or post that writes persistent state
   needs an attached deposit or token-standard storage registration.
 - Cross-contract calls are asynchronous. Settlement code must handle partial
@@ -57,7 +58,7 @@ Important NEAR constraints:
 
 | Contract | Status | Purpose | First useful benchmark |
 |----------|--------|---------|------------------------|
-| `AgentRegistry` | Phase 1 target | Register agent metadata hash and heartbeat liveness | Register 1,000 agents, then heartbeat active agents |
+| `AgentRegistry` | Phase 1 target | Register agent metadata hash and heartbeat liveness | Batch registration, then heartbeat active agents |
 | `WorkerRegistry` | Phase 2 target | Hold token bonds, update reputation, derive worker tiers | Bond, update reputation, slash, and withdraw flows |
 | `BountyMarket` | Phase 2 target | Hold bounties in escrow and settle accepted/rejected work | Post, assign, submit, resolve, retry failed callback |
 | `ReputationRegistry` | Optional Phase 2 | Track domain-specific reputation when worker-level score is insufficient | Domain update and paginated decay batches |
@@ -102,7 +103,8 @@ graph TD
 - Treat promise callbacks as part of the state machine. A payout can succeed
   while reputation update fails, so callbacks need logs and retry metadata.
 - Do not use on-chain storage for prompts, secrets, private task content, or
-  personally identifying information. Store hashes, CIDs, or short descriptors.
+  personally identifying information. Store hashes, content IDs, or short
+  descriptors only after reviewing disclosure risk.
 
 ## Benchmark Expectations
 

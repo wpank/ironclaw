@@ -1,112 +1,56 @@
 # Security And Risk Register
 
-Use this register for every implementation derived from the analysis set. It is
-not a substitute for code review; it is a checklist for the failure modes that
-these features are most likely to introduce.
+Use this register for every experimental feature before canary.
 
-## 1. Review Matrix
+## Review Matrix
 
-| Feature | Security-sensitive surface | Must not change without review |
-|---|---|---|
-| HDC memory search | memory retrieval, private workspace data | redaction, memory ACLs, identity prompt loading |
-| Signal records | content hashes, lineage, taints | secret handling, sensitive-memory filters, DB retention |
-| Cascade router | model/provider choice, cost, data residency | safety model routing, provider auth, secret-bearing prompts |
-| Progressive gates | command execution, artifacts | sandboxing, approvals, artifact redaction, path allowlists |
-| Dreams | background LLM calls, memory writes | budget guard, sensitive-data filters, user notification policy |
-| Conductor | provider health and routing bias | circuit breaker policy, fallback safety, provider credentials |
-| Control plane | HTTP/SSE/WebSocket surfaces | bearer auth, CORS/origin checks, body limits, rate limits |
-| Reputation | actor scores and selection bias | signed evidence, collusion checks, appeal/override path |
+| Area | Required check |
+| --- | --- |
+| Auth/routes | bearer auth, webhook auth, CORS/origin, body limits, rate limits unchanged |
+| Secrets | no secret in logs, metrics, artifacts, memory, prompts, or events |
+| Tools | approvals, sandboxing, allowlists, and denial paths unchanged |
+| Persistence | PostgreSQL/libSQL parity, migration rollback, retention policy |
+| Runtime | cancellation, retries, background budgets, fail-closed defaults |
+| Privacy | prompts, file bodies, private paths, and raw source omitted or redacted |
 
-## 2. Rollback Triggers
+## Immediate Rollback Triggers
 
-Immediate rollback:
+- Policy, approval, sandbox, auth, origin, webhook, rate-limit, or body-limit
+  regression.
+- Any secret or private content leak in metric/event/artifact storage.
+- Candidate p95 latency regression above 10% for two windows.
+- Candidate quality regression below -2pp for one meaningful window.
+- DB parity failure for data required by the feature.
+- Feature flag off path does not return baseline behavior.
 
-- Any policy violation caused by an experimental feature.
-- Any secret leak in a metric, artifact, memory, prompt, or event stream.
-- Any auth, CORS, webhook, or bearer-token regression.
-- Any database migration that fails on either PostgreSQL or libSQL.
-- Any feature that blocks user-visible work above the configured false-block
-  budget.
+## Risk Records
 
-Canary rollback:
-
-- Quality pass rate drops more than 2 percentage points.
-- p95 latency increases more than 10% without an explicit exception.
-- Fallback rate rises more than 5 percentage points.
-- Cost increases when the feature's primary target was cost reduction.
-
-## 3. Risk Records
-
-Use this shape in PR descriptions or design docs:
-
-```text
-risk:
-  feature:
-  failure_mode:
-  affected_boundary:
-  detection_metric:
-  rollback_switch:
-  test_coverage:
-  residual_risk:
+```yaml
+id: risk.progressive_gates.artifact_leak
+feature: progressive_gates
+severity: high
+failure_mode: compiler or test output contains secret-like value
+detection_metric: redaction_applied=false with sensitive pattern match
+rollback_switch: experimental.progressive_gates.enabled=false
+owner: verification/tool owner
 ```
 
-Example:
+Every high-risk feature needs at least one record covering its highest-impact
+failure mode.
 
-```text
-risk:
-  feature: progressive_gates
-  failure_mode: gate artifact includes a secret-bearing command output
-  affected_boundary: code-generation verification
-  detection_metric: redaction_applied=false with sensitive pattern match
-  rollback_switch: experimental.progressive_gates.enabled=false
-  test_coverage: fixture command output containing API key shape
-  residual_risk: novel secret formats may require safety crate updates
-```
+## DB Parity Checklist
 
-## 4. DB Parity Checklist
+- Shared DB trait updated first.
+- PostgreSQL migration added.
+- libSQL migration added.
+- Dual-backend contract test added.
+- Rollback behavior documented for persisted rows.
+- Backfill excludes raw prompts, file bodies, secrets, and private paths.
 
-Before enabling any persisted feature:
+## Data Minimization
 
-- The shared DB trait has one method per operation.
-- PostgreSQL and libSQL implementations are both present.
-- Contract tests run against both backends.
-- JSON/JSONB differences are hidden behind Rust structs.
-- Migrations are additive first.
-- Rollback does not drop data.
+Allowed by default: ids, hashes, bounded enums, timestamps, counts, redaction
+status, latency, cost, and token counts.
 
-## 5. Approval And Tool Execution Rule
-
-Features may recommend actions; they must not bypass the existing dispatcher or
-approval flow.
-
-```text
-correct:
-  gate -> verdict -> caller -> ToolDispatcher/approval policy
-
-incorrect:
-  gate -> shell command directly
-  dream job -> memory file write bypassing memory facade
-  conductor -> provider credential mutation
-```
-
-## 6. Data Minimization
-
-Telemetry should prefer identifiers and aggregates over raw content.
-
-Allowed by default:
-
-- feature key
-- variant
-- run id
-- latency/cost/token counts
-- gate status
-- provider family label
-
-Requires explicit review:
-
-- full prompts
-- tool arguments
-- command output
-- memory body
-- user message body
-- webhook payloads
+Disallowed by default: raw prompts, full file bodies, private paths, secrets,
+bearer tokens, arbitrary URLs, unredacted stack traces, and provider raw errors.

@@ -1,8 +1,9 @@
 # Detailed Rankings
 
-This file explains the priority matrix in implementation terms. "Rank" here means strategy priority, not a promise that the feature is ready to code without reading the owning subsystem docs.
+This file explains the priority matrix in implementation terms. "Rank" here
+means strategy priority, not permission to skip the owning subsystem docs.
 
-## Build Now
+## Start First
 
 | Rank | Candidate | Score | Recommendation | Main risk |
 |------|-----------|-------|----------------|-----------|
@@ -13,7 +14,8 @@ This file explains the priority matrix in implementation terms. "Rank" here mean
 | 5 | Composable scorers | 3.90 | Introduce a minimal `Scorer` interface for quality checks and gate inputs. | Creating an abstraction before callers exist. Keep the first version tied to one real caller. |
 | 6 | Hierarchical cancellation | 3.50 | Propagate cancellation through session, turn, and tool/process boundaries using existing async primitives. | Unit tests on tokens are insufficient; verify spawned processes and tool calls stop. |
 
-Build order differs from raw score because robust statistics and dedup are lower-risk foundations for later measurement and memory work.
+Build order differs from raw score because robust statistics and dedup are
+lower-risk foundations for later measurement and memory work.
 
 ## Validate Then Build
 
@@ -24,7 +26,8 @@ Build order differs from raw score because robust statistics and dedup are lower
 | 9 | HDC similarity signal | 3.85 | Prototype as a third retrieval signal behind current FTS/vector RRF. | Offline retrieval benchmark shows a lift on compositional queries. |
 | 10 | Cognitive speed labels | 3.50 | Add a small enum only if it feeds routing, budget, or UX decisions. | A caller needs the label; otherwise this is taxonomy without leverage. |
 
-These are not first-week features. They change core selection, verification, or retrieval behavior and need measured rollouts.
+These are not first-pass features. They change core selection, verification, or
+retrieval behavior and need measured rollouts.
 
 ## Conditional Backlog
 
@@ -73,4 +76,4 @@ A candidate can move from strategy to implementation when all are true:
 - The first PR can be described in one sentence.
 - The change has an observable metric or a caller-level regression test.
 - Rollback is a flag flip, an inert metadata field, or a small revert.
-- The implementation does not require copying captured Roko architecture wholesale.
+- The implementation does not require copying captured architecture wholesale.

@@ -9,7 +9,7 @@ This file defines how to measure the design. It intentionally avoids presenting 
 Every benchmark result should include:
 
 - code revision and contract hash,
-- environment: local simulation, NEAR localnet, testnet, or mainnet,
+- environment: local simulation, NEAR localnet, testnet, or explicitly approved production network,
 - dataset size and generator seed,
 - hardware for off-chain runs,
 - protocol parameters: alpha schedule, decay half-life, damping, thresholds,
@@ -84,7 +84,7 @@ Metrics:
 - number of fragmented clique findings,
 - manual-review queue size.
 
-Initial acceptance target: detector output is useful as review evidence and feedback-weight dilution input. It should not be the only trigger for irreversible slashing.
+Initial acceptance target: detector output is useful as review evidence and feedback-weight dilution input. It should not be the only trigger for irreversible slashing or permanent exclusion.
 
 ## Marketplace and Payments
 
@@ -135,7 +135,7 @@ Records to measure:
 
 Minimum adversarial tests:
 
-- transfer and approval of a passport always fail,
+- transfer and approval of a passport are rejected and leave state unchanged,
 - one account cannot register two active passports,
 - escrow cannot pay twice,
 - callback failure cannot lose funds,
@@ -145,7 +145,7 @@ Minimum adversarial tests:
 - reputation cannot be updated by unauthorized callers,
 - disputed jobs cannot update reputation before final resolution.
 
-Financial contracts need independent review before real funds. "Audited" should name the reviewer, scope, date, and commit hash.
+Financial contracts need independent review before real funds. "Audited" should name the reviewer, scope, date, commit hash, and unresolved findings.
 
 ## Economic Validation
 

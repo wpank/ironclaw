@@ -2,9 +2,9 @@
 
 This map is the local replacement for external source access. Captured
 `roko-*` names identify source-corpus families only; they are not dependency
-paths, live checkout paths, or proof that a public repository still has the same
-shape. For implementation planning, follow the local summaries and rebuild the
-needed behavior as IronClaw-native modules.
+paths, external checkout paths, or proof that an external repository still has
+the same shape. For implementation planning, follow the local summaries and
+rebuild the needed behavior as IronClaw-native modules.
 
 ## Crate Families
 
@@ -49,7 +49,7 @@ For IronClaw implementation planning:
 
 ## Translation Table
 
-| Roko pattern | IronClaw-native target |
+| Captured pattern | IronClaw-native target |
 |---|---|
 | `Store<Engram>` | Workspace memory service facade plus DB-backed repositories |
 | `Cell::execute(Vec<Engram>)` | Tool-dispatched task step returning structured JSON and cost metadata |
@@ -59,4 +59,4 @@ For IronClaw implementation planning:
 | `DreamRunner` | Heartbeat/routine job that reads session outcomes and writes durable memory |
 | `EventBus<T>` | Broadcast stream feeding TUI/web/SSE/metrics projections |
 | `ACP session` | Structured web/editor session protocol over existing channel abstractions |
-| `RokoLayout` | IronClaw workspace/memory paths, not `.roko` |
+| `RokoLayout` | IronClaw workspace/memory paths, not captured layout directories |

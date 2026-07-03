@@ -62,8 +62,8 @@ change should update `src/setup/README.md` in the same branch.
 | `chain_knowledge_post` | 3 | yes | `uri`, `content_hash`, `reward` |
 
 Default to read-only tools first. Enable mutating tools only when an account,
-function-call access key, contract allowlist, and simulation policy are
-configured.
+function-call access key, contract allowlist, spend limits, and simulation
+policy are configured.
 
 ## Safety Pipeline
 
@@ -127,16 +127,17 @@ Example environment variables:
 ```bash
 CHAIN_ENABLED=true
 NEAR_NETWORK=testnet
-NEAR_ACCOUNT_ID=myagent.testnet
+NEAR_ACCOUNT_ID=<agent-account.testnet>
 CHAIN_SIMULATE_BEFORE_EXECUTE=true
 CHAIN_GAS_BUDGET_TGAS=100
-IRONCLAW_REGISTRY_CONTRACT=registry.ironclaw.testnet
-IRONCLAW_WORKER_CONTRACT=worker.ironclaw.testnet
-IRONCLAW_BOUNTY_CONTRACT=bounty.ironclaw.testnet
+IRONCLAW_REGISTRY_CONTRACT=<registry-account.testnet>
+IRONCLAW_WORKER_CONTRACT=<worker-account.testnet>
+IRONCLAW_BOUNTY_CONTRACT=<bounty-account.testnet>
 ```
 
 Keep secret material out of config. Store private keys or delegated
-function-call keys through the existing secrets subsystem.
+function-call keys through the existing secrets subsystem. The account and
+contract IDs above are placeholders, not required deployment names.
 
 ## Signing and Key Management
 
@@ -146,7 +147,7 @@ keys in long-running agent processes.
 
 Minimum key-handling requirements:
 
-- Validate account ID, public key, and secret key format before storage.
+- Validate account ID, public key, and imported key material before storage.
 - Do not put plaintext keys in tool arguments, logs, `ActionRecord`, or error
   text.
 - Load key material only for signing and drop it after the broadcast attempt.
@@ -201,8 +202,8 @@ Status: first useful milestone.
 
 Deliverables:
 
-- `AgentRegistry` testnet contract with `register`, `heartbeat`, and view
-  methods.
+- `AgentRegistry` localnet or testnet contract with `register`, `heartbeat`,
+  and view methods.
 - `chain_agent_status`, `chain_register_agent`, and `chain_heartbeat` tools.
 - Simulation and gas-budget checks for register and heartbeat.
 - Setup documentation for account ID and function-call key import.
@@ -214,7 +215,7 @@ Status: start after Phase 1 costs and failure modes are measured.
 
 Deliverables:
 
-- `WorkerRegistry` and `BountyMarket` testnet contracts.
+- `WorkerRegistry` and `BountyMarket` localnet or testnet contracts.
 - NEP-141 receiver-message tests for bonds and bounties.
 - `chain_reputation_query`, `chain_bounty_post`, `chain_bounty_claim`, and
   `chain_bounty_submit` tools.

@@ -154,11 +154,11 @@ pub fn blend_reputation(ema: f64, trace_rank: f64, graph_weight: f64) -> f64 {
 }
 ```
 
-Use a low default graph weight, such as `0.1` to `0.3`, until real delegation outcomes show that graph trust improves decisions.
+Use a low graph weight, such as `0.1` to `0.3`, only as a starting policy for simulation. Promote it to a default only after real delegation outcomes show that graph trust improves decisions.
 
 ## Collusion Detection
 
-The captured detector looks for mutually reinforcing assignment cliques:
+A candidate detector looks for mutually reinforcing assignment cliques:
 
 1. Build a directed graph of who assigned work to whom.
 2. Count pair frequencies.
@@ -168,9 +168,9 @@ The captured detector looks for mutually reinforcing assignment cliques:
 
 ```rust
 pub struct CollusionConfig {
-    pub mutual_ratio_threshold: f64,   // candidate: 0.5
-    pub min_assignments_per_pair: u32, // candidate: 3
-    pub min_clique_size: usize,        // candidate: 3
+    pub mutual_ratio_threshold: f64,   // example starting point: 0.5
+    pub min_assignments_per_pair: u32, // example starting point: 3
+    pub min_clique_size: usize,        // example starting point: 3
     pub lookback_secs: u64,
 }
 ```
@@ -187,8 +187,8 @@ Recommended penalty:
 ```rust
 pub struct FeedbackDilution {
     pub passport_id: PassportId,
-    pub multiplier: f64,      // e.g. 0.5
-    pub expires_at_secs: u64, // e.g. now + 30 days
+    pub multiplier: f64,      // example: 0.5
+    pub expires_at_secs: u64, // bounded review window
 }
 ```
 

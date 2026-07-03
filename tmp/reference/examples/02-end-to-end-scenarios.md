@@ -1,8 +1,8 @@
 # End-To-End Scenarios
 
 These scenarios show realistic IronClaw task paths. They avoid assuming any
-private source repository exists: every file path is either an IronClaw module,
-an existing benchmark fixture, or an explicit adaptation sketch.
+private source repository exists: every path is either a local IronClaw module,
+an existing fixture, or an explicit adaptation sketch.
 
 ## 1. Cheap Routine Question With Safe Model Routing
 
@@ -22,7 +22,7 @@ Path:
    current trusted provider because private data is involved.
 4. Metric event records the bypass reason.
 
-Adaptation sketch: metric payload shape, not a runnable command.
+Adaptation sketch: metric payload shape, not a runnable command or stable API.
 
 ```json
 {
@@ -96,7 +96,7 @@ Adaptation sketch: metric names, not a runnable command.
 duplicate_candidate_rate
 false_duplicate_rate
 memory_search_top5_relevance
-write_latency_p95
+write_latency_distribution
 ```
 
 Benchmark fixture: [`tmp/implementation/benchmarking/scenarios/memory-dedup.yaml`](../../implementation/benchmarking/scenarios/memory-dedup.yaml).
@@ -119,7 +119,7 @@ Relevant IronClaw touchpoints:
 
 Path:
 
-1. Conductor observes rising p95 latency and retry count for the selected model.
+1. Conductor observes rising latency and retry count for the selected model.
 2. Holt forecast crosses warning threshold before the reactive breaker trips.
 3. Router receives a health bias and chooses another eligible provider.
 4. Metric events show avoided degraded-provider spend.
@@ -180,12 +180,13 @@ Path:
 3. Browser reconnects with a cursor after network interruption.
 4. SSE resumes without duplicate terminal events.
 
-Adaptation sketch: target metrics for integration tests.
+Adaptation sketch: target metrics for integration tests; thresholds belong in
+the fixture or rollout config.
 
 ```text
 event_stream_gap_count = 0
 duplicate_terminal_event_count = 0
-projection_latency_p95_ms < 250
+projection_latency_guardrail = "fixture-defined"
 auth_fail_open_count = 0
 ```
 

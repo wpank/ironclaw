@@ -1,27 +1,24 @@
 # Schemas And Data Models
 
-This folder makes the transfer documents implementation-ready by defining the
-shared data shapes that the proposed IronClaw features should use. The shapes
-are intentionally IronClaw-native: they do not depend on any external research
-package.
+These files define the shared data contracts for implementation plans, rollout
+telemetry, benchmark fixtures, and persistence. Keep this directory authoritative
+for schema shape; other docs should link here instead of restating fields.
 
-| File | Contents |
-|---|---|
-| `01-runtime-data-models.md` | Rust structs and JSON examples for metrics, gates, DAG runs, feature flags, reputation, and Signal records |
-| `02-storage-and-migrations.md` | PostgreSQL/libSQL table sketches, DB trait additions, migration order, and compatibility rules |
-| `03-correlation-and-ids.md` | Cross-feature ID conventions, exposure events, join paths, and cardinality limits |
-| `04-canonical-event-and-persistence-contract.md` | Single canonical event, exposure, verdict, DAG, Signal, reputation, rollout, and persistence contract |
+| File | Purpose |
+| --- | --- |
+| `01-runtime-data-models.md` | Rust-facing structs, field rules, and JSON examples |
+| `02-storage-and-migrations.md` | DB trait additions plus PostgreSQL/libSQL parity rules |
+| `03-correlation-and-ids.md` | Stable ids used to join turns, features, metrics, and rollout decisions |
+| `04-canonical-event-and-persistence-contract.md` | Canonical event tables, retention, and migration order |
 
-## Design Rule
+## Contract Rules
 
-Every experimental feature should emit the same durable identifiers at every
-layer:
-
-```text
-run_id -> turn_id -> feature_key -> variant -> metric_event -> verdict
-```
-
-That chain is what makes benchmarking, rollout, audit, and rollback possible.
-
-Use `04-canonical-event-and-persistence-contract.md` as the source of truth
-when other documents show abbreviated examples.
+- Every experimental feature has a stable `experimental.<feature>` flag and a
+  matching `flag.<feature>` exposure id.
+- Runtime behavior defaults off until a rollout document explicitly moves it.
+- Metric labels stay bounded and low cardinality; raw prompts, secrets, file
+  bodies, and private paths are stored only as redacted artifacts.
+- PostgreSQL and libSQL changes ship together with one contract test that runs
+  against both backends.
+- Fixtures must parse as YAML and include the required scenario fields listed in
+  `../benchmarking/scenarios/README.md`.

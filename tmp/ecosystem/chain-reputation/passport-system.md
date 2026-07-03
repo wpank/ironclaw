@@ -1,10 +1,10 @@
-# Soulbound Passport System
+# Non-Transferable Passport System
 
 [Back to overview](./README.md)
 
 A passport is the durable identity record for an agent. It is "soulbound" in the narrow token sense: once minted, the token cannot be transferred. That anchors reputation and slash history to one account, but it does not make Sybil attacks impossible. Reset resistance still depends on admission policy, stake, capability gates, marketplace history, and review.
 
-## Captured Model
+## Candidate Record Shape
 
 ```rust
 pub type PassportId = u64;
@@ -99,18 +99,24 @@ The tier thresholds below are candidate policy defaults. They are not economic g
 
 | Tier | Candidate stake threshold | Typical privileges |
 |------|---------------------------|--------------------|
-| Edge | 0 | Register, view, accept low-risk work |
-| Worker | 5,000 units | Accept normal jobs, earn domain reputation |
-| Sovereign | 25,000 units | Post bounties, direct hire, vote in limited governance |
-| Protocol | 100,000 units plus governance approval | Protocol-level administration and upgrades |
+| Edge | none beyond storage/admission policy | Register, view, accept low-risk work |
+| Worker | configured worker threshold | Accept normal jobs, earn domain reputation |
+| Sovereign | configured high-trust threshold | Post bounties, direct hire, vote in limited governance |
+| Protocol | configured protocol threshold plus governance approval | Protocol-level administration and upgrades |
 
 ```rust
-fn tier_from_stake(stake: u128) -> PassportTier {
-    if stake >= 100_000 {
+pub struct TierPolicy {
+    pub worker_stake: u128,
+    pub sovereign_stake: u128,
+    pub protocol_stake: u128,
+}
+
+fn tier_from_stake(stake: u128, policy: &TierPolicy) -> PassportTier {
+    if stake >= policy.protocol_stake {
         PassportTier::Protocol
-    } else if stake >= 25_000 {
+    } else if stake >= policy.sovereign_stake {
         PassportTier::Sovereign
-    } else if stake >= 5_000 {
+    } else if stake >= policy.worker_stake {
         PassportTier::Worker
     } else {
         PassportTier::Edge
@@ -172,7 +178,7 @@ stateDiagram-v2
 
 ## Validation Checklist
 
-- Transfer and approval methods always fail.
+- Transfer and approval methods reject the request and leave state unchanged.
 - One account cannot mint multiple active passports unless governance explicitly allows recovery/migration.
 - Storage deposit is charged and excess is refunded.
 - Tier changes are deterministic and evented.

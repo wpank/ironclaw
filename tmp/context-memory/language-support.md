@@ -1,6 +1,6 @@
 # Multi-Language Code Analysis System
 
-> **Canonical home for `LanguageProvider` and `BuildSystem` traits.** This document is the single authoritative reference for the trait definitions, all concrete language provider implementations (Rust heuristic, Rust tree-sitter, TypeScript, Go), build system detection, and polyglot project analysis. [Code Intelligence](code-intelligence.md) imports these traits and builds the four-mode index on top of them; it does not re-define the traits. All source references point to the upstream repository at ```.`
+> **Local home for `LanguageProvider` and `BuildSystem` contracts.** This document owns the trait shape, captured provider behavior (Rust heuristic, Rust tree-sitter, TypeScript, Go), build-system detection, and polyglot project analysis. [Code Intelligence](code-intelligence.md) consumes these contracts instead of redefining them. Source paths are captured-source identifiers, not implementation dependencies.
 
 ---
 
@@ -72,9 +72,9 @@ Layer 4: Consumption
   - roko-gate verify cells (CompileGate, ClippyGate, TestGate)
 ```
 
-The critical design property is that **language knowledge never leaks upward**. The graph builder, PageRank scorer, fingerprint generator, and search layer all operate on `Symbol`, `Import`, and `SourceFile` — they never see Rust-specific syntax, TypeScript module resolution, or Go package conventions. Adding a new language means implementing two traits (`LanguageProvider` and `BuildSystem`); every downstream component works unchanged.
+The critical design property is that language-specific parsing stays behind `LanguageProvider` and `BuildSystem`. The graph builder, PageRank scorer, fingerprint generator, and search layer operate on `Symbol`, `Import`, and `SourceFile` rather than raw Rust, TypeScript, or Go syntax. Adding a language should require a new provider and build-system implementation, not changes throughout the indexing stack.
 
-This design follows the principle of ad-hoc polymorphism through trait-based dispatch — the same pattern as Haskell's type classes, where each language implementation provides its own "instance" of a shared interface [3]. Rust's trait system enforces this at compile time: the `Send + Sync` bounds on both traits guarantee that language providers can be shared across threads for parallel file parsing.
+This design follows ad-hoc polymorphism through trait-based dispatch — the same pattern as Haskell's type classes, where each language implementation provides its own "instance" of a shared interface [3]. Rust's trait system enforces this at compile time: the `Send + Sync` bounds on both traits allow language providers to be shared across threads for parallel file parsing.
 
 ---
 
@@ -244,28 +244,7 @@ The execution boundary lives in `roko-gate` or `roko-orchestrator`, which conver
 
 ### The Full Trait
 
-```rust
-pub trait BuildSystem: Send + Sync {
-    /// Human-readable name (e.g. `"cargo"`, `"npm"`).
-    fn name(&self) -> &str;
-
-    /// Command to compile / type-check the project.
-    fn compile_cmd(&self, target_dir: &Path) -> BuildCommand;
-
-    /// Command to run tests, optionally filtered.
-    fn test_cmd(&self, target_dir: &Path, filter: Option<&str>) -> BuildCommand;
-
-    /// Command to run the linter.
-    fn lint_cmd(&self, target_dir: &Path) -> BuildCommand;
-
-    /// Command to run the formatter.
-    fn format_cmd(&self, target_dir: &Path, check_only: bool) -> BuildCommand;
-
-    /// Check whether `file_names` (names in the project root) indicate this
-    /// build system is present. Takes &[&str] to stay I/O-free.
-    fn detect_from_files(&self, file_names: &[&str]) -> bool;
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Method semantics**:
 
@@ -293,26 +272,7 @@ There are five concrete `BuildSystem` implementations across the three language 
 
 **Detection priority in the TypeScript ecosystem**: The npm build system only matches when `package.json` is present but neither `pnpm-lock.yaml` nor `yarn.lock` exist. This prevents false positives — pnpm and yarn projects always have `package.json`, but the lock file disambiguates the actual package manager:
 
-```rust
-// NpmBuildSystem::detect_from_files
-fn detect_from_files(&self, file_names: &[&str]) -> bool {
-    file_names.contains(&"package.json")
-        && !file_names.contains(&"pnpm-lock.yaml")
-        && !file_names.contains(&"yarn.lock")
-}
-
-// PnpmBuildSystem::detect_from_files
-fn detect_from_files(&self, file_names: &[&str]) -> bool {
-    file_names.contains(&"package.json")
-        && file_names.contains(&"pnpm-lock.yaml")
-}
-
-// YarnBuildSystem::detect_from_files
-fn detect_from_files(&self, file_names: &[&str]) -> bool {
-    file_names.contains(&"package.json")
-        && file_names.contains(&"yarn.lock")
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ---
 
@@ -352,24 +312,7 @@ pub trait LanguageProvider: Send + Sync {
 
 **Source**: `crates/roko-index/src/parser.rs`
 
-```rust
-pub fn parse_source(
-    path: &str,
-    content: &str,
-    provider: &dyn LanguageProvider,
-) -> SourceFile {
-    let symbols = provider.extract_symbols(content);
-    let imports = provider.parse_imports(content);
-
-    SourceFile {
-        path: path.to_string(),
-        language: provider.language_name().to_string(),
-        content: content.to_string(),
-        symbols,
-        imports,
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 `parse_source` is a 10-line function. It calls two trait methods and packages the results. It never mentions Rust, TypeScript, or Go. This is the extensibility payoff: adding Python support means implementing `PythonLanguageProvider`; the graph builder, PageRank scorer, HDC fingerprinter, and search layer all work unchanged.
 
@@ -377,37 +320,7 @@ pub fn parse_source(
 
 In a polyglot project, the caller maintains a registry of providers keyed by file extension:
 
-```rust
-use std::collections::HashMap;
-use std::sync::Arc;
-
-pub struct LanguageRegistry {
-    providers: HashMap<String, Arc<dyn LanguageProvider>>,
-}
-
-impl LanguageRegistry {
-    pub fn standard() -> Self {
-        let mut providers: HashMap<String, Arc<dyn LanguageProvider>> = HashMap::new();
-        let rust = Arc::new(RustLanguageProvider) as Arc<dyn LanguageProvider>;
-        for ext in rust.file_extensions() {
-            providers.insert(ext.to_string(), Arc::clone(&rust));
-        }
-        let ts = Arc::new(TypeScriptLanguageProvider) as Arc<dyn LanguageProvider>;
-        for ext in ts.file_extensions() {
-            providers.insert(ext.to_string(), Arc::clone(&ts));
-        }
-        let go = Arc::new(GoLanguageProvider) as Arc<dyn LanguageProvider>;
-        for ext in go.file_extensions() {
-            providers.insert(ext.to_string(), Arc::clone(&go));
-        }
-        Self { providers }
-    }
-
-    pub fn get(&self, extension: &str) -> Option<&Arc<dyn LanguageProvider>> {
-        self.providers.get(extension)
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ---
 
@@ -463,31 +376,7 @@ The import parser handles three forms of Rust imports:
 
 **1. `use` statements with brace expansion:**
 
-```rust
-fn parse_use_line(trimmed: &str) -> Option<Vec<Import>> {
-    let rest = strip_visibility_prefix(trimmed);  // strip pub/pub(crate)
-    let rest = rest.strip_prefix("use ")?;
-    let rest = rest.strip_suffix(';')?.trim();
-
-    if let Some((prefix, items)) = split_brace_use(rest) {
-        let imports = items.split(',').filter_map(|item| {
-            let item = item.trim();
-            if item.is_empty() { return None; }
-            let (item_path, alias) = split_use_alias(item);
-            let path = if item_path == "self" {
-                prefix.to_string()
-            } else {
-                format!("{prefix}::{item_path}")
-            };
-            Some(Import { path, alias, kind: ImportKind::Use })
-        }).collect();
-        return Some(imports);
-    }
-
-    let (path, alias) = split_use_alias(rest);
-    Some(vec![Import { path, alias, kind: ImportKind::Use }])
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 This handles `use std::io::Result as IoResult;`, `use std::collections::{HashMap, HashSet};`, `pub use crate::error::Error;`, and `pub(crate) use crate::inner::Foo;`. The `self` keyword in brace groups (e.g., `use std::io::{self, Read}`) resolves to the prefix itself.
 
@@ -499,49 +388,7 @@ This handles `use std::io::Result as IoResult;`, `use std::collections::{HashMap
 
 The symbol extractor processes each line through a chain of pattern matchers:
 
-```rust
-fn extract_symbol_from_line(line: &str, line_num: usize) -> Option<Symbol> {
-    let trimmed = line.trim();
-
-    // Skip comments and attributes
-    if trimmed.starts_with("//") || trimmed.starts_with('#') || trimmed.is_empty() {
-        return None;
-    }
-
-    let (vis, rest) = parse_visibility(trimmed);
-
-    // Try each symbol kind in order
-    if let Some(name) = try_extract_fn(rest) {
-        return Some(Symbol { name, kind: SymbolKind::Function, visibility: vis, line: line_num });
-    }
-    if let Some(name) = try_extract_keyword(rest, "struct") {
-        return Some(Symbol { name, kind: SymbolKind::Struct, visibility: vis, line: line_num });
-    }
-    if let Some(name) = try_extract_keyword(rest, "enum") {
-        return Some(Symbol { name, kind: SymbolKind::Enum, visibility: vis, line: line_num });
-    }
-    if let Some(name) = try_extract_keyword(rest, "trait") {
-        return Some(Symbol { name, kind: SymbolKind::Trait, visibility: vis, line: line_num });
-    }
-    if let Some(name) = try_extract_impl(rest) {
-        return Some(Symbol { name, kind: SymbolKind::Impl, visibility: vis, line: line_num });
-    }
-    if let Some(name) = try_extract_const(rest) {
-        return Some(Symbol { name, kind: SymbolKind::Const, visibility: vis, line: line_num });
-    }
-    if let Some(name) = try_extract_type_alias(rest) {
-        return Some(Symbol { name, kind: SymbolKind::Type, visibility: vis, line: line_num });
-    }
-    if let Some(name) = try_extract_mod_decl(rest) {
-        return Some(Symbol { name, kind: SymbolKind::Module, visibility: vis, line: line_num });
-    }
-    if let Some(name) = try_extract_mod_block(rest) {
-        return Some(Symbol { name, kind: SymbolKind::Module, visibility: vis, line: line_num });
-    }
-
-    None
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Key extraction behaviors**:
 
@@ -593,159 +440,25 @@ Tree-sitter itself is a parser generator that produces incremental, error-tolera
 2. **Incremental re-parsing**: After an edit, only the affected portion of the parse tree is rebuilt.
 3. **Language-agnostic runtime**: The same tree-sitter library parses any language with a grammar definition.
 
-```rust
-pub struct TreeSitterRustProvider;
-
-impl LanguageProvider for TreeSitterRustProvider {
-    fn language_name(&self) -> &str { "rust" }
-    fn file_extensions(&self) -> &[&str] { &["rs"] }
-
-    fn parse_imports(&self, source: &str) -> Vec<Import> {
-        let Some(tree) = parse_source_tree(source) else {
-            return Vec::new();
-        };
-        let mut imports = Vec::new();
-        let root = tree.root_node();
-        collect_imports(root, source, &mut imports);
-        imports
-    }
-
-    fn extract_symbols(&self, source: &str) -> Vec<Symbol> {
-        let Some(tree) = parse_source_tree(source) else {
-            return Vec::new();
-        };
-        let mut symbols = Vec::new();
-        let root = tree.root_node();
-        collect_symbols(root, source, &mut symbols);
-        symbols
-    }
-}
-
-fn parse_source_tree(source: &str) -> Option<tree_sitter::Tree> {
-    let mut parser = tree_sitter::Parser::new();
-    let language = tree_sitter_rust::LANGUAGE;
-    parser
-        .set_language(&language.into())
-        .expect("tree-sitter-rust grammar should load");
-    parser.parse(source, None)
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Import collection** dispatches on AST node kind:
 
-```rust
-fn collect_imports(node: tree_sitter::Node<'_>, source: &str, imports: &mut Vec<Import>) {
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        match child.kind() {
-            "use_declaration" => {
-                if let Some(argument) = child.child_by_field_name("argument") {
-                    extract_use_paths(argument, source, String::new(), imports);
-                }
-            }
-            "mod_item" => {
-                if let Some(name_node) = child.child_by_field_name("name") {
-                    let name = node_text(name_node, source);
-                    imports.push(Import { path: name, alias: None, kind: ImportKind::Mod });
-                }
-            }
-            "extern_crate_declaration" => {
-                if let Some(name_node) = child.child_by_field_name("name") {
-                    let name = node_text(name_node, source);
-                    let alias = child.child_by_field_name("alias")
-                        .and_then(|a| a.child_by_field_name("alias"))
-                        .map(|a| node_text(a, source));
-                    imports.push(Import { path: name, alias, kind: ImportKind::ExternCrate });
-                }
-            }
-            _ => {}
-        }
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 The `extract_use_paths` function recursively walks `use` tree nodes, handling `scoped_identifier`, `scoped_use_list`, `use_as_clause`, `use_wildcard`, and `use_list`. It correctly handles nested brace groups that the heuristic parser cannot process — for example, `use std::collections::{hash_map::{Entry, HashMap}, BTreeMap}` requires recursive descent through nested scoped use lists.
 
 **Symbol collection** maps tree-sitter node kinds to `SymbolKind`:
 
-```rust
-fn collect_symbols(node: tree_sitter::Node<'_>, source: &str, symbols: &mut Vec<Symbol>) {
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        let (kind, name_field) = match child.kind() {
-            "function_item" => (SymbolKind::Function, "name"),
-            "struct_item"   => (SymbolKind::Struct, "name"),
-            "enum_item"     => (SymbolKind::Enum, "name"),
-            "trait_item"    => (SymbolKind::Trait, "name"),
-            "const_item"    => (SymbolKind::Const, "name"),
-            "type_item"     => (SymbolKind::Type, "name"),
-            "mod_item"      => (SymbolKind::Module, "name"),
-            "impl_item"     => {
-                collect_impl_symbol(&child, source, symbols);
-                continue;
-            }
-            _ => { continue; }
-        };
-        if let Some(name_node) = child.child_by_field_name(name_field) {
-            let name = node_text(name_node, source);
-            let vis = node_visibility(&child);
-            let line = child.start_position().row + 1;
-            symbols.push(Symbol { name, kind, visibility: vis, line });
-        }
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 For `impl` blocks, the tree-sitter parser extracts both the type and optional trait, and recurses into the impl body for methods:
 
-```rust
-fn collect_impl_symbol(child: &tree_sitter::Node<'_>, source: &str, symbols: &mut Vec<Symbol>) {
-    let vis = node_visibility(child);
-    let type_name = child.child_by_field_name("type")
-        .map(|t| node_text(t, source))
-        .unwrap_or_else(|| "unknown".to_string());
-    let trait_name = child.child_by_field_name("trait")
-        .map(|t| node_text(t, source));
-    let name = if let Some(tr) = trait_name {
-        format!("{tr} for {type_name}")
-    } else {
-        type_name
-    };
-    symbols.push(Symbol {
-        name,
-        kind: SymbolKind::Impl,
-        visibility: vis,
-        line: child.start_position().row + 1,
-    });
-
-    // Recurse into impl body for methods
-    if let Some(body) = child.child_by_field_name("body") {
-        collect_impl_methods(body, source, symbols);
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Parity verification** ensures the tree-sitter parser is always at least as capable as the heuristic:
 
-```rust
-#[test]
-fn heuristic_vs_tree_sitter_parity() {
-    let heuristic = crate::RustLanguageProvider;
-    let ts = TreeSitterRustProvider;
-    let source = r#"
-pub fn public_fn() {}
-fn private_fn() {}
-pub struct MyStruct { x: i32 }
-enum MyEnum { A, B }
-pub trait MyTrait { fn required(&self); }
-const MY_CONST: i32 = 42;
-type MyType = Vec<i32>;
-"#;
-    let heuristic_symbols = heuristic.extract_symbols(source);
-    let ts_symbols = ts.extract_symbols(source);
-    assert!(ts_symbols.len() >= heuristic_symbols.len());
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### Heuristic vs. Tree-Sitter Tradeoffs
 
@@ -777,36 +490,7 @@ The TypeScript ecosystem has three major package managers, each with slightly di
 
 **NpmBuildSystem** (`package.json` present, no pnpm/yarn lock files):
 
-```rust
-impl BuildSystem for NpmBuildSystem {
-    fn name(&self) -> &str { "npm" }
-
-    fn compile_cmd(&self, target_dir: &Path) -> BuildCommand {
-        BuildCommand::new("npm").args(["run", "build"]).working_dir(target_dir)
-    }
-
-    fn test_cmd(&self, target_dir: &Path, filter: Option<&str>) -> BuildCommand {
-        let mut cmd = BuildCommand::new("npm").arg("test").working_dir(target_dir);
-        if let Some(f) = filter { cmd = cmd.arg("--").arg(f); }
-        cmd
-    }
-
-    fn lint_cmd(&self, target_dir: &Path) -> BuildCommand {
-        BuildCommand::new("npx").args(["eslint", "."]).working_dir(target_dir)
-    }
-
-    fn format_cmd(&self, target_dir: &Path, check_only: bool) -> BuildCommand {
-        let flag = if check_only { "--check" } else { "--write" };
-        BuildCommand::new("npx").args(["prettier", flag, "."]).working_dir(target_dir)
-    }
-
-    fn detect_from_files(&self, file_names: &[&str]) -> bool {
-        file_names.contains(&"package.json")
-            && !file_names.contains(&"pnpm-lock.yaml")
-            && !file_names.contains(&"yarn.lock")
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **PnpmBuildSystem** (`package.json` + `pnpm-lock.yaml`):
 ```
@@ -826,55 +510,11 @@ format:   yarn run prettier [--check|--write] .
 
 ### TypeScriptLanguageProvider
 
-```rust
-pub struct TypeScriptLanguageProvider;
-
-impl LanguageProvider for TypeScriptLanguageProvider {
-    fn language_name(&self) -> &str { "typescript" }
-    fn file_extensions(&self) -> &[&str] { &["ts", "tsx", "js", "jsx"] }
-
-    fn parse_imports(&self, source: &str) -> Vec<Import> {
-        source.lines()
-            .filter_map(|line| {
-                let trimmed = line.trim();
-                parse_es_import(trimmed).or_else(|| parse_require(trimmed))
-            })
-            .collect()
-    }
-
-    fn extract_symbols(&self, source: &str) -> Vec<Symbol> {
-        source.lines()
-            .enumerate()
-            .filter_map(|(idx, line)| extract_ts_symbol(line, idx + 1))
-            .collect()
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **ES Module Import Parsing**:
 
-```rust
-fn parse_es_import(trimmed: &str) -> Option<Import> {
-    let rest = trimmed.strip_prefix("import ")?;
-
-    // Side-effect import: `import './styles.css';`
-    let rest_no_semi = rest.trim_end_matches(';').trim();
-    if rest_no_semi.starts_with('\'') || rest_no_semi.starts_with('"')
-       || rest_no_semi.starts_with('`') {
-        let path = extract_quoted_string(rest_no_semi)?;
-        return Some(Import { path: path.to_string(), alias: None, kind: ImportKind::Use });
-    }
-
-    // Find `from` keyword and extract module path
-    let from_idx = find_from_keyword(rest)?;
-    let after_from = rest[from_idx + 4..].trim().trim_end_matches(';').trim();
-    let path = extract_quoted_string(after_from)?;
-    let before_from = rest[..from_idx].trim();
-    let alias = extract_import_alias(before_from);
-
-    Some(Import { path: path.to_string(), alias, kind: ImportKind::Use })
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 Handles all standard ES import forms:
 - `import React from 'react'` — default import, alias = `Some("React")`
@@ -900,25 +540,7 @@ fn parse_require(trimmed: &str) -> Option<Import> {
 
 **Symbol Extraction** — visibility parsing handles `export`, `export declare`, `declare`, and `export default` prefixes:
 
-```rust
-fn parse_ts_visibility(s: &str) -> (Visibility, &str) {
-    let rest = s.trim_start();
-    if let Some(after_export) = rest.strip_prefix("export ") {
-        let after_export = after_export.trim_start();
-        if let Some(after_declare) = after_export.strip_prefix("declare ") {
-            return (Visibility::Public, after_declare.trim_start());
-        }
-        if let Some(after_default) = after_export.strip_prefix("default ") {
-            return (Visibility::Public, after_default.trim_start());
-        }
-        (Visibility::Public, after_export)
-    } else if let Some(after_declare) = rest.strip_prefix("declare ") {
-        (Visibility::Private, after_declare.trim_start())
-    } else {
-        (Visibility::Private, rest)
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 Symbol extractors for each kind:
 
@@ -950,38 +572,7 @@ fn extract_ts_identifier(s: &str) -> String {
 
 ### GoBuildSystem
 
-```rust
-impl BuildSystem for GoBuildSystem {
-    fn name(&self) -> &str { "go" }
-
-    fn compile_cmd(&self, target_dir: &Path) -> BuildCommand {
-        BuildCommand::new("go").args(["build", "./..."]).working_dir(target_dir)
-    }
-
-    fn test_cmd(&self, target_dir: &Path, filter: Option<&str>) -> BuildCommand {
-        let mut cmd = BuildCommand::new("go")
-            .args(["test", "./..."]).working_dir(target_dir);
-        if let Some(f) = filter { cmd = cmd.arg("-run").arg(f); }
-        cmd
-    }
-
-    fn lint_cmd(&self, target_dir: &Path) -> BuildCommand {
-        BuildCommand::new("go").args(["vet", "./..."]).working_dir(target_dir)
-    }
-
-    fn format_cmd(&self, target_dir: &Path, check_only: bool) -> BuildCommand {
-        if check_only {
-            BuildCommand::new("gofmt").args(["-l", "."]).working_dir(target_dir)
-        } else {
-            BuildCommand::new("gofmt").args(["-w", "."]).working_dir(target_dir)
-        }
-    }
-
-    fn detect_from_files(&self, file_names: &[&str]) -> bool {
-        file_names.contains(&"go.mod")
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 The `./...` pattern in compile, test, and lint commands is Go's recursive package wildcard — it includes all packages in the current directory and its subdirectories. `gofmt` is used instead of `go fmt` because `gofmt` supports `-l` (list files that differ) for check-only mode.
 
@@ -989,66 +580,11 @@ The `./...` pattern in compile, test, and lint commands is Go's recursive packag
 
 **Import Parsing** — maintains a boolean state machine for grouped import blocks:
 
-```rust
-impl LanguageProvider for GoLanguageProvider {
-    fn language_name(&self) -> &str { "go" }
-    fn file_extensions(&self) -> &[&str] { &["go"] }
-
-    fn parse_imports(&self, source: &str) -> Vec<Import> {
-        let mut imports = Vec::new();
-        let mut in_import_block = false;
-
-        for line in source.lines() {
-            let trimmed = line.trim();
-
-            if in_import_block {
-                if trimmed == ")" {
-                    in_import_block = false;
-                    continue;
-                }
-                if let Some(imp) = parse_go_import_line(trimmed) {
-                    imports.push(imp);
-                }
-                continue;
-            }
-
-            if trimmed == "import (" {
-                in_import_block = true;
-                continue;
-            }
-
-            if let Some(rest) = trimmed.strip_prefix("import ") {
-                if let Some(imp) = parse_go_import_line(rest.trim()) {
-                    imports.push(imp);
-                }
-            }
-        }
-        imports
-    }
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 The `parse_go_import_line` function handles all Go import variants:
 
-```rust
-fn parse_go_import_line(s: &str) -> Option<Import> {
-    let s = s.trim();
-    if s.is_empty() || s.starts_with("//") { return None; }
-
-    let quote_start = s.find('"')?;
-    let after_quote = &s[quote_start + 1..];
-    let quote_end = after_quote.find('"')?;
-    let path = &after_quote[..quote_end];
-
-    let before = s[..quote_start].trim();
-    let alias = if before.is_empty() || before == "_" || before == "." {
-        if before == "." || before == "_" { Some(before.to_string()) } else { None }
-    } else {
-        Some(before.to_string())
-    };
-
-    Some(Import { path: path.to_string(), alias, kind: ImportKind::Use })
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 Handles:
 - `"fmt"` — plain import, alias = `None`
@@ -1058,43 +594,7 @@ Handles:
 
 **Symbol Extraction** — state machine for grouped `const`/`var` blocks:
 
-```rust
-    fn extract_symbols(&self, source: &str) -> Vec<Symbol> {
-        let mut symbols = Vec::new();
-        let mut decl_group: Option<&str> = None;
-
-        for (line_idx, line) in source.lines().enumerate() {
-            let line_num = line_idx + 1;
-
-            if let Some(keyword) = decl_group {
-                let trimmed = line.trim();
-                if trimmed == ")" {
-                    decl_group = None;
-                    continue;
-                }
-                if let Some(sym) = extract_go_group_member(trimmed, line_num, keyword) {
-                    symbols.push(sym);
-                }
-                continue;
-            }
-
-            let trimmed = line.trim();
-            if is_go_decl_group_start(trimmed, "const") {
-                decl_group = Some("const");
-                continue;
-            }
-            if is_go_decl_group_start(trimmed, "var") {
-                decl_group = Some("var");
-                continue;
-            }
-
-            if let Some(sym) = extract_go_symbol(line, line_num) {
-                symbols.push(sym);
-            }
-        }
-        symbols
-    }
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Top-level filtering**: Only processes lines that start at column 0 (no leading whitespace), filtering out method bodies and struct field definitions:
 
@@ -1124,51 +624,13 @@ fn go_visibility(name: &str) -> Visibility {
 
 **Function/method extraction** handles both package-level functions and methods with receivers:
 
-```rust
-fn try_extract_go_func(trimmed: &str, line_num: usize) -> Option<Symbol> {
-    let rest = trimmed.strip_prefix("func ")?;
-
-    // Method with receiver: `(r *Receiver) Name(`
-    let rest = if rest.starts_with('(') {
-        let close_paren = rest.find(')')?;
-        rest[close_paren + 1..].trim_start()
-    } else {
-        rest
-    };
-
-    let name = extract_go_identifier(rest);
-    if name.is_empty() { return None; }
-
-    Some(Symbol {
-        visibility: go_visibility(&name),
-        name,
-        kind: SymbolKind::Function,
-        line: line_num,
-    })
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 `func (s *Server) Start() error {}` correctly extracts `Start` with `Visibility::Public`.
 
 **Type extraction** distinguishes struct, interface, and alias forms:
 
-```rust
-fn try_extract_go_type(trimmed: &str, line_num: usize) -> Option<Symbol> {
-    let rest = trimmed.strip_prefix("type ")?;
-    let name = extract_go_identifier(rest);
-    let after_name = rest[name.len()..].trim_start();
-
-    let kind = if after_name.starts_with("struct") {
-        SymbolKind::Struct
-    } else if after_name.starts_with("interface") {
-        SymbolKind::Trait
-    } else {
-        SymbolKind::Type
-    };
-
-    Some(Symbol { visibility: go_visibility(&name), name, kind, line: line_num })
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 `type Reader interface { ... }` produces `SymbolKind::Trait` with `Visibility::Public`. This cross-language mapping allows the dependency graph to treat Go interfaces and Rust traits equivalently.
 
@@ -1181,28 +643,7 @@ fn try_extract_go_type(trimmed: &str, line_num: usize) -> Option<Symbol> {
 
 ### Language and DetectedBuildSystem Enums
 
-```rust
-// From project.rs
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Language {
-    Rust,         // Cargo.toml
-    TypeScript,   // package.json
-    Go,           // go.mod
-    Python,       // pyproject.toml or setup.py
-    Solidity,     // foundry.toml
-    Unknown,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum DetectedBuildSystem {
-    Cargo,    // Rust
-    Npm,      // Node (npm/yarn/pnpm)
-    Go,       // Go toolchain
-    Python,   // pip/poetry/uv
-    Forge,    // Foundry (Solidity)
-    Unknown,
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 Note that `DetectedBuildSystem` is a simple enum (a detection tag), distinct from the `BuildSystem` trait which provides runnable commands. The enum tells callers *which* build system was detected; the trait provides the concrete commands.
 
@@ -1210,34 +651,7 @@ Note that `DetectedBuildSystem` is a simple enum (a detection tag), distinct fro
 
 The `detect_from_files` function uses an ordered priority list of marker-file rules:
 
-```rust
-struct Rule {
-    marker: &'static str,
-    language: Language,
-    build_system: DetectedBuildSystem,
-}
-
-const RULES: &[Rule] = &[
-    Rule { marker: "Cargo.toml",    language: Language::Rust,       build_system: DetectedBuildSystem::Cargo },
-    Rule { marker: "go.mod",        language: Language::Go,         build_system: DetectedBuildSystem::Go },
-    Rule { marker: "foundry.toml",  language: Language::Solidity,   build_system: DetectedBuildSystem::Forge },
-    Rule { marker: "pyproject.toml",language: Language::Python,     build_system: DetectedBuildSystem::Python },
-    Rule { marker: "setup.py",      language: Language::Python,     build_system: DetectedBuildSystem::Python },
-    Rule { marker: "package.json",  language: Language::TypeScript, build_system: DetectedBuildSystem::Npm },
-];
-
-pub fn detect_from_files(file_names: &[&str]) -> Option<ProjectInfo> {
-    for rule in RULES {
-        if file_names.contains(&rule.marker) {
-            return Some(ProjectInfo {
-                language: rule.language,
-                build_system: rule.build_system,
-            });
-        }
-    }
-    None
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Priority order matters**: Rust wins over Go wins over Solidity wins over Python wins over TypeScript. If a project has both `Cargo.toml` and `package.json` (common for WASM projects), Rust is the primary language.
 
@@ -1248,48 +662,7 @@ pub fn detect_from_files(file_names: &[&str]) -> Option<ProjectInfo> {
 
 ### Multi-Language Detection
 
-```rust
-pub fn detect_polyglot(file_names: &[&str]) -> PolyglotProject {
-    let mut primary = Language::Unknown;
-    let mut languages = Vec::new();
-    let mut build_systems = Vec::new();
-
-    for rule in POLY_RULES {
-        if file_names.contains(&rule.marker) {
-            if !languages.contains(&rule.language) {
-                languages.push(rule.language);
-            }
-            if !build_systems.contains(&rule.build_system) {
-                build_systems.push(rule.build_system);
-            }
-            if primary == Language::Unknown {
-                primary = rule.language;
-            }
-        }
-    }
-
-    let secondary: Vec<Language> = languages.into_iter()
-        .filter(|l| *l != primary).collect();
-
-    PolyglotProject { primary, secondary, build_systems }
-}
-
-pub struct PolyglotProject {
-    pub primary: Language,
-    pub secondary: Vec<Language>,
-    pub build_systems: Vec<DetectedBuildSystem>,
-}
-
-impl PolyglotProject {
-    pub fn is_polyglot(&self) -> bool { !self.secondary.is_empty() }
-
-    pub fn all_languages(&self) -> Vec<Language> {
-        let mut all = vec![self.primary];
-        all.extend_from_slice(&self.secondary);
-        all
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 Deduplication ensures that `pyproject.toml` + `setup.py` (both Python markers) produce a single `Language::Python` entry, not a polyglot project.
 
@@ -1473,7 +846,7 @@ flowchart TD
 
 ## Benchmarking
 
-The following benchmarks characterize the performance envelope of each component. All measurements are representative targets based on the implementation characteristics described above; exact numbers will vary by hardware, file size distribution, and Rust optimization level.
+The following numbers are captured baselines and validation targets. Reproduce them on IronClaw hardware and representative repositories before using them in rollout decisions.
 
 ### Parsing Throughput (files/second)
 
@@ -1488,11 +861,11 @@ Key observations:
 - The heuristic parsers are I/O-bound at small file sizes and CPU-bound above ~200 lines.
 - Tree-sitter overhead is dominated by the grammar load on first use (~500 µs); subsequent parses amortize this cost effectively.
 - Parallelism via `rayon` or `tokio::task::spawn_blocking` scales throughput linearly with CPU cores for all parsers.
-- A 10,000-file monorepo (average 150 lines/file) indexes in under 1 second on an 8-core machine using heuristic parsers.
+- A 10,000-file monorepo (average 150 lines/file) indexing in under 1 second on an 8-core machine is a validation target for heuristic parsers, requires local validation.
 
 ### Symbol Extraction Accuracy
 
-Measured against a manually-annotated corpus of 500 Rust files, 300 TypeScript files, and 200 Go files from open-source projects:
+Captured baseline from a manually annotated corpus of 500 Rust files, 300 TypeScript files, and 200 Go files:
 
 | Language | Parser | Recall | Precision | F1 |
 |----------|--------|--------|-----------|-----|
@@ -1508,7 +881,7 @@ Notes:
 
 ### Build System Detection Accuracy
 
-Tested on 200 open-source repositories spanning various configurations:
+Captured baseline from 200 repositories spanning common configurations:
 
 | Test Case | Detection Result | Accuracy |
 |-----------|-----------------|----------|
@@ -1521,7 +894,7 @@ Tested on 200 open-source repositories spanning various configurations:
 | Ambiguous (package.json + pnpm-lock.yaml + yarn.lock) | pnpm (pnpm-lock.yaml checked first) | 100% |
 | Foundry project | Forge | 100% |
 
-No false positives or detection failures observed on the test corpus. The ordered priority rules with exclusive lock-file disambiguation eliminate all ambiguities.
+The captured corpus showed no false positives or detection failures. IronClaw should keep this as a regression target and add fixtures for local package-manager edge cases.
 
 ### Tree-Sitter vs. Heuristic Comparison (Rust)
 
@@ -1685,35 +1058,7 @@ The key design choice — only examining root-level filenames, never directory c
 
 An agent is asked to "add error handling to the `fetch_user` function". The agent needs to know the function's signature and what types it uses:
 
-```rust
-// Step 1: Find the function in the index
-let target = index.find_symbol("fetch_user", SymbolKind::Function)?;
-// SymbolRef { file: "src/api/users.rs", name: "fetch_user", line: 42 }
-
-// Step 2: Get the source file
-let source_file = index.get_source_file("src/api/users.rs")?;
-
-// Step 3: Extract the function definition (lines 42-55, e.g.)
-let next_symbol_line = source_file.symbols
-    .iter()
-    .find(|s| s.line > 42)
-    .map(|s| s.line)
-    .unwrap_or(source_file.content.lines().count());
-let fn_lines: Vec<&str> = source_file.content
-    .lines()
-    .skip(41)        // 0-indexed, symbol.line is 1-indexed
-    .take(next_symbol_line - 42)
-    .collect();
-
-// Step 4: Find all types imported by this file that the function uses
-let type_imports: Vec<&Import> = source_file.imports
-    .iter()
-    .filter(|i| fn_lines.iter().any(|l| l.contains(&i.path.split("::").last().unwrap_or(""))))
-    .collect();
-
-// Step 5: Assemble context: the function + its imported types
-// Total: ~200 tokens instead of the full 1,200-line file
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ---
 
@@ -1735,27 +1080,7 @@ app/
 
 **Cross-language dependency analysis**:
 
-```rust
-let rust_files = parse_files_in("app/backend/src", &rust_provider);
-let ts_files = parse_files_in("app/frontend/src", &ts_provider);
-let all_files = [rust_files, ts_files].concat();
-
-let graph = build_graph(&all_files);
-
-// The graph now contains:
-// - Rust: schema.rs defines UserProfile (SymbolKind::Struct)
-// - TypeScript: types.ts imports UserProfile concept (import from './schema' or generated)
-// - TypeScript: UserCard.tsx imports UserProfile from types.ts
-
-// PageRank elevates UserProfile because it has high in-degree:
-// schema.rs -> types.ts -> UserCard.tsx
-//           -> api.rs (Rust handler uses it too)
-
-let scores = pagerank(&graph, 0.85, 100);
-// UserProfile: score 0.42 (highest in the project)
-// fetch_user:  score 0.31
-// UserCard:    score 0.18
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 When the agent asks "what changes if I rename `UserProfile.email` to `UserProfile.emailAddress`?", the graph immediately shows the transitive impact: `schema.rs`, `api.rs`, `types.ts`, `UserCard.tsx` — four files, not 40.
 
@@ -1785,112 +1110,13 @@ crates/ironclaw_code_index/src/   # proposed
 
 **Maps to**: `src/tools/builtin/` (new tool) + session context
 
-```rust
-// src/tools/builtin/project_detect.rs
-use crate::code_index::polyglot::{detect_polyglot, PolyglotProject};
-
-pub struct ProjectDetectTool;
-
-#[async_trait]
-impl Tool for ProjectDetectTool {
-    fn name(&self) -> &str { "project_detect" }
-
-    fn description(&self) -> &str {
-        "Detect the programming languages and build systems in a project directory"
-    }
-
-    async fn execute(
-        &self,
-        params: Value,
-        ctx: &JobContext,
-    ) -> Result<ToolOutput, ToolError> {
-        let project_dir = params["path"]
-            .as_str()
-            .ok_or_else(|| ToolError::MissingParam("path"))?;
-
-        // I/O happens here, not in the detection logic
-        let mut entries = tokio::fs::read_dir(project_dir).await
-            .map_err(|e| ToolError::Io { reason: e.to_string() })?;
-
-        let mut file_names: Vec<String> = Vec::new();
-        while let Some(entry) = entries.next_entry().await
-            .map_err(|e| ToolError::Io { reason: e.to_string() })? {
-            file_names.push(entry.file_name().to_string_lossy().into_owned());
-        }
-
-        let refs: Vec<&str> = file_names.iter().map(|s| s.as_str()).collect();
-        let project = detect_polyglot(&refs);
-
-        // Store in workspace for subsequent tool calls
-        ctx.workspace
-            .write_project_context(project_dir, &project)
-            .await?;
-
-        Ok(ToolOutput::json(serde_json::json!({
-            "primary_language": format!("{:?}", project.primary),
-            "secondary_languages": project.secondary.iter().map(|l| format!("{:?}", l)).collect::<Vec<_>>(),
-            "build_systems": project.build_systems.iter().map(|b| format!("{:?}", b)).collect::<Vec<_>>(),
-            "is_polyglot": project.is_polyglot(),
-        })))
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### Integration Point 2: Language-Aware Build Commands
 
 **Maps to**: `src/tools/builtin/shell.rs` enhancement
 
-```rust
-// src/code_index/language.rs — IronClaw-native BuildSystem trait
-
-pub trait BuildSystem: Send + Sync {
-    fn name(&self) -> &str;
-    fn compile_cmd(&self, target_dir: &Path) -> BuildCommand;
-    fn test_cmd(&self, target_dir: &Path, filter: Option<&str>) -> BuildCommand;
-    fn lint_cmd(&self, target_dir: &Path) -> BuildCommand;
-    fn format_cmd(&self, target_dir: &Path, check_only: bool) -> BuildCommand;
-    fn detect_from_files(&self, file_names: &[&str]) -> bool;
-}
-
-// In the shell tool or a new build_cmd tool:
-pub fn get_build_system_for_project(
-    language: Language,
-    build_system_hint: DetectedBuildSystem,
-) -> Option<Box<dyn BuildSystem>> {
-    use DetectedBuildSystem::*;
-    match build_system_hint {
-        Cargo  => Some(Box::new(CargoBuildSystem)),
-        Npm    => Some(Box::new(NpmBuildSystem)),
-        Go     => Some(Box::new(GoBuildSystem)),
-        // pnpm/yarn detected by lock file presence — look up from project context
-        _      => None,
-    }
-}
-
-// Usage in tool execution:
-async fn execute_build(&self, params: Value, ctx: &JobContext) -> Result<ToolOutput, ToolError> {
-    let project_ctx = ctx.workspace.get_project_context().await?;
-    let bs = get_build_system_for_project(project_ctx.primary, project_ctx.build_systems[0])
-        .ok_or_else(|| ToolError::Unsupported { reason: "Unknown build system".into() })?;
-
-    let operation = params["operation"].as_str().unwrap_or("compile");
-    let filter = params["filter"].as_str();
-
-    let cmd = match operation {
-        "compile" => bs.compile_cmd(Path::new(&project_ctx.path)),
-        "test"    => bs.test_cmd(Path::new(&project_ctx.path), filter),
-        "lint"    => bs.lint_cmd(Path::new(&project_ctx.path)),
-        "format"  => bs.format_cmd(Path::new(&project_ctx.path), true),
-        other => return Err(ToolError::InvalidParam {
-            param: "operation",
-            reason: format!("unknown operation: {other}"),
-        }),
-    };
-
-    // Convert BuildCommand to shell execution
-    execute_shell_command(cmd, ctx).await
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### Integration Points 3–5: Code Index, Context Assembly, Progressive Disclosure
 
@@ -1946,7 +1172,7 @@ See [Code Intelligence](code-intelligence.md#15-ironclaw-integration-plan) for p
 
 ## Source Reference Index
 
-All upstream source files referenced in this document are captured-source identifiers:
+All source references below are captured-source identifiers, not links to an accessible external checkout:
 
 | File | Captured identifier | Purpose |
 |------|------------|---------|

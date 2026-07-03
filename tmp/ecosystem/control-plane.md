@@ -27,7 +27,7 @@
 9. [Relay Bridge](#9-relay-bridge)
 10. [Authentication & Security](#10-authentication--security)
 11. [Webhook Dispatch Loop](#11-webhook-dispatch-loop)
-12. [Inference Gateway (Zero-Key Agents)](#12-inference-gateway-zero-key-agents)
+12. [Inference Gateway (Scoped-Credential Agents)](#12-inference-gateway-scoped-credential-agents)
 13. [Comparison with IronClaw](#13-comparison-with-ironclaw)
 14. [Key Architectural Insights](#14-key-architectural-insights)
 15. [Summary](#15-summary)
@@ -45,11 +45,11 @@ An AI agent is a loop: observe, reason, act. A control plane is everything aroun
 
 **Aggregation.** A fleet of specialized agents needs a unified view: roster, health, outputs merged across boundaries.
 
-**Credential isolation.** Agents should never hold API keys. The control plane proxies inference so a compromised agent cannot exfiltrate credentials [5].
+**Credential isolation.** Agent workers should receive scoped credentials rather than provider API keys. A gateway can proxy inference so a compromised worker has less secret material to exfiltrate [5].
 
 **Learning.** Model routing, gate threshold tuning, and cost optimization cross agent boundaries. The control plane is the natural home for that shared state.
 
-Roko implements this through two crates: `roko-serve` (centralized control plane) and `roko-agent-server` (per-agent sidecar). Together they form a hub-and-spoke architecture.
+The captured design implements this as a centralized control plane plus optional per-agent sidecars. Treat the crate names below as provenance identifiers, not paths IronClaw must create.
 
 ---
 
@@ -63,7 +63,7 @@ graph TB
         OP[Operators]
     end
 
-    subgraph CP["roko-serve (port 6677)"]
+    subgraph CP["control plane"]
         R[REST Operator Routes]
         SSE[SSE /api/events]
         WS[WebSocket /ws]
@@ -74,7 +74,7 @@ graph TB
         Disp[Webhook Dispatcher]
     end
 
-    subgraph Agents["Agent Fleet (random ports)"]
+    subgraph Agents["Agent Fleet / sidecars"]
         A1[Agent A Sidecar]
         A2[Agent B Sidecar]
         A3[Agent C Sidecar]
@@ -126,7 +126,7 @@ Every axum handler receives `State<Arc<AppState>>`. Key design choices in `crate
 
 ### 3.2 Event Types — The ServerEvent Enum
 
-All events flow through a single tagged union in `crates/roko-serve/src/events.rs`. **60+ variants** cover:
+All events flow through a single tagged union in `crates/roko-serve/src/events.rs`. The captured event set covers these categories:
 
 | Category | Representative variants |
 |----------|------------------------|
@@ -165,7 +165,7 @@ Beyond bare `broadcast::Sender`:
 - **Sequence numbers**: every event gets a monotonically increasing `u64`, enabling cursor-based reconnection.
 - **Replay ring**: a bounded ring buffer holds recent events. Reconnecting clients replay from `Last-Event-ID` without a database fetch.
 - **Envelope wrapping**: `Envelope<E>` carries `seq: u64`, `ts_millis: i64`, `payload: E`.
-- **SSE replay cap**: replays are capped at 256 events to bound memory pressure.
+- **SSE replay cap**: replays are capped by configuration to bound memory pressure.
 
 ### 3.4 StateHub — The Projection Engine
 
@@ -180,35 +180,28 @@ This eliminates polling: instead of fetching `/api/jobs` every 5 seconds, the da
 
 ## 4. HTTP API Routes
 
-The route tree is assembled in `crates/roko-serve/src/routes/mod.rs`. All `/api/*` routes sit behind auth and secret-scrubbing middleware. A global rate limiter (governor, 100 req/s) and 4 MiB request body cap apply to all routes.
+The route tree is assembled in `crates/roko-serve/src/routes/mod.rs`. Protected routes sit behind auth, request-size limits, rate limits, and response scrubbing. Treat exact limits as deployment configuration, not architecture constants.
 
 ### 4.1 Route Categories
 
-| Category | Count | Key endpoints |
-|----------|-------|---------------|
-| Health & status | 9 | liveness, readiness, metrics, API health, StateHub snapshot |
-| Metrics | 12 | `GET /api/metrics{/summary,/success_rate,/model_efficiency,/gate_rate,...}` |
-| Plans | 16 | CRUD + `execute`, `pause`, `resume`, `gates`, `costs`, `generate`, `estimate`, `chat` |
-| Agent management | 14 | CRUD + `start`, `stop`, `restart`, `episodes`, `logs`, `message`, `token` |
-| Fleet aggregation | 18 | Fan-out list + `topology`, per-agent `stats`/`skills`/`heartbeat`/`trace`, knowledge graph, tasks, multiplexed WS |
-| Benchmarks | 18+ | CRUD + `compare`, `pareto`, `export`, `events` SSE, suite management |
-| Inference gateway | 5 | `POST /api/inference/complete`, `GET /api/gateway/{stats,models}`, batch submit/status |
-| Jobs (marketplace) | 11 | CRUD + state machine (open → assigned → in_progress → submitted → completed) |
-| Learning & adaptation | 16+ | Efficiency, costs, provider outcomes, retries, cascade, experiments, thresholds |
-| Heartbeats | 3 | `POST /api/heartbeats`, `GET /api/heartbeats`, `GET /api/network/stats` |
-| Config | 4 | Read/write/reload + raw TOML |
-| Subscriptions | 7 | CRUD + enable/disable + catalog |
-| Webhooks | 3 | GitHub, Slack (verified), generic (authenticated) |
-| Secrets | 4 | List + set + delete + test |
-| Chain | 7 | Agents, bounties, blocks, transactions, events, watcher |
-| Feeds | 7 | CRUD + catalog + runtime status |
-| Workflows | 7 | List, latest, stream, by-id, tasks, stream-by-id, WebSocket |
-| Projections | 3 | `catalog`, `get`, `stream` |
-| Deployments | 6 | CRUD + logs + task proxy + callback |
-| SSE | 2 | `GET /api/events`, `GET /api/sse` |
-| WebSocket | 2 | `GET /ws`, `GET /roko-ws` |
-| Relay proxy | 4 | HTTP catch-all + 2 WS proxies + root |
-| Other | ~20 | Templates, PRDs, SWE-bench, Vision Loop, Teams, Workspaces, Providers, Dreams |
+| Category | Representative endpoints |
+|----------|--------------------------|
+| Health & status | liveness, readiness, metrics, API health, StateHub snapshot |
+| Metrics | metrics summary, success rate, model efficiency, gate rate |
+| Plans | CRUD plus execute, pause, resume, gates, costs, generate, estimate, chat |
+| Agent management | CRUD plus start, stop, restart, logs, message, scoped token issuance |
+| Fleet aggregation | fan-out list, topology, per-agent stats/skills/heartbeat/trace, multiplexed WS |
+| Benchmarks | CRUD plus compare, export, events SSE, suite management |
+| Inference gateway | inference completion, gateway stats/models, batch submit/status |
+| Jobs and workflows | job state machine, workflow snapshots, streams, WebSocket |
+| Heartbeats | heartbeat ingest, heartbeat list, network stats |
+| Config and subscriptions | read/write/reload, subscription CRUD, enable/disable |
+| Webhooks | verified first-party hooks and authenticated generic hooks |
+| Secrets | list, set, delete, test without returning secret values |
+| Chain and feeds | chain reads/events and feed catalog/runtime state |
+| Projections | catalog, snapshot, stream |
+| Deployments | CRUD, logs, callback/task proxy |
+| Streaming | SSE, WebSocket, relay proxy |
 
 ### 4.2 Public Routes (No Auth)
 
@@ -254,16 +247,16 @@ flowchart LR
 
 `GET /api/events` and `GET /api/sse` in `crates/roko-serve/src/routes/sse.rs`:
 
-- **Replay on reconnect**: `Last-Event-ID` header triggers replay from the ring buffer (capped at 256 events).
+- **Replay on reconnect**: `Last-Event-ID` header triggers replay from the ring buffer up to the configured cap.
 - **Monotonic event IDs**: each SSE frame carries a sequence number from the event bus.
 - **Anti-buffering headers**: `X-Accel-Buffering: no`, `Cache-Control: no-cache, no-store`, `Connection: keep-alive` disable proxy buffering (Railway, Nginx, Cloudflare).
-- **8-second keep-alive**: shorter than the default 15s to survive aggressive proxy timeouts.
+- **Keep-alive interval**: configured shorter than the most aggressive expected proxy timeout.
 
 Lag is handled explicitly: `RecvError::Lagged(n)` is logged with skip count and the loop continues — no silent drops.
 
 ### 5.2 WebSocket Streaming
 
-`GET /ws` and `GET /roko-ws` in `crates/roko-serve/src/routes/ws.rs` with message size limits (1 MiB max message, 256 KiB max frame).
+`GET /ws` and `GET /roko-ws` in `crates/roko-serve/src/routes/ws.rs` with explicit message and frame size limits.
 
 Client control protocol:
 
@@ -307,7 +300,7 @@ sequenceDiagram
     participant Sidecars as Agent Sidecars (A, B, C)
 
     C->>CP: GET /api/agents
-    CP->>Cache: check cache (30s TTL)
+    CP->>Cache: check cache (per-data-type TTL)
     alt cache hit
         Cache-->>CP: cached response
         CP-->>C: 200 JSON (from cache)
@@ -319,17 +312,17 @@ sequenceDiagram
     end
 ```
 
-The aggregator module (`crates/roko-serve/src/routes/aggregator.rs`) fans out to all discovered agent sidecars and merges responses. TTL constants reflect each data type's rate of change:
+The aggregator module (`crates/roko-serve/src/routes/aggregator.rs`) fans out to all discovered agent sidecars and merges responses. TTLs should reflect each data type's rate of change:
 
 | Data type | TTL | Rationale |
 |-----------|-----|-----------|
-| Agent stats | 5s | Changes frequently during execution |
-| Predictions | 10s | Changes on new predictions/evaluations |
-| Agent list | 30s | Agents rarely join/leave mid-session |
-| Knowledge entries | 30s | Rarely modified during a session |
-| Task queue | 30s | Bulk state changes are batched |
+| Agent stats | short | Changes frequently during execution |
+| Predictions | short-medium | Changes on new predictions/evaluations |
+| Agent list | medium | Agents rarely join/leave mid-session |
+| Knowledge entries | medium | Rarely modified during a session |
+| Task queue | medium | Bulk state changes are batched |
 
-The multiplexed WebSocket at `GET /api/ws` connects to every discovered agent's WebSocket and fans all events into a single client-facing stream, tagging each message with `_source_agent`. Discovery refreshes every 10 seconds; a new agent appears in the stream within 12 seconds (10s discovery + 2s reconnect delay).
+The multiplexed WebSocket at `GET /api/ws` connects to discovered agent WebSockets and fans events into a single client-facing stream, tagging each message with `_source_agent`. Discovery and reconnect intervals should be measured under expected fleet size and failure modes.
 
 ---
 
@@ -367,11 +360,11 @@ Builder API:
 ```rust
 let server = AgentServer::builder()
     .agent_id("analyst-1")
-    .bind("0.0.0.0:0")                 // Random port
+    .bind(configured_sidecar_bind_addr)
     .messaging()                        // Enable /message
     .predictions()                      // Enable /predictions/*
-    .auth(BearerAuth::new("token"))
-    .serve_url("http://localhost:6677") // Control plane for heartbeats
+    .auth(BearerAuth::from_secret_ref("sidecar-token"))
+    .serve_url(configured_control_plane_url)
     .build()?;
 ```
 
@@ -426,7 +419,7 @@ sequenceDiagram
     participant EB as EventBus
     participant D as Dashboard SSE
 
-    loop every 30s (MissedTickBehavior::Skip)
+    loop on configured interval (MissedTickBehavior::Skip)
         A->>CP: POST /api/heartbeats {sender_id, active_tasks, metrics}
         CP->>Ring: push_back; evict oldest if full
         CP->>EB: publish(HeartbeatReceived)
@@ -442,7 +435,7 @@ Implementation in `crates/roko-serve/src/routes/heartbeats.rs`:
 - Publishes `HeartbeatReceived` to the bus so SSE/WS clients track liveness in real time.
 - `MissedTickBehavior::Skip` prevents heartbeat floods after CPU spikes.
 
-`GET /api/network/stats` aggregates the ring by sender to compute per-agent statistics (heartbeat count, last seen, average active tasks). With a 30s interval, expected failure detection latency is ~45s (interval + interval/2) [11].
+`GET /api/network/stats` aggregates the ring by sender to compute per-agent statistics (heartbeat count, last seen, average active tasks). Failure detection latency is a function of heartbeat interval, jitter, missed-heartbeat threshold, and scheduler load; report the configured values in production docs.
 
 ---
 
@@ -482,9 +475,9 @@ flowchart TD
     Req[Incoming Request]
     Req --> PubPath{"Public path?\n/health /ready /metrics\n/relay/* /webhooks/*"}
     PubPath -->|yes| Handler[Handler]
-    PubPath -->|no| RateLimit[Global Rate Limiter\n100 req/s governor]
+    PubPath -->|no| RateLimit[Configured rate limiter]
     RateLimit -->|429| Reject[Reject]
-    RateLimit -->|pass| BodyCap[Body Cap 4 MiB]
+    RateLimit -->|pass| BodyCap[Configured body cap]
     BodyCap -->|413| Reject
     BodyCap -->|pass| ApiKey{API Key check\nX-Api-Key header\nSHA-256 match}
     ApiKey -->|missing/wrong| Bearer{Bearer token check}
@@ -507,20 +500,20 @@ Scope hierarchy: `admin > agent:write > plan:write > read`.
 
 ### 10.2 Secret Scrubbing
 
-All `/api/*` responses pass through a response-layer `LogScrubber` that redacts API key patterns (Anthropic keys, GitHub PATs, generic bearer tokens, OpenAI keys) from JSON response bodies. Non-JSON responses, streaming responses, and responses over 1 MiB are passed through unchanged to avoid buffering streaming content.
+All `/api/*` responses pass through a response-layer `LogScrubber` that redacts configured API-key patterns from JSON response bodies. Non-JSON responses, streaming responses, and responses over the configured scrub limit are not buffered; document that residual risk and keep streaming routes from returning secrets.
 
 ### 10.3 Rate Limiting and Body Cap
 
 ```
-DEFAULT_GLOBAL_RATE_PER_SEC    = 100
-DEFAULT_REQUEST_BODY_LIMIT_BYTES = 4 MiB
+DEFAULT_GLOBAL_RATE_PER_SEC = <configured>
+DEFAULT_REQUEST_BODY_LIMIT_BYTES = <configured>
 ```
 
-Requests exceeding 100/second receive 429 with `code = "rate_limited"`. The body cap prevents memory exhaustion from oversized payloads.
+Requests exceeding the configured limit receive 429 with `code = "rate_limited"`. The body cap prevents memory exhaustion from oversized payloads and should be sized per route class.
 
 ### 10.4 Lock Acquisition Ordering
 
-`AppState` documents a strict lock order across 17 `RwLock` fields to prevent deadlocks. Handlers needing multiple locks must acquire in this order:
+`AppState` documents a strict lock order across shared mutable fields to prevent deadlocks. Handlers needing multiple locks must acquire them in the documented order:
 
 ```
 active_runs → active_plans → operations → templates → deployments →
@@ -572,9 +565,10 @@ Filter example:
 
 ---
 
-## 12. Inference Gateway (Zero-Key Agents)
+## 12. Inference Gateway (Scoped-Credential Agents)
 
-Agents never hold API keys. All LLM access goes through `crates/roko-serve/src/routes/gateway.rs`:
+Agent workers should not hold provider API keys. In the captured design, LLM
+access goes through `crates/roko-serve/src/routes/gateway.rs`:
 
 ```
 POST /api/inference/complete      # Proxy LLM call with cost tracking
@@ -585,10 +579,10 @@ GET  /api/inference/batch/{id}    # Batch status
 ```
 
 Benefits:
-- A compromised agent only has a scoped `agent:write` token — cannot exfiltrate API keys.
-- Cost tracking is automatic: every `InferenceCompleted` event carries `cost_usd` and `duration_ms`.
-- Cascade routing (model selection) works transparently across all agents.
-- Rotating an API key requires updating one place.
+- A compromised worker has a smaller credential blast radius.
+- Cost tracking can be centralized when every inference call emits provider, usage, and duration metadata.
+- Cascade routing (model selection) can be shared across workers.
+- Rotating a provider key requires updating fewer places.
 
 ---
 
@@ -601,9 +595,9 @@ IronClaw's web gateway (`src/channels/web/`) provides a broad route surface orga
 **Core capabilities:**
 - **Chat API**: `src/channels/web/features/chat/mod.rs` — `/api/chat/send`, `/api/chat/events` (SSE), `/api/chat/ws` (WebSocket), `/api/chat/history`, `/api/chat/threads`, `/api/chat/gate/resolve`
 - **Memory API**: `src/channels/web/handlers/memory.rs` — `/api/memory/{tree,search,read,write}`
-- **Jobs API**: `src/channels/web/features/jobs/mod.rs` — 9 sandbox job routes
-- **Skills, Extensions, Routines, Settings**: `src/channels/web/features/` — 6-8 routes each
-- **User management**: `src/channels/web/handlers/users.rs` — 12 admin user routes
+- **Jobs API**: `src/channels/web/features/jobs/mod.rs` — sandbox job routes
+- **Skills, Extensions, Routines, Settings**: `src/channels/web/features/`
+- **User management**: `src/channels/web/handlers/users.rs` — admin user routes
 - **SSE streaming**: gateway event types scoped by `user_id` via `ScopedEvent`, with `boot_id` for cross-session dedup
 - **WebSocket**: `src/channels/web/platform/ws.rs` — bidirectional with ping/pong, client messages for chat and approval
 - **OpenAI compatibility**: `src/channels/web/openai_compat.rs` — `/v1/chat/completions`, `/v1/models`, `/v1/responses`
@@ -616,15 +610,15 @@ IronClaw's gateway is **session-oriented** (multi-user, single-agent per user), 
 
 | Roko Pattern | IronClaw Equivalent | Gap |
 |---|---|---|
-| EventBus with replay ring | `SseManager` in `platform/sse.rs` (broadcast + `boot_id`) | IronClaw uses `tokio::sync::broadcast` with configurable buffer (`SSE_BROADCAST_BUFFER`, default 1024) and `BroadcastStream` which silently drops lagged events. Has `next_event_id` but no server-side ring buffer. Roko's ring enables cursor-based reconnection without a database fetch. |
+| EventBus with replay ring | `SseManager` in `platform/sse.rs` (broadcast + `boot_id`) | IronClaw uses `tokio::sync::broadcast` with configurable buffer and `BroadcastStream`. Has `next_event_id` but no server-side replay ring. A ring enables cursor-based reconnection without a database fetch. |
 | StateHub (CQRS projections) | No equivalent | Adding projection streaming would let dashboards subscribe to "tool execution events" or "cost metrics" without polling. |
 | Per-agent sidecar | Orchestrator (`src/orchestrator/`) | IronClaw has an orchestrator for sandbox containers with internal API and bearer auth — structurally similar. The gap is that the orchestrator manages containers, not agent processes with independent HTTP identities. |
 | Fleet aggregation | No equivalent | With background jobs and routines, a fan-out-fan-in aggregation layer could unify task status, cost, and output across concurrent contexts. |
-| Infrastructure heartbeats | User-facing heartbeats | IronClaw's heartbeat drives proactive execution via `HEARTBEAT.md`. Roko's is infrastructure liveness at 30s intervals. Both can coexist. |
-| Inference gateway | `ironclaw_llm` multi-provider | IronClaw has multi-provider LLM with cost tracking. The zero-key gateway pattern could layer on top for sandboxed workers. |
+| Infrastructure heartbeats | User-facing heartbeats | IronClaw's heartbeat drives proactive execution via `HEARTBEAT.md`. Infrastructure liveness heartbeats can coexist when kept separate from user-facing routine execution. |
+| Inference gateway | `ironclaw_llm` multi-provider | IronClaw has multi-provider LLM with cost tracking. A scoped-credential gateway pattern could layer on top for sandboxed workers. |
 | Webhook dispatch + subscriptions | `src/channels/web/handlers/webhooks.rs` + WASM channels | IronClaw has inbound webhook handling. The subscription/filter/dispatch pattern would add structured routing with concurrency limits and cooldown. |
 | Secret scrubbing (output-side) | `ironclaw_safety` (input-side) | IronClaw has input validation. Roko adds a response middleware that redacts API keys from JSON bodies. |
-| Global rate limiter | Per-user chat limiter (30 req/60s) | IronClaw rate-limits chat only (`platform/state.rs`). Roko's global 100 req/s governor covers all routes. |
+| Global rate limiter | Per-user chat limiter | IronClaw has route-specific limiting. A global limiter would protect non-chat API surfaces as a separate policy layer. |
 | Graceful shutdown (readiness probe + `CancelToken`) | No equivalent | Readiness probe pattern enables drain-before-stop in Kubernetes. |
 | WS message size limits | Not set in `platform/ws.rs` | No max message/frame size. A misbehaving client could exhaust memory. |
 | Lag visibility | Silent drop (`BroadcastStream`) | Roko's `unfold` loop logs `RecvError::Lagged(n)` with skip count; IronClaw's `BroadcastStream` silently drops. |
@@ -834,16 +828,16 @@ impl AgentServer {
 
 ### 13.8 Prioritized Enhancement Roadmap
 
-| Priority | Enhancement | Effort | Value | IronClaw Files |
-|----------|------------|--------|-------|----------------|
-| 1 | Replay ring buffer for SSE | Low (1-2 days) | High — eliminates history re-fetch on reconnect | `src/channels/web/platform/sse.rs` |
-| 2 | Output-side secret scrubbing | Low (1 day) | High — closes output side of security perimeter | `src/channels/web/platform/` (new file) |
-| 3 | Readiness probe (`GET /readyz`) | Very low (hours) | Medium — enables zero-downtime deployments | `src/channels/web/platform/static_files.rs` |
-| 4 | WS message size limits | Very low (hours) | Medium — prevents OOM from misbehaving clients | `src/channels/web/platform/ws.rs` |
-| 5 | Projection streaming | Medium (1 week) | High — eliminates polling for dashboard widgets | `src/channels/web/platform/` (new module) |
-| 6 | Global rate limiter (governor) | Low (1 day) | Medium — protects non-chat API surface | `src/channels/web/platform/router.rs` |
-| 7 | Infrastructure heartbeats | Medium (2-3 days) | Medium — enables external monitoring | `src/channels/web/features/` (new module) |
-| 8 | Per-agent sidecar | High (weeks) | High (future) — enables multi-agent orchestration | New crate |
+| Priority | Enhancement | Complexity | Value | Candidate IronClaw Surface |
+|----------|------------|------------|-------|---------------------------|
+| 1 | Replay ring buffer for SSE | Low | High — reduces reconnect history fetches | `src/channels/web/platform/sse.rs` |
+| 2 | Output-side secret scrubbing | Low | High — adds response-side safety coverage | `src/channels/web/platform/` |
+| 3 | Readiness probe (`GET /readyz`) | Low | Medium — supports drain-before-stop deployments | `src/channels/web/platform/static_files.rs` or a dedicated platform route |
+| 4 | WS message size limits | Low | Medium — bounds memory exposure from clients | `src/channels/web/platform/ws.rs` |
+| 5 | Projection streaming | Medium | High — reduces dashboard polling | `src/channels/web/platform/` or feature-owned modules |
+| 6 | Global rate limiter | Medium | Medium — protects non-chat API surfaces | `src/channels/web/platform/router.rs` |
+| 7 | Infrastructure heartbeats | Medium | Medium — enables external monitoring | Feature-owned module |
+| 8 | Per-agent sidecar | High | Future — only if multi-agent orchestration needs independent process identities | New crate or existing process/orchestrator owner |
 
 ### 13.9 Security Rollout Checklist
 
@@ -867,11 +861,11 @@ Before enabling any route, SSE, WebSocket, sidecar, projection, or gateway featu
 
 **Single-writer, multiple-reader.** Events are written once to the broadcast bus, then consumed by many readers (SSE, WebSocket, projections, anomaly detectors). The event bus is append-only; simple sequence numbering eliminates write contention [12].
 
-**Discovery-based reconnection.** The multiplexed WebSocket stream refreshes agent discovery every 10 seconds and reconnects to new agents within 2 seconds — a new agent appears in the stream within 12 seconds without client-side action. Discovery-first avoids registration storms at startup.
+**Discovery-based reconnection.** The multiplexed WebSocket stream refreshes agent discovery and reconnects to new agents without client-side action. Discovery-first avoids registration storms at startup, but refresh and reconnect intervals should be measured.
 
-**Zero-key agents via gateway.** Centralizing LLM access means rotating an API key requires updating one place. Cost tracking is automatic. Provider health monitoring catches failures before they affect agent tasks.
+**Scoped-credential agents via gateway.** Centralizing LLM access reduces provider-key exposure. Cost tracking and provider health monitoring still require complete instrumentation and failure tests.
 
-**Tiered TTL caching.** TTLs must not be uniform: 5s for agent stats (high change rate during execution), 30s for agent lists (rarely change). Mismatched TTLs waste sidecar polling or serve stale data.
+**Tiered TTL caching.** TTLs should not be uniform: high-change data needs shorter TTLs than fleet inventory or catalog data. Mismatched TTLs waste sidecar polling or serve stale data.
 
 **Feature-flag route gating vs. handler-level gating.** Registering routes conditionally at startup is preferable to checking capabilities inside handlers: 404 (route not registered) is more informative than 403 (feature disabled), and the capabilities manifest accurately reflects the real route table. IronClaw's extension system currently gates at the handler level — the sidecar pattern suggests moving gating to route registration.
 
@@ -881,13 +875,13 @@ Before enabling any route, SSE, WebSocket, sidecar, projection, or gateway featu
 |---|---|---|
 | Route surface | Broad operator API | Broad gateway API |
 | SSE event model | Typed server events | Scoped gateway events |
-| Auth layers | 4 (API key, bearer, JWT, agent token) | 3 (bearer, DB-token, OIDC) + query-string for SSE/WS |
-| Rate limiting | Global 100 req/s | Per-user 30 req/60s (chat only) |
-| Body cap | 4 MiB | 14 MiB (supports attachment uploads) |
+| Auth layers | Layered API key/bearer/JWT/agent-token model | Bearer, DB-token, OIDC, and streaming-specific auth paths |
+| Rate limiting | Global limiter plus scoped policies | Route/user-specific limiting |
+| Body cap | Configured global body cap | Route-specific caps, including attachment-aware routes |
 | SSE replay | Ring buffer + cursor | boot_id UUID (no ring buffer) |
 | Max connections | Memory-bound | 100 (`GATEWAY_MAX_CONNECTIONS`) |
 | Secret scrubbing | Response middleware | Input validation only |
-| Fleet aggregation | Yes (18 aggregator routes) | No |
+| Fleet aggregation | Present in captured design | Not a direct gateway capability |
 | Per-agent sidecar | Yes | Container orchestrator only |
 
 ---
@@ -898,7 +892,7 @@ Roko's control plane architecture demonstrates a mature pattern for AI agent sys
 
 1. **Central control plane** with route groups for plan execution, cost tracking, benchmarks, and operator workflows behind layered auth and response-side secret scrubbing.
 
-2. **Per-agent sidecars** with feature-gated routes registered at startup (not handler level), independent bearer auth, accurate capability manifests, and optional relay connectivity.
+2. **Per-agent sidecars** with feature-gated routes registered at startup, independent bearer auth, accurate capability manifests, and optional relay connectivity.
 
 3. **Fleet aggregation** via fan-out-fan-in HTTP proxying with per-route TTL caching and a multiplexed WebSocket that merges events from all agents into a single stream.
 
@@ -906,11 +900,11 @@ Roko's control plane architecture demonstrates a mature pattern for AI agent sys
 
 5. **Relay bridge** connecting agents via persistent WebSocket with pub/sub messaging, ERC-8004 card hosting, and feed distribution — proxied through the control plane for a single external entry point.
 
-6. **Infrastructure heartbeats** at 30-second intervals with ring buffer storage and network stats aggregation, separate from user-facing heartbeat execution.
+6. **Infrastructure heartbeats** with configured intervals, ring buffer storage, and network stats aggregation, separate from user-facing heartbeat execution.
 
-7. **Security layers**: centralized inference gateway (zero-key agents), response-side secret scrubbing, layered auth, global rate limiting (100 req/s), and 4 MiB body caps.
+7. **Security layers**: scoped inference gateway, response-side secret scrubbing, layered auth, configured rate limiting, and configured body caps.
 
-**For IronClaw**, the highest-value adoptions in order: (1) SSE replay ring buffer, (2) output-side secret scrubbing middleware, (3) readiness probe `GET /readyz`, (4) WebSocket message size limits, (5) projection streaming for dashboard widgets. IronClaw's existing `platform/features` gateway architecture and per-connection sequence numbers in `src/channels/web/platform/sse.rs` provide a foundation for adopting these patterns without a full rewrite.
+**For IronClaw**, the highest-value candidates in order: (1) SSE replay ring buffer, (2) output-side secret scrubbing middleware, (3) readiness probe `GET /readyz`, (4) WebSocket message size limits, (5) projection streaming for dashboard widgets. IronClaw's existing `platform/features` gateway architecture and per-connection sequence numbers in `src/channels/web/platform/sse.rs` provide a foundation for adopting these patterns incrementally.
 
 ---
 

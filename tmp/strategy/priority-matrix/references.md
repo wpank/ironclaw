@@ -1,6 +1,8 @@
 # References
 
-This file records where the strategy came from without requiring access to the original upstream source. Roko references below are captured source-path names from the analyzed corpus, included only to preserve the source trace.
+This file records strategy provenance without requiring access to any source
+repository. References below are captured source-path names from the analyzed
+corpus, included only to preserve traceability.
 
 ## Companion Strategy Files
 
@@ -14,11 +16,11 @@ This file records where the strategy came from without requiring access to the o
 | [synergy-analysis.md](synergy-analysis.md) | Dependencies and combined-value hypotheses. |
 | [../integration-roadmap.md](../integration-roadmap.md) | Phase plan and risk controls. |
 
-## Captured Roko Context
+## Captured Context
 
-| Strategy area | Captured Roko concept or path name | IronClaw interpretation |
-|---------------|------------------------------------|-------------------------|
-| CLI visual language | `crates/roko-cli/src/inline/symbols.rs` | Use consistent status symbols and labels, not Roko branding. |
+| Strategy area | Captured concept or path name | IronClaw interpretation |
+|---------------|--------------------------------|-------------------------|
+| CLI visual language | `crates/roko-cli/src/inline/symbols.rs` | Use consistent status symbols and labels, not external branding. |
 | Streaming phases | `crates/roko-cli/src/inline/primitives/streaming.rs` | Show phase-specific progress instead of generic "thinking". |
 | Tool call rendering | `crates/roko-cli/src/inline/primitives/tool_call.rs` | Collapse tool calls by default with clear expansion affordance. |
 | Progress tree | `crates/roko-cli/src/inline/primitives/progress_tree.rs` | Use hierarchical progress only for real multi-step plans. |
@@ -62,7 +64,7 @@ These are conceptual anchors, not implementation instructions.
 
 ## Stale Reference Policy
 
-- Do not add live upstream URLs to these strategy files.
+- Do not add live source-repo URLs to these strategy files.
 - Captured path names are acceptable when they explain source traceability.
 - If a linked internal file moves, update this file in the same branch.
 - If implementation changes feature status, check `FEATURE_PARITY.md` and relevant subsystem docs.

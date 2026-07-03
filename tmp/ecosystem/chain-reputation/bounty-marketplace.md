@@ -47,9 +47,9 @@ The `spec_hash` and `result_hash` should point to content-addressed artifacts. D
 
 ## Hiring Models
 
-### RandomVRF
+### Randomized Assignment
 
-Random assignment with the "power of two choices" can balance load while still favoring reputation:
+Random assignment with the "power of two choices" can balance load while still favoring reputation if the candidate sample is not controlled by the poster:
 
 ```rust
 pub fn choose_between_two(a: Candidate, b: Candidate) -> Candidate {
@@ -162,7 +162,7 @@ The IronClaw side should treat marketplace actions as capability-gated side effe
 let job = JobRequest {
     domain: ReputationDomain::Security,
     required_capabilities: CAP_SECURITY | CAP_KNOWLEDGE,
-    budget_yocto: near_to_yocto(50),
+    budget_yocto: configured_budget_yocto,
     deadline_ns: now_ns + hours(72),
     spec_hash: sha256(redacted_spec_bytes),
 };
@@ -173,7 +173,7 @@ marketplace.submit_result(job_id, sha256(report_bytes)).await?;
 marketplace.resolve(job_id, QualityScore::from_micros(920_000)).await?;
 ```
 
-The numbers above are illustrative. Before enabling real value transfer, benchmark storage, fees, callback failure modes, and dispute timing on localnet and testnet.
+The example is a protocol flow, not a cost recommendation. Before enabling real value transfer, benchmark storage, fees, callback failure modes, and dispute timing on localnet and testnet.
 
 ## Navigation
 

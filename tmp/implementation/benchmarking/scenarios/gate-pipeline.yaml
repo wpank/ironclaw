@@ -2,6 +2,7 @@ schema_version: 1
 id: progressive_gates.webhook_signature
 feature: progressive_gates
 feature_flag_id: flag.progressive_gates
+flag_default: "off"
 owner: src/tools
 stage: local
 repetitions: 50
@@ -26,6 +27,14 @@ expected_metrics:
 guardrails:
   max_false_block_rate: 0.05
   max_gate_wall_clock_ms: 120000
+  max_artifact_bytes: 250000
   require_artifact_redaction: true
+metric_bounds:
+  pct_values_min: 0
+  pct_values_max: 100
+  rate_values_min: 0.0
+  rate_values_max: 1.0
+  latency_ms_min: 0
 artifacts:
   retain_stdout_stderr: redacted
+  retain_raw_secret_values: false

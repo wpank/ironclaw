@@ -24,7 +24,7 @@ When a document analyzes captured Roko code, it may use the captured term
 IronClaw-native or v2-compatible term (`SignalRecord`, `Store`, `Graph`) unless
 the exact captured type name is being quoted.
 
-## Count and Absence Rule
+## Count, Status, and Absence Rule
 
 Avoid live-repository count claims unless they were regenerated from local
 evidence in the current branch. Prefer phrases such as "captured crate family,"

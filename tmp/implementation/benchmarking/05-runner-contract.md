@@ -1,104 +1,76 @@
 # Benchmark Runner Contract
 
-The scenario fixtures are intentionally portable. This document defines the
-runner contract that turns them into executable evidence.
+`ironclaw-bench` is a thin local runner around scenario fixtures. It should be
+deterministic by default and require explicit opt-in for live providers.
 
-## 1. Command Shape
+## Commands
 
-```text
-ironclaw-bench run \
-  --scenario tmp/benchmarking/scenarios/cascade-router.yaml \
-  --baseline current_static_router \
-  --candidate linucb_shadow \
-  --out artifacts/benchmarks/cascade_router/simple_lookup/<run_id>
+```bash
+ironclaw-bench validate tmp/implementation/benchmarking/scenarios
+ironclaw-bench run tmp/implementation/benchmarking/scenarios/cascade-router.yaml \
+  --out target/benchmarks/cascade_router/run.local
+ironclaw-bench compare \
+  --baseline target/benchmarks/cascade_router/run.local/baseline.jsonl \
+  --candidate target/benchmarks/cascade_router/run.local/candidate.jsonl
 ```
 
-Required subcommands:
-
-| Command | Purpose |
-|---|---|
-| `validate` | parse fixture, check required fields, no side effects |
-| `run` | execute baseline and candidate |
-| `compare` | produce comparison.json and summary.md from JSONL |
-| `redact` | verify artifact privacy rules |
-
-## 2. Artifact Layout
+## Required Outputs
 
 ```text
-artifacts/benchmarks/<feature>/<scenario>/<run_id>/
-  manifest.yaml
-  baseline.jsonl
-  candidate.jsonl
-  comparison.json
-  summary.md
-  stderr.log
-  fixtures/
+manifest.yaml
+baseline.jsonl
+candidate.jsonl
+verdict.json
+report.md
 ```
 
-## 3. JSONL Output
+`baseline.jsonl` and `candidate.jsonl` use
+`../schemas/04-canonical-event-and-persistence-contract.md`.
 
-Each line must be the canonical event shape from
-[`../schemas/04-canonical-event-and-persistence-contract.md`](../schemas/04-canonical-event-and-persistence-contract.md).
-
-Minimum fields:
+## JSONL Row
 
 ```json
 {
-  "schema_version": 1,
-  "event_id": "met.cascade_router.0001",
-  "run_id": "cascade_router.20260702T120100Z.a13f",
-  "thread_id": null,
-  "turn_id": "turn.fixture.0001",
-  "tool_call_id": null,
-  "feature_flag_id": "flag.cascade_router",
+  "event_id": "met.run.bench.20260703T101500Z.a13f.0001",
+  "run_id": "run.bench.20260703T101500Z.a13f",
   "feature": "cascade_router",
-  "variant": "linucb_shadow",
-  "scenario": "cascade_router.simple_lookup",
-  "stage": "shadow",
-  "timestamp_ms": 1782993660000,
+  "feature_flag_id": "flag.cascade_router",
+  "variant": "candidate",
+  "stage": "local",
+  "timestamp_ms": 1783064100000,
   "latency_ms": 412,
-  "input_tokens": 118,
-  "output_tokens": 64,
   "cost_microusd": 120,
   "quality_pass": true,
-  "score": 0.94,
-  "error_kind": null,
-  "fallback_used": false,
-  "approval_required": false,
   "policy_violation": false,
-  "redaction_applied": true
+  "metadata": {
+    "fixture_id": "cascade_router.simple_lookup",
+    "redaction": "not_required"
+  }
 }
 ```
 
-## 4. Oracle Types
+## Exit Codes
 
-| Oracle | Meaning |
-|---|---|
-| `deterministic_answer_shape` | answer contains required strings or structured fields |
-| `retrieval_relevance` | expected record appears in top-k |
-| `defect_presence` | candidate catches known seeded defect |
-| `avoided_degradation` | provider switch avoids known bad sequence |
-| `later_retrieval_usefulness` | derived memory helps later fixture |
-| `expected_file_and_symbol` | code search returns expected file/symbol |
+| Code | Meaning |
+| --- | --- |
+| 0 | validation/comparison passed |
+| 1 | guardrail failed |
+| 2 | invalid manifest or missing required field |
+| 3 | runner or adapter error |
+| 4 | privacy/security violation |
 
-## 5. Failure Modes
+## Oracle Types
 
-| Failure | Outcome |
-|---|---|
-| fixture parse error | runner exits before side effects |
-| oracle missing | result is invalid, not failed |
-| policy violation | automatic rollback recommendation |
-| baseline failure | fixture invalid unless baseline failure is expected |
-| candidate infrastructure failure | rollback recommendation |
-| insufficient sample size | hold, not promote |
+Supported local oracles:
 
-## 6. CI Target
+- `deterministic_answer_shape`
+- `retrieval_relevance`
+- `defect_presence`
+- `avoided_degradation`
+- `later_retrieval_usefulness`
+- `expected_file_and_symbol`
 
-```text
-cargo test benchmark_fixture_validation
-ironclaw-bench validate tmp/benchmarking/scenarios/*.yaml
-ironclaw-bench compare --baseline baseline.jsonl --candidate candidate.jsonl
-```
+## CI Target
 
-The runner itself can be implemented later. The contract above is enough to
-ensure that scenario files, schemas, and rollout docs agree.
+Run `validate` on every fixture in PR checks. Run `run` only for hermetic
+fixtures unless the PR explicitly opts into a slower benchmark job.

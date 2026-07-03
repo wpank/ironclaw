@@ -1,10 +1,12 @@
-# Priority Matrix: Captured Roko Concepts for IronClaw
+# Priority Matrix
 
 Navigation: [strategy index](../README.md) | [integration roadmap](../integration-roadmap.md)
 
 ## Purpose
 
-This matrix ranks captured Roko-derived ideas by near-term IronClaw value. It is not a mandate to port Roko systems wholesale. A candidate moves from this folder into implementation only after:
+This matrix ranks captured ideas by near-term IronClaw value. It is not a
+mandate to port external systems wholesale. A candidate moves from this folder
+into implementation only after:
 
 1. The current IronClaw subsystem has been checked.
 2. A baseline metric has been captured.
@@ -27,13 +29,14 @@ Each candidate is scored from 1 to 5 on five axes. Higher is better.
 score = user*0.30 + system*0.20 + ease*0.25 + safety*0.15 + independence*0.10
 ```
 
-Scores are directional. A high score does not override subsystem ownership, security review, database parity, or caller-level testing.
+Scores are directional planning inputs. A high score does not override subsystem
+ownership, security review, database parity, or caller-level testing.
 
 ## Build Order
 
 The highest composite score is not always the first implementation task. Build order also accounts for risk, prerequisites, and measurement readiness.
 
-| Order | Candidate | Score | Tier | Why now |
+| Order | Candidate | Planning score | Tier | Why now |
 |-------|-----------|-------|------|---------|
 | 1 | Robust statistics | 4.20 | Quick win | Pure functions plus narrow estimator integration; improves measurement quality for later work. |
 | 2 | BLAKE3 memory dedup | 4.30 | Quick win | Exact-match dedup is easy to reason about and reversible if stored as metadata. |
@@ -77,7 +80,8 @@ The recommendations assume these current IronClaw capabilities:
 - If a feature changes DB shape, implement both backends and add contract tests first.
 - If a feature gates a side effect, test through the caller that performs the side effect, not only through helper functions.
 - If the expected lift cannot be measured, run it in observe-only mode before enabling behavior changes.
-- If Roko used a large generalized subsystem, prefer the smallest IronClaw-native slice that solves the current problem.
+- If the captured design used a large generalized subsystem, prefer the
+  smallest IronClaw-native slice that solves the current problem.
 
 ## What Not To Build Yet
 
@@ -85,4 +89,5 @@ The recommendations assume these current IronClaw capabilities:
 - Do not build an on-chain reputation bridge before an off-chain trust signal has users and measurable decisions.
 - Do not replace the model router with a learner until shadow mode shows equal quality and no safety override violations.
 - Do not add a new workflow engine unless existing Reborn runner/driver/executor boundaries cannot express the needed behavior.
-- Do not transplant Roko UI aesthetics; copy the interaction lessons, not the brand.
+- Do not transplant external UI aesthetics; keep the interaction lessons, not
+  the brand.

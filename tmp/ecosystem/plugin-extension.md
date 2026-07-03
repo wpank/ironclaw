@@ -1,20 +1,21 @@
 # Plugin & Extension System
 
-**Source provenance**: Roko plugin SDK at
+**Source provenance**: captured Roko plugin SDK identifiers at
 `crates/roko-plugin/src/lib.rs`,
 `crates/roko-plugin/src/manifest.rs`,
 `crates/roko-std/src/roles.rs`,
 `crates/roko-std/src/scorer.rs`,
 and design documents `docs/v2/12-EXTENSIONS.md`, `docs/v2/13-TRIGGERS.md`.
+These are provenance labels, not required IronClaw checkout paths.
 
 **Priority**: LOW — IronClaw already has a solid WASM extension system, but Roko
 introduces several concepts with no direct IronClaw equivalent: push-based event
 injection, asynchronous outcome feedback, declarative TOML tools, and composable
 scorers.
 
-**Tool discovery boundary**: This document covers *local* tool discovery — scanning `~/.ironclaw/plugins/` directories for TOML manifests (`discover_plugins()`) and watching `src/tools/wasm/` for `.wasm` files (hot-reload). For *remote* tool discovery via the MCP JSON-RPC `tools/list` handshake to external servers, see [mcp-editor-integration.md](./mcp-editor-integration.md) section 4. The two mechanisms are additive: local tools load at startup from disk; MCP tools load per-session over the network. In IronClaw both register into `ToolRegistry`, but through different code paths (`src/registry/` vs `src/tools/mcp/client.rs`).
+**Tool discovery boundary**: This document covers *local* tool discovery from configured TOML manifests and WASM/plugin catalogs. For *remote* tool discovery via the MCP JSON-RPC `tools/list` handshake to external servers, see [mcp-editor-integration.md](./mcp-editor-integration.md) section 4. The two mechanisms are additive: local tools load from trusted local/package sources; MCP tools load per-session over the configured transport. In IronClaw both should register into `ToolRegistry`, but through different code paths.
 
-**Related documents**: [mcp-editor-integration.md](./mcp-editor-integration.md) — Roko's hook v2 system (section 13 here, 22 hooks) complements MCP's `tools/call` invocation path; [control-plane.md](./control-plane.md) — plugin events forwarded via the Control Plane's SSE bus.
+**Related documents**: [mcp-editor-integration.md](./mcp-editor-integration.md) — local plugin/event-source loading is separate from MCP `tools/list`; [control-plane.md](./control-plane.md) — plugin events may be projected through an operator SSE bus.
 
 ---
 
@@ -28,11 +29,11 @@ scorers.
 6. [The FeedbackCollector Trait](#6-the-feedbackcollector-trait)
 7. [PluginManifest and Builder API](#7-pluginmanifest-and-builder-api)
 8. [TOML Manifest System](#8-toml-manifest-system)
-9. [The 5-Tier Extensibility Model](#9-the-5-tier-extensibility-model)
+9. [Tiered Extensibility Model](#9-tiered-extensibility-model)
 10. [Role-Based Profiles (roko-std)](#10-role-based-profiles-roko-std)
 11. [Composable Scorers (roko-std)](#11-composable-scorers-roko-std)
 12. [Filesystem Hot-Reload with Debouncing](#12-filesystem-hot-reload-with-debouncing)
-13. [v2 Extension System: 8 Layers, 22 Hooks, 6 Decision Enums](#13-v2-extension-system-8-layers-22-hooks-6-decision-enums)
+13. [v2 Extension System: Captured Pipeline Hooks](#13-v2-extension-system-captured-pipeline-hooks)
 14. [v2 Trigger System](#14-v2-trigger-system)
 15. [Mermaid Diagrams](#15-mermaid-diagrams)
 16. [Benchmarking and Performance Analysis](#16-benchmarking-and-performance-analysis)
@@ -118,7 +119,7 @@ an Engram flowing through a processing pipeline.
 Plugins interact with this pipeline through the `SignalSender` type:
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (line 33)
+// `crates/roko-plugin/src/lib.rs`
 /// Cloneable bounded sender used by event sources to publish signals into Roko.
 pub type SignalSender = Sender<Engram>;
 ```
@@ -182,7 +183,7 @@ but adapted for async Rust with cooperative cancellation.
 ### Full Trait Definition
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (lines 134-144)
+// `crates/roko-plugin/src/lib.rs`
 
 /// An asynchronous source of signals.
 ///
@@ -209,7 +210,7 @@ This allows the runtime to store a heterogeneous collection of event sources
 without generics or enum wrappers. The test suite explicitly verifies this:
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (lines 739-741)
+// `crates/roko-plugin/src/lib.rs`
 let source: Box<dyn EventSource> = Box::new(DummyEventSource);
 assert_eq!(source.name(), "dummy");
 assert_eq!(source.kind(), EventSourceKind::Custom("dummy".to_string()));
@@ -236,7 +237,7 @@ ensuring clean shutdown without polling.
 ### EventSourceKind Enum
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (lines 67-78)
+// `crates/roko-plugin/src/lib.rs`
 
 /// Kinds of event sources supported by the plugin SDK.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -263,7 +264,7 @@ built-in variants.
 From the test suite, here is the minimal working implementation:
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (lines 689-710)
+// `crates/roko-plugin/src/lib.rs`
 
 struct DummyEventSource;
 
@@ -295,7 +296,7 @@ cancellation. A real source would loop, producing events as they occur.
 
 ## 4. Built-in EventSource: FileWatchEventSource
 
-The `FileWatchEventSource` is a production-grade filesystem watcher built on
+The `FileWatchEventSource` is a practical filesystem watcher built on
 the `notify` crate (v8.2.0). It watches configured directories for file create,
 modify, and delete events, applies include/exclude glob filters, debounces rapid
 changes, and emits typed Engrams for each event.
@@ -303,7 +304,7 @@ changes, and emits typed Engrams for each event.
 ### Construction
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (lines 82-127)
+// `crates/roko-plugin/src/lib.rs`
 
 #[derive(Debug, Clone)]
 pub struct FileWatchEventSource {
@@ -351,7 +352,7 @@ from the `globset` crate for efficient matching. Default excludes are always
 applied to suppress editor temporaries, VCS internals, and OS metadata:
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (lines 459-473)
+// `crates/roko-plugin/src/lib.rs`
 
 fn default_file_watch_excludes() -> &'static [&'static str] {
     &[
@@ -374,7 +375,7 @@ These defaults are merged with any user-specified exclude patterns. The filterin
 logic tests both absolute and relative paths against the glob sets:
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (lines 479-503)
+// `crates/roko-plugin/src/lib.rs`
 
 fn watch_path_is_enabled(
     path: &Path,
@@ -409,7 +410,7 @@ File system events from `notify` are classified into three signal kinds using
 constants from `roko-core`:
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (lines 514-521)
+// `crates/roko-plugin/src/lib.rs`
 
 fn classify_file_watch_event(kind: &EventKind) -> Option<(&'static str, &'static str)> {
     match kind {
@@ -424,7 +425,7 @@ fn classify_file_watch_event(kind: &EventKind) -> Option<(&'static str, &'static
 The emitted signal contains a JSON body with the affected path and event kind:
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (lines 505-512)
+// `crates/roko-plugin/src/lib.rs`
 
 fn file_watch_signal(path: &Path, signal_kind: &str, event_kind: &str) -> Engram {
     Engram::builder(Kind::Custom(signal_kind.to_string()))
@@ -447,7 +448,7 @@ When `start()` is called on `FileWatchEventSource`:
 5. Enter `drain_file_watch_events()` — the debounced event loop.
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (lines 334-372)
+// `crates/roko-plugin/src/lib.rs`
 
 #[async_trait]
 impl EventSource for FileWatchEventSource {
@@ -495,7 +496,7 @@ and schedule computation.
 ### Construction
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (lines 212-219)
+// `crates/roko-plugin/src/lib.rs`
 
 impl CronEventSource {
     /// Create a cron event source from config.
@@ -514,7 +515,7 @@ metadata.
 ### Schedule Data Structures
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (lines 152-177)
+// `crates/roko-plugin/src/lib.rs`
 
 pub struct CronScheduleStatus {
     pub name: String,
@@ -542,7 +543,7 @@ loop that:
 4. Cooperatively checks the cancellation token on each iteration.
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (lines 271-331)
+// `crates/roko-plugin/src/lib.rs`
 
 async fn start(&self, sender: SignalSender, cancel: CancellationToken) -> Result<()> {
     let mut schedules = self.compile_schedules()?;
@@ -606,7 +607,7 @@ Each cron firing produces an Engram with a custom kind and a JSON body
 containing the schedule metadata:
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (lines 374-382)
+// `crates/roko-plugin/src/lib.rs`
 
 fn cron_signal(schedule: &CronSchedule, fired_at: DateTime<Utc>) -> Engram {
     Engram::builder(Kind::Custom(schedule.signal_kind.clone()))
@@ -625,7 +626,7 @@ Invalid cron expressions are caught at compile time (when `start()` is called),
 not at construction time. The test suite verifies this:
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (lines 783-805)
+// `crates/roko-plugin/src/lib.rs`
 
 let source = CronEventSource {
     schedules: vec![CronSchedule {
@@ -653,11 +654,11 @@ discovers whether its past work was good.
 ### Full Trait Definition
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (lines 599-616)
+// `crates/roko-plugin/src/lib.rs`
 
 /// Periodically collects outcomes for previously emitted work.
 ///
-/// Collectors poll external systems like GitHub, Slack, or CI at a fixed
+/// Collectors poll external systems like code hosting, chat, or CI at a fixed
 /// cadence and return typed feedback for any results found since the last run.
 #[async_trait]
 pub trait FeedbackCollector: Send + Sync + 'static {
@@ -681,15 +682,15 @@ pub trait FeedbackCollector: Send + Sync + 'static {
 long-running), `FeedbackCollector` uses a poll model. The runtime calls
 `collect(since)` periodically at the collector's declared `interval()`. This is
 deliberate: feedback collection is inherently retrospective (checking what
-happened to past work), and many external APIs are request-response (GitHub API,
-CI systems, Slack). A poll model is simpler and more reliable than maintaining
+happened to past work), and many external APIs are request-response (code
+hosting APIs, CI systems, chat APIs). A poll model is simpler and more reliable than maintaining
 persistent connections to every feedback source.
 
 **Multi-service support.** A single collector can talk to multiple services.
 The `services()` method returns a list of service names, allowing the runtime
 to understand which external systems a collector depends on. This is useful
-for diagnostics ("why is feedback missing? Because the GitHub collector can't
-reach github.com").
+for diagnostics ("why is feedback missing? Because the code-hosting collector
+cannot reach its configured API").
 
 **Since-based collection.** The `collect(since)` method takes a timestamp and
 returns all feedback observed since that time. The runtime tracks the last
@@ -699,7 +700,7 @@ process restarts (assuming the runtime persists the timestamp).
 ### FeedbackSignal and FeedbackOutcome
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (lines 36-64)
+// `crates/roko-plugin/src/lib.rs`
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -745,7 +746,7 @@ without constraining the schema.
 ### Implementing FeedbackCollector: Example
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (lines 712-735)
+// `crates/roko-plugin/src/lib.rs`
 
 struct DummyFeedbackCollector;
 
@@ -771,13 +772,14 @@ impl FeedbackCollector for DummyFeedbackCollector {
 }
 ```
 
-A production GitHub feedback collector would call the GitHub API to check PR
-status, review comments, and merge state for episodes that produced PRs.
+A production code-hosting feedback collector would call its configured API to
+check PR status, review comments, and merge state for episodes that produced
+PRs.
 
 ### NoOp Implementations
 
 ```rust
-// `crates/roko-std/src/noop.rs` (lines 18-26)
+// `crates/roko-std/src/noop.rs`
 
 pub struct NoOpScorer;
 impl ScoreFn for NoOpScorer {
@@ -805,7 +807,7 @@ construction, following the builder pattern common in Rust APIs.
 ### PluginManifest
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (lines 619-628)
+// `crates/roko-plugin/src/lib.rs`
 
 pub struct PluginManifest {
     pub name: String,
@@ -818,7 +820,7 @@ pub struct PluginManifest {
 ### PluginBuilder
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (lines 631-676)
+// `crates/roko-plugin/src/lib.rs`
 
 pub struct PluginBuilder {
     name: String,
@@ -869,7 +871,7 @@ embedding crate's Cargo version.
 ### Usage
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (lines 1067-1079)
+// `crates/roko-plugin/src/lib.rs`
 
 let manifest = PluginBuilder::new("my-plugin")
     .event_source(DummyEventSource)
@@ -894,7 +896,7 @@ support, and established adoption in the Rust ecosystem (Cargo.toml) [5].
 ### Top-Level Schema
 
 ```rust
-// `crates/roko-plugin/src/manifest.rs` (lines 61-80)
+// `crates/roko-plugin/src/manifest.rs`
 
 pub struct PluginManifestFile {
     pub plugin: PluginMeta,
@@ -914,7 +916,7 @@ pub struct PluginManifestFile {
 ### Plugin Metadata
 
 ```rust
-// `crates/roko-plugin/src/manifest.rs` (lines 83-98)
+// `crates/roko-plugin/src/manifest.rs`
 
 pub struct PluginMeta {
     pub name: String,           // required, must not be empty
@@ -931,7 +933,7 @@ Prompt templates are the simplest form of plugin extension. They inject
 role-specific prompt text into the agent's system prompt without any code.
 
 ```rust
-// `crates/roko-plugin/src/manifest.rs` (lines 101-113)
+// `crates/roko-plugin/src/manifest.rs`
 
 pub struct PromptTemplate {
     pub name: String,               // e.g., "pr-review"
@@ -962,7 +964,7 @@ Profiles define which tools an agent can and cannot use. They are the
 declarative equivalent of the `RoleToolProfile` type in `roko-std`.
 
 ```rust
-// `crates/roko-plugin/src/manifest.rs` (lines 116-129)
+// `crates/roko-plugin/src/manifest.rs`
 
 pub struct ToolProfileBundle {
     pub name: String,               // e.g., "read-only"
@@ -988,7 +990,7 @@ Declarative tools define shell commands that the agent can invoke, without
 requiring Rust or WASM code. They are the "no-code" tool definition mechanism.
 
 ```rust
-// `crates/roko-plugin/src/manifest.rs` (lines 132-149)
+// `crates/roko-plugin/src/manifest.rs`
 
 pub struct DeclarativeTool {
     pub name: String,
@@ -1027,7 +1029,7 @@ Triggers specify event sources that activate plugins. They are defined as a
 tagged union discriminated by `kind`:
 
 ```rust
-// `crates/roko-plugin/src/manifest.rs` (lines 156-192)
+// `crates/roko-plugin/src/manifest.rs`
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -1071,7 +1073,7 @@ path = "/hooks/code-review"
 ### Plugin Dependencies
 
 ```rust
-// `crates/roko-plugin/src/manifest.rs` (lines 195-202)
+// `crates/roko-plugin/src/manifest.rs`
 
 pub struct PluginDependency {
     pub name: String,
@@ -1084,7 +1086,7 @@ pub struct PluginDependency {
 The manifest loader performs structural validation after parsing:
 
 ```rust
-// `crates/roko-plugin/src/manifest.rs` (lines 234-282)
+// `crates/roko-plugin/src/manifest.rs`
 
 fn validate_manifest(manifest: &PluginManifestFile) -> Result<()> {
     if manifest.plugin.name.is_empty() {
@@ -1116,7 +1118,7 @@ fn validate_manifest(manifest: &PluginManifestFile) -> Result<()> {
         }
     }
 
-    // Check for duplicate tool names and non-empty commands
+    // Check for duplicate tool names and non-empty argv templates
     let mut tool_names = std::collections::HashSet::new();
     for tool in &manifest.tools {
         if !tool_names.insert(&tool.name) {
@@ -1125,9 +1127,9 @@ fn validate_manifest(manifest: &PluginManifestFile) -> Result<()> {
                 tool.name
             )));
         }
-        if tool.command.is_empty() {
+        if tool.argv.is_empty() {
             return Err(RokoError::config(format!(
-                "tool '{}' has an empty command",
+                "tool '{}' has an empty argv template",
                 tool.name
             )));
         }
@@ -1144,7 +1146,7 @@ fn validate_manifest(manifest: &PluginManifestFile) -> Result<()> {
 The `discover_plugins()` function scans a directory for plugin manifests:
 
 ```rust
-// `crates/roko-plugin/src/manifest.rs` (lines 297-342)
+// `crates/roko-plugin/src/manifest.rs`
 
 pub fn discover_plugins(dir: &Path) -> Result<Vec<LoadedPlugin>> {
     // 1. Check for plugin.toml directly in the directory
@@ -1182,10 +1184,10 @@ pub fn discover_plugins(dir: &Path) -> Result<Vec<LoadedPlugin>> {
 }
 ```
 
-The discovery pattern supports two layouts:
+The discovery pattern supports two layouts under a configured plugin directory:
 
 ```
-~/.roko/plugins/
+<plugin-dir>/
   plugin.toml                    # single plugin in root
   my-plugin/
     plugin.toml                  # plugin in subdirectory
@@ -1202,7 +1204,7 @@ should not take down the entire system.
 This is the full example from the test suite, demonstrating all features:
 
 ```toml
-# `crates/roko-plugin/src/manifest.rs` (FULL_MANIFEST test constant)
+# `crates/roko-plugin/src/manifest.rs`
 
 [plugin]
 name = "code-review"
@@ -1267,22 +1269,21 @@ version = "0.1.0"
 
 ---
 
-## 9. The 5-Tier Extensibility Model
+## 9. Tiered Extensibility Model
 
-Roko organizes extensions into tiers by complexity and capability. The manifest
-system (from `roko-plugin`) implements tiers 1-3. Tier 4 (SDK/WASM) requires
-compiled code. Tier 5 (native Rust) is for in-tree extensions only. This
-graduated model follows the microkernel architecture pattern, where a minimal
-core is extended by plugins of increasing capability [1][2].
+Roko organizes extensions into tiers by complexity and capability. Use this as
+a design lens, not a requirement that IronClaw add every tier. The practical
+question for each tier is whether it can reuse IronClaw's existing tool,
+approval, sandbox, secrets, and audit boundaries.
 
 ### Tier Summary
 
 | Tier | Name | Complexity | What You Write | Sandboxing | Distribution |
 |------|------|-----------|----------------|------------|--------------|
-| **1** | Prompts | Lowest | Markdown/TOML front-matter | None (no execution) | Marketplace |
-| **2** | Profiles | Low | TOML allow/deny tool lists | None (config only) | Marketplace |
-| **3** | Declarative Tools | Medium | TOML shell/HTTP tool defs | OS-level process isolation | Verified publishers |
-| **4** | WASM | High | Compiled WASM modules | WASM sandbox (fuel-metered) | Marketplace |
+| **1** | Prompts | Lowest | Markdown/TOML front-matter | None (no execution) | Configured local/package source |
+| **2** | Profiles | Low | TOML allow/deny tool lists | None (config only) | Configured local/package source |
+| **3** | Declarative Tools | Medium | TOML tool/argv definitions | Existing tool sandbox and approval path | Trusted catalogs |
+| **4** | WASM | High | Compiled WASM modules | WASM sandbox (fuel-metered) | Trusted catalogs |
 | **5** | Native Rust | Highest | `impl EventSource for T` | Process-level | In-tree only |
 
 ### Tier 1: Prompts
@@ -1295,8 +1296,8 @@ runtime substitution.
 **When to use:** Adding domain-specific instructions, style guides, review
 checklists, or behavioral constraints without touching code.
 
-**IronClaw equivalent:** SKILL.md files in `~/.ironclaw/skills/` or project
-`skills/` directories. IronClaw's skill system is more sophisticated (it has
+**IronClaw equivalent:** configured personal/project `SKILL.md` sources.
+IronClaw's skill system is more sophisticated (it has
 gating, scoring, budget fitting, and trust-based attenuation), but the basic
 concept is the same: a text file that extends the agent's prompt.
 
@@ -1318,10 +1319,10 @@ Installed skills get read-only tools). Roko's profiles are more explicit
 
 ### Tier 3: Declarative Tools
 
-Declarative tools define shell commands or HTTP endpoints that the agent can
-call, specified entirely in TOML. No Rust, no WASM, no compilation. The runtime
-executes the command in a subprocess with timeout, working directory, and
-environment variable support.
+Declarative tools define calls to approved command templates, HTTP adapters, or
+registered tools, specified entirely in TOML. No Rust, no WASM, no compilation.
+Execution must still flow through IronClaw's existing tool sandbox, approval,
+secrets, and audit path.
 
 **When to use:** Wrapping existing CLI tools (`cargo clippy`, `npm test`,
 `kubectl get pods`) as agent-callable tools without writing code.
@@ -1378,7 +1379,7 @@ where multiple attributes (role, domain, context) determine permissions.
 ### Role Archetypes
 
 ```rust
-// `crates/roko-std/src/roles.rs` (lines 20-32)
+// `crates/roko-std/src/roles.rs`
 
 pub enum RoleToolProfileKind {
     Implementer,  // Code-producing role. No extra filtering.
@@ -1394,7 +1395,7 @@ pub enum RoleToolProfileKind {
 The module defines named tool sets that form the building blocks for profiles:
 
 ```rust
-// `crates/roko-std/src/roles.rs` (lines 72-117)
+// `crates/roko-std/src/roles.rs`
 
 // Read-only tools shared by research, review, and planning profiles
 pub const READ_TOOLS: [&str; 5] = [
@@ -1423,7 +1424,7 @@ Each role archetype has a corresponding `const` profile that combines the
 tool sets:
 
 ```rust
-// `crates/roko-std/src/roles.rs` (lines 120-161)
+// `crates/roko-std/src/roles.rs`
 
 // Implementer: all tools allowed
 pub const IMPLEMENTER_TOOL_PROFILE: RoleToolProfile =
@@ -1461,7 +1462,7 @@ Beyond role profiles, `roko-std` defines domain-specific profiles that
 control which tools are relevant for a particular domain:
 
 ```rust
-// `crates/roko-std/src/roles.rs` (lines 173-268)
+// `crates/roko-std/src/roles.rs`
 
 pub struct DomainToolProfile {
     pub domain: &'static str,
@@ -1470,11 +1471,11 @@ pub struct DomainToolProfile {
 }
 ```
 
-Four domains are defined:
+The captured source defines domain profiles such as:
 
 | Domain | Extra Tools | Excluded Tools |
 |--------|------------|----------------|
-| `coding` | All 15 builtins | None |
+| `coding` | coding-oriented builtins | None |
 | `chain` | read_file, grep, glob, bash, web_fetch, web_search | write_file, edit_file, multi_edit, apply_patch, notebook_edit |
 | `research` | read_file, grep, glob, web_search, web_fetch, todo_write | write_file, edit_file, multi_edit, apply_patch, notebook_edit, bash, run_tests |
 | `general` | None | None |
@@ -1482,7 +1483,7 @@ Four domains are defined:
 Domain lookup is case-insensitive with aliases:
 
 ```rust
-// `crates/roko-std/src/roles.rs` (lines 271-278)
+// `crates/roko-std/src/roles.rs`
 
 pub fn domain_profile(domain: &str) -> &'static DomainToolProfile {
     match domain.to_ascii_lowercase().as_str() {
@@ -1500,7 +1501,7 @@ The `compose_profile()` function computes the effective tool set by
 intersecting role, domain, and user override profiles:
 
 ```rust
-// `crates/roko-std/src/roles.rs` (lines 304-350)
+// `crates/roko-std/src/roles.rs`
 
 /// Compose an effective tool profile by intersecting role, domain, and overrides.
 ///
@@ -1546,7 +1547,7 @@ The `denied_tools_for_role()` function maps string role labels to denied tool
 lists, with case-insensitive matching and alias support:
 
 ```rust
-// `crates/roko-std/src/roles.rs` (lines 361-375)
+// `crates/roko-std/src/roles.rs`
 
 pub fn denied_tools_for_role(role: &str) -> Option<&'static [&'static str]> {
     let profile = match role.to_ascii_lowercase().as_str() {
@@ -1576,7 +1577,7 @@ functions.
 A `Score` in Roko is a 7-dimensional value defined in `roko-core`:
 
 ```rust
-// `crates/roko-core/src/score.rs` (lines 51-69)
+// `crates/roko-core/src/score.rs`
 
 pub struct Score {
     pub confidence: f32,   // [0..1] — how correct/valid
@@ -1598,7 +1599,7 @@ composition.
 ### The Score Trait
 
 ```rust
-// `crates/roko-core/src/traits.rs` (lines 167-171)
+// `crates/roko-core/src/traits.rs`
 
 pub trait ScoreFn: Send + Sync {
     fn score(&self, engram: &Engram, ctx: &Context) -> Score;
@@ -1609,7 +1610,7 @@ pub trait ScoreFn: Send + Sync {
 ### SumScorer (Additive Composition)
 
 ```rust
-// `crates/roko-std/src/scorer.rs` (lines 18-55)
+// `crates/roko-std/src/scorer.rs`
 
 /// Sum several scorers element-wise (aggregates evidence).
 pub struct SumScorer {
@@ -1642,7 +1643,7 @@ signal scores high on relevance AND recency, both contribute additively.
 ### MulScorer (Multiplicative Composition)
 
 ```rust
-// `crates/roko-std/src/scorer.rs` (lines 57-96)
+// `crates/roko-std/src/scorer.rs`
 
 /// Multiply several scorers element-wise (scales each axis).
 pub struct MulScorer {
@@ -1677,7 +1678,7 @@ zeros the total. This is analogous to the weighted product model in MCDA [8].
 ### ConstScorer (Static Weighting)
 
 ```rust
-// `crates/roko-std/src/scorer.rs` (lines 98-118)
+// `crates/roko-std/src/scorer.rs`
 
 /// Returns a fixed score for every signal. Useful for static weighting.
 pub struct ConstScorer {
@@ -1704,7 +1705,7 @@ in a `SumScorer` or `MulScorer` composition.
 From the module's doc comment:
 
 ```rust
-// `crates/roko-std/src/scorer.rs` (lines 7-13)
+// `crates/roko-std/src/scorer.rs`
 
 // Overall score = relevance * recency * reputation
 let scorer = MulScorer::new(vec![
@@ -1753,7 +1754,7 @@ event would trigger a separate signal emission.
 ### Debounce Window
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (line 210)
+// `crates/roko-plugin/src/lib.rs`
 const FILE_WATCH_DEBOUNCE_WINDOW: std::time::Duration =
     std::time::Duration::from_millis(500);
 ```
@@ -1784,7 +1785,7 @@ The debounce logic in `drain_file_watch_events()` works as follows:
    silently dropped on shutdown.
 
 ```rust
-// `crates/roko-plugin/src/lib.rs` (lines 523-579)
+// `crates/roko-plugin/src/lib.rs`
 
 async fn drain_file_watch_events(
     mut event_rx: UnboundedReceiver<notify::Result<Event>>,
@@ -1855,12 +1856,12 @@ The debounce behavior is thoroughly tested:
 
 ---
 
-## 13. v2 Extension System: 8 Layers, 22 Hooks, 6 Decision Enums
+## 13. v2 Extension System: Captured Pipeline Hooks
 
 The Roko v2 design docs describe a significantly more ambitious extension
-system that goes beyond the plugin SDK. While the `roko-plugin` crate provides
-EventSource and FeedbackCollector, the v2 Extension system provides a full
-pipeline interception framework.
+system that goes beyond the plugin SDK. Treat it as prior art. IronClaw should
+not adopt a broad interception framework unless a specific existing hook point
+cannot satisfy the requirement.
 
 ### What Is a v2 Extension?
 
@@ -1878,13 +1879,13 @@ The key distinction from the plugin SDK:
 | FeedbackCollector (plugin SDK) | Polls for outcomes | Pull from external |
 | Extension (v2) | Intercepts existing signals | Modifies pipeline flow |
 
-### The 8 Layers
+### Captured Layers
 
-Extensions are organized into 8 ordered layers that map to the agent's
-9-step pipeline:
+Extensions are organized into ordered layers that map to the captured agent
+pipeline:
 
 ```rust
-// From: docs/v2/12-EXTENSIONS.md (lines 157-167)
+// From: docs/v2/12-EXTENSIONS.md
 
 pub enum ExtensionLayer {
     Foundation,   // L0 — Lifecycle setup and teardown
@@ -1898,27 +1899,27 @@ pub enum ExtensionLayer {
 }
 ```
 
-### The 22 Hooks
+### Captured Hooks
 
-The Extension trait provides 22 hooks across the 8 layers. All hooks default
-to no-ops. An extension only overrides what it needs:
+The captured Extension trait provides hooks across the pipeline layers. The
+details are useful for comparison, but importing this entire set would create a
+parallel lifecycle model in IronClaw:
 
-| Layer | Hooks | Count |
-|-------|-------|-------|
-| L0 Foundation | `on_init`, `on_shutdown` | 2 |
-| L1 Perception | `on_observe`, `filter_input` | 2 |
-| L2 Memory | `on_retrieve`, `on_store` | 2 |
-| L3 Cognition | `pre_inference`, `post_inference`, `on_gate` | 3 |
-| L4 Action | `pre_action`, `post_action`, `on_tool_call` | 3 |
-| L5 Social | `on_message_send`, `on_message_receive` | 2 |
-| L6 Meta | `on_reflect`, `on_cost_update` | 2 |
-| L7 Recovery | `on_error`, `on_budget_exceeded` | 2 |
-| Cross-cutting | `on_tick_start`, `on_tick_end`, `on_slot_assigned`, `on_slot_completed` | 4 |
-| **Total** | | **22** |
+| Layer | Representative hooks |
+|-------|----------------------|
+| L0 Foundation | `on_init`, `on_shutdown` |
+| L1 Perception | `on_observe`, `filter_input` |
+| L2 Memory | `on_retrieve`, `on_store` |
+| L3 Cognition | `pre_inference`, `post_inference`, `on_gate` |
+| L4 Action | `pre_action`, `post_action`, `on_tool_call` |
+| L5 Social | `on_message_send`, `on_message_receive` |
+| L6 Meta | `on_reflect`, `on_cost_update` |
+| L7 Recovery | `on_error`, `on_budget_exceeded` |
+| Cross-cutting | tick and slot lifecycle hooks |
 
-### The 6 Decision Enums
+### Decision Enums
 
-Six hooks return decision values that control pipeline behavior:
+Some hooks return decision values that control pipeline behavior:
 
 1. **FilterDecision** (L1) — `Pass`, `Drop`, `Transform(AgentMessage)`
 2. **ActionDecision** (L4) — `Proceed`, `Block { reason }`, `Modify(Action)`
@@ -1929,10 +1930,10 @@ Six hooks return decision values that control pipeline behavior:
 
 ### CaMeL IFC Integration
 
-Every data flow through an Extension is tagged with capability provenance via
-CaMeL information flow control. The key invariant: **extensions cannot launder
-capabilities**. An untrusted input that passes through 3 extensions remains
-tagged as untrusted. The provenance chain is intact.
+The captured design tags extension data flow with capability provenance via
+CaMeL information flow control. Do not claim this guarantee for IronClaw unless
+the tags are enforced end to end in code and tests. IronClaw's existing safety
+and capability boundaries should remain the default integration point.
 
 ### Fault Isolation
 
@@ -1984,10 +1985,11 @@ Triggers compose through Bus: Flow A completes, publishes a Pulse, which
 triggers Flow B. This creates event-driven pipelines without explicit wiring,
 following the enterprise integration pattern of content-based routing [4].
 
-### Conductor Watchers (10 Rules)
+### Conductor Watchers
 
-The conductor provides 10 battle-tested detection rules for agent stalls and
-loops:
+The conductor examples include detection rules for agent stalls and loops. Use
+them as candidates only; IronClaw already has runtime state, heartbeat, and job
+status mechanisms that should be checked before adding a parallel watcher set:
 
 | # | Watcher | Trigger Condition |
 |---|---------|-------------------|
@@ -2053,7 +2055,7 @@ sequenceDiagram
     AG->>AG: process signal, call tools, produce response
 ```
 
-### 5-Tier Extensibility Layers
+### Tiered Extensibility Layers
 
 ```mermaid
 graph TD
@@ -2150,29 +2152,20 @@ flowchart TD
 ### Plugin Load Time
 
 Plugin loading involves TOML parsing, manifest validation, glob compilation,
-and task spawning. Benchmark targets for a typical plugin with 5 tools and
-2 triggers:
+and task spawning. Report each phase separately rather than publishing a single
+"plugin load time" number:
 
-| Phase | Expected latency | Notes |
-|-------|-----------------|-------|
-| TOML parse (1KB manifest) | < 1ms | `toml::from_str` on in-memory string |
-| Manifest validation | < 0.1ms | HashSet uniqueness checks |
-| Glob compilation | 1-5ms per path | `globset::GlobSet::build()` per directory |
-| `tokio::task::spawn` per source | ~10μs | Just stack allocation + queue insert |
-| **Total per plugin** | **< 10ms** | Dominated by glob compilation |
+| Phase | What to report |
+|-------|----------------|
+| TOML parse | manifest bytes, parse time, parse errors |
+| Manifest validation | object counts, duplicate checks, validation time |
+| Glob compilation | pattern count, directory count, compile time |
+| Event-source spawn | source count, spawn time, cancellation behavior |
+| WASM comparison | module bytes, compile/cache status, sandbox limits |
 
-For IronClaw's WASM extension model comparison:
-
-| Phase | WASM (IronClaw) | Plugin (Roko) | Notes |
-|-------|-----------------|---------------|-------|
-| Module compilation | 50-500ms | N/A | wasmtime `Module::new()` is expensive |
-| Compilation caching | ~1ms (cache hit) | N/A | `PreparedModule` Arc clone |
-| Plugin TOML load | N/A | < 10ms | Declarative, no WASM |
-| Task spawn | ~10μs | ~10μs | Same (tokio) |
-
-The WASM sandbox imposes a 50-500ms compile penalty per new module but pays it
-only once per module. Declarative TOML tools avoid compilation entirely at the
-cost of OS-level process isolation instead of WASM sandbox isolation.
+Compare declarative tools and WASM tools only with the same workload and
+security posture. Declarative tools avoid WASM compilation, but they do not
+automatically provide WASM isolation.
 
 ### Event Delivery Latency
 
@@ -2180,82 +2173,62 @@ Event delivery latency from the OS filesystem notification to the agent receivin
 the Engram has two phases: raw event → debounce queue, and debounce flush →
 channel send.
 
-| Phase | Latency | Bound by |
-|-------|---------|----------|
-| OS inotify/FSEvents notification | 1-50ms | OS kernel batch interval |
-| Debounce accumulation | 0-500ms | `FILE_WATCH_DEBOUNCE_WINDOW` |
-| Channel send (bounded mpsc) | < 1μs if not full | tokio mpsc |
-| Channel send (backpressure) | depends on consumer | Receiver throughput |
-| **Total (no backpressure)** | **1-550ms** | Debounce dominates |
+| Phase | What to report |
+|-------|----------------|
+| OS notification | platform, file count, event burst size |
+| Debounce accumulation | configured debounce window and coalesced event count |
+| Channel send | queue depth, backpressure, dropped/cancelled sends |
+| End-to-end delivery | p50/p95/p99 from file write to inbound message |
 
-The 500ms debounce window is the dominant factor. For scenarios that need
-sub-100ms event delivery (live reload during active editing), the debounce
-window would need to be configurable. Roko hardcodes it; an IronClaw port
-should accept it as a configuration parameter.
+The debounce window is usually the dominant policy knob. An IronClaw port
+should make it configurable and test cancellation behavior during a pending
+debounce flush.
 
 Cron delivery latency is bounded by the scheduler sleep duration and the
 resolution of `tokio::time::sleep`:
 
-| Scenario | Latency | Notes |
-|----------|---------|-------|
-| On-time cron fire | 0-10ms | Sleep precision ~1ms on Linux |
-| Late fire (system load) | +OS scheduler jitter | Not real-time |
-| Catch-up behavior | No catch-up | Skips missed fires |
+| Scenario | What to report |
+|----------|----------------|
+| On-time cron fire | scheduled time, observed fire time, scheduler delay |
+| Late fire | system load, delay, whether catch-up is attempted |
+| Shutdown | whether due events are emitted, skipped, or cancelled |
 
 ### Hot-Reload Swap Time
 
 The atomic swap in the `ToolRegistry` (replacing an `Arc<PreparedModule>`) is
 a `RwLock` write-lock operation:
 
-| Phase | Latency |
-|-------|---------|
-| Write-lock acquisition (uncontended) | ~50ns |
-| Arc pointer swap | ~10ns |
-| Write-lock release | ~10ns |
-| **Total swap** | **< 1μs** |
-
-The expensive part is module compilation (50-500ms for WASM), which happens
-before the lock is acquired. Existing tool calls hold their `Arc` clone and
-complete with the old module; new calls start with the new module.
+Report module compile time, cache status, write-lock hold time, and the behavior
+of in-flight calls. Existing tool calls should complete with the old module;
+new calls should start with the new module only after the registry swap.
 
 ### Memory Overhead per Plugin
 
-| Component | Memory overhead |
+Measure memory with the same allocator and workload:
+
+| Component | What to report |
 |-----------|----------------|
-| Box<dyn EventSource> per source | 2 words (vtable + data pointer) + source data |
-| FileWatchEventSource (1 path) | ~200 bytes (path + two GlobSets) |
-| GlobSet per pattern | ~500-2KB (compiled DFA) |
-| tokio task stack | 2KB (initial, grows on demand) |
-| Pending debounce map | ~100 bytes per distinct path event |
-| CronEventSource (3 schedules) | ~600 bytes |
-| PluginManifest (5 tools, 2 triggers) | ~2-4KB |
-| **Typical plugin total** | **< 50KB** |
+| EventSource | source count, watched paths, compiled glob count |
+| Debounce map | peak distinct path events |
+| Cron source | schedule count |
+| Manifest | prompt/profile/tool/trigger counts |
+| WASM tool | module bytes, compiled module cache size, instance limits |
 
-Compare to IronClaw's WASM extension:
-
-| Component | Memory overhead |
-|-----------|----------------|
-| PreparedModule (compiled .wasm) | 1-10MB per module (compiled native code) |
-| WasmToolWrapper (per tool) | ~500 bytes + module Arc |
-| Wasmtime engine (shared) | ~5MB (JIT compiler state) |
-| **Typical WASM tool** | **1-10MB** |
-
-The 200x memory difference reflects the fundamental trade-off: WASM provides
-strong sandboxing but at higher memory cost. Declarative TOML tools and
-EventSource plugins are far cheaper for simple integrations.
+Do not claim a fixed memory ratio between declarative plugins and WASM tools
+without measuring the actual modules, manifests, and runtime configuration.
 
 ### Comparison with IronClaw's WASM Extension Model
 
 | Metric | EventSource/TOML | WASM (IronClaw) |
 |--------|-----------------|-----------------|
-| Load time | < 10ms | 50-500ms (compile) |
-| Event latency | 1-550ms (debounce) | N/A (pull model) |
-| Memory per extension | < 50KB | 1-10MB |
-| Sandboxing | OS process (TOML tools) | WASM fuel+memory limits |
-| Hot-reload | Built-in (FileWatch) | Not supported (requires restart) |
-| Push-based events | Yes (EventSource) | No (pull-only) |
-| Network allowlisting | No (TOML tools call OS) | Yes (src/tools/wasm/allowlist.rs) |
-| Credential injection | No (env vars only) | Yes (src/tools/wasm/credential_injector.rs) |
+| Load time | Measure parse/validation/glob/spawn | Measure compile/cache/instance setup |
+| Event latency | Measure debounce and inbound delivery | Not applicable unless WASM source events exist |
+| Memory per extension | Measure manifests, tasks, queues | Measure module cache, instances, memory limits |
+| Sandboxing | Existing tool sandbox and process policy | WASM fuel+memory limits |
+| Hot-reload | Candidate file-watch pattern | Requires explicit loader support |
+| Push-based events | Candidate EventSource abstraction | Pull-only unless event source is added |
+| Network allowlisting | Must reuse existing outbound policy | Existing WASM allowlist path |
+| Credential injection | Must reuse secrets subsystem | Existing WASM credential injection path |
 
 ---
 
@@ -2267,7 +2240,7 @@ This example creates a plugin that watches the `src/` directory and emits an
 analysis request whenever a `.rs` file changes. In IronClaw terms, this would
 feed into the agent as an `IncomingMessage`, triggering the normal agent loop.
 
-**TOML manifest (`~/.ironclaw/plugins/code-watch/plugin.toml`):**
+**TOML manifest (`<configured-plugin-dir>/code-watch/plugin.toml`):**
 
 ```toml
 [plugin]
@@ -2401,7 +2374,7 @@ impl EventSource for CodeChangeEventSource {
 
 A cron-based plugin that runs a daily workspace cleanup and dependency audit:
 
-**TOML manifest (`~/.ironclaw/plugins/maintenance/plugin.toml`):**
+**TOML manifest (`<configured-plugin-dir>/maintenance/plugin.toml`):**
 
 ```toml
 [plugin]
@@ -2452,13 +2425,13 @@ pub struct MaintenanceCronSource {
 }
 
 impl MaintenanceCronSource {
-    pub fn daily_at_2am() -> Self {
-        Self {
+    pub fn daily_at_2am() -> Result<Self, cron::error::Error> {
+        Ok(Self {
             schedules: vec![(
                 "daily-maintenance".to_string(),
-                Schedule::from_str("0 0 2 * * *").expect("valid cron"),
+                Schedule::from_str("0 0 2 * * *")?,
             )],
-        }
+        })
     }
 }
 
@@ -2559,9 +2532,9 @@ fn build_tool_quality_scorer(query: &str) -> MulScorer {
 /// Scorer chain for aggregating feedback from multiple sources.
 fn build_feedback_aggregator() -> SumScorer {
     SumScorer::new(vec![
-        // GitHub PR merge rate signals strong approval
+        // Code-hosting merge rate signals strong approval
         Box::new(MulScorer::new(vec![
-            Box::new(GitHubMergeRateScorer),
+            Box::new(CodeHostMergeRateScorer),
             Box::new(ConstScorer::new(Score::new(0.5, 0.5, 0.5, 0.5))),
         ])),
         // CI pass rate signals correctness
@@ -2679,7 +2652,7 @@ impl WasmHotReloader {
 The key design points:
 
 1. Compilation happens outside the write-lock (50-500ms but doesn't block calls).
-2. The lock is held only for the pointer swap (~1μs).
+2. The lock is held only for the pointer swap; measure the hold time in the target runtime.
 3. In-flight tool calls hold their `Arc` clone and complete with the old module.
 4. The `#[ignore]` on timing-sensitive tests mirrors Roko's test pattern.
 
@@ -2688,8 +2661,8 @@ The key design points:
 ## 18. IronClaw Comparison and Gap Analysis
 
 IronClaw already has a substantial extension system. This section provides a
-detailed feature-by-feature comparison, identifying where IronClaw is ahead,
-where Roko is ahead, and where the approaches differ fundamentally.
+feature-by-feature comparison, identifying reusable patterns and areas where
+the systems make different tradeoffs.
 
 ### What IronClaw Has
 
@@ -2708,8 +2681,8 @@ where Roko is ahead, and where the approaches differ fundamentally.
 
 ### IronClaw's WASM Extension Model: Detailed
 
-IronClaw's WASM system (`src/tools/wasm/`) is significantly more mature than
-Roko's planned WASM support:
+IronClaw's WASM system (`src/tools/wasm/`) already has concrete runtime
+controls that any plugin design should preserve:
 
 - **`wrapper.rs`**: Tool trait wrapper using `wasmtime::component::bindgen!()` against
   a `wit/tool.wit` WIT interface. Each execution creates a fresh instance for
@@ -2770,8 +2743,9 @@ composition model that produces an effective tool set.
 #### 5. Filesystem Hot-Reload with Cancellation-Safe Debouncing
 
 IronClaw's WASM tools require a restart to reload. Roko's `FileWatchEventSource`
-provides production-grade hot-reload with 500ms debouncing, event coalescing,
-glob filtering, and cancellation-safe shutdown.
+provides a useful hot-reload pattern with debouncing, event coalescing, glob
+filtering, and cancellation-safe shutdown. IronClaw should measure the debounce
+window and failure behavior before adopting it.
 
 #### 6. Composable Scorers
 
@@ -2787,15 +2761,15 @@ components.
 | Push-based events | Channels (user-facing only) | EventSource (generic) | Moderate gap |
 | Async feedback | None | FeedbackCollector | Significant gap |
 | Declarative tools | Built-in/WASM/MCP tools with approval path | TOML DeclarativeTool | Consider argv-template manifests only if they dispatch through existing tool safety |
-| WASM sandbox | wasmtime + fuel + allowlist + credential injection + rate limiting | WASM (v2 planned) | **IronClaw ahead** |
-| Prompt extensions | SKILL.md (gated, scored, budget-fitted, attenuated) | PromptTemplate (TOML) | **IronClaw ahead** |
-| Hook system | 6 hooks, priority-ordered | 22 hooks, 8 layers (v2 design) | Roko more comprehensive |
+| WASM sandbox | wasmtime + fuel + allowlist + credential injection + rate limiting | WASM (v2 planned) | Preserve IronClaw controls |
+| Prompt extensions | SKILL.md (gated, scored, budget-fitted, attenuated) | PromptTemplate (TOML) | Preserve IronClaw skill semantics |
+| Hook system | Priority-ordered lifecycle hooks | Broad captured v2 hook design | Avoid broad hook expansion without a concrete need |
 | Tool profiles | Trust-based attenuation | Role x Domain x Override composition | Different approach |
-| Hot-reload | Restart required | File-watch + debounce | Roko ahead |
-| Scorer composition | Internal evaluation | SumScorer / MulScorer / ConstScorer | Roko ahead |
+| Hot-reload | Restart required | File-watch + debounce | Candidate pattern; needs measurement |
+| Scorer composition | Internal evaluation | SumScorer / MulScorer / ConstScorer | Candidate pattern |
 | Extension registry | JSON manifests + SHA-256 installer + embedded catalog | Registry + SHA + CaMeL IFC | Similar core |
-| MCP integration | HTTP, stdio, Unix transports | Not implemented | **IronClaw ahead** |
-| Secrets management | AES-256-GCM + OS keychain | Not in plugin layer | **IronClaw ahead** |
+| MCP integration | HTTP, stdio, Unix transports | Not implemented in captured plugin layer | Keep MCP boundary separate |
+| Secrets management | AES-256-GCM + OS keychain | Not in plugin layer | Preserve IronClaw secrets boundary |
 
 ---
 
@@ -2810,14 +2784,14 @@ the effort required.
 
 **Where**: Prefer extending routines/triggers, gateway events, or a narrowly scoped extension event module.
 **Integration surface**: existing untrusted inbound request paths, routines/triggers, and gateway event streams.
-**Effort**: ~300-400 lines
+**Complexity**: Medium
 **Risk**: Medium (ingress, auth, scheduling, and approval behavior)
 
 Add an event-source abstraction only if it routes through existing IronClaw boundaries. Extension events must become untrusted inbound work, not trusted trigger submissions, and must not create a second agent loop. This would enable:
 
 - **File change monitoring** — watch project files and trigger agent action
   on save (useful for "fix on save" workflows)
-- **Webhook listeners** — ingest GitHub webhooks, CI notifications, deploy
+- **Webhook listeners** — ingest code-hosting webhooks, CI notifications, deploy
   events (complementing IronClaw's existing HTTP webhook channel)
 - **Scheduled events** — beyond IronClaw's existing heartbeat system, allow
   arbitrary cron-like triggers
@@ -2884,7 +2858,7 @@ via `ChannelManager`.
 **Where**: `src/evaluation/` (extend existing evaluation system)
 **Integration surface**: `src/workspace/` (memory for persisting feedback),
 `src/db/` (storing episode-feedback mappings)
-**Effort**: ~200-300 lines
+**Complexity**: Low-medium
 **Risk**: Low (additive)
 
 ```rust
@@ -2939,7 +2913,7 @@ pub trait FeedbackCollector: Send + Sync + 'static {
 **Where**: `src/tools/declarative/` (new module)
 **Integration surface**: `src/tools/registry.rs` (ToolRegistry for discovery),
 `src/tools/dispatch.rs` (ToolDispatcher for execution)
-**Effort**: ~400-500 lines
+**Complexity**: Medium
 **Risk**: Low (additive)
 
 ```rust
@@ -2952,7 +2926,8 @@ use std::collections::HashMap;
 pub struct DeclarativeToolDef {
     pub name: String,
     pub description: String,
-    pub command: String,
+    pub tool: String,
+    pub argv: Vec<String>,
     #[serde(default = "default_timeout_ms")]
     pub timeout_ms: u64,
     pub working_dir: Option<String>,
@@ -2964,6 +2939,7 @@ fn default_timeout_ms() -> u64 { 30_000 }
 
 pub struct DeclarativeToolRunner {
     def: DeclarativeToolDef,
+    dispatcher: Arc<ToolDispatcher>,
 }
 
 #[async_trait]
@@ -2974,18 +2950,15 @@ impl Tool for DeclarativeToolRunner {
 
     async fn call(
         &self,
-        _params: serde_json::Value,
+        params: serde_json::Value,
+        ctx: &JobContext,
     ) -> Result<ToolOutput, ToolError> {
         // Do not run arbitrary shell strings from a manifest. Resolve the manifest
         // entry to an approved command template or a registered built-in/WASM/MCP
         // tool, then dispatch through ToolDispatcher so approvals, sandboxing,
         // audit, and user attribution remain intact.
-        self.dispatcher.dispatch(
-            &self.def.registered_tool,
-            validate_params(_params, &self.def.schema)?,
-            &self.user_id,
-            DispatchSource::Extension { extension_id: self.def.extension_id.clone() },
-        ).await
+        let arguments = build_declarative_arguments(&self.def, params)?;
+        self.dispatcher.dispatch(&self.def.tool, arguments, ctx).await
     }
 }
 ```
@@ -2993,7 +2966,7 @@ impl Tool for DeclarativeToolRunner {
 **Tool definition TOML format for IronClaw:**
 
 ```toml
-# ~/.ironclaw/tools/my-tools/plugin.toml
+# <configured-tool-catalog>/my-tools/plugin.toml
 [plugin]
 name = "dev-tools"
 version = "1.0.0"
@@ -3034,11 +3007,11 @@ timeout_ms = 30000
 **Where**: `src/tools/wasm/loader.rs` (extend existing loader)
 **Integration surface**: `src/tools/wasm/runtime.rs` (module recompilation),
 `src/tools/registry.rs` (atomic tool swap)
-**Effort**: ~300 lines
+**Complexity**: Medium
 **Risk**: Low (additive, uses `notify` crate)
-**New dependency**: `notify = "8.x"`
+**Dependency note**: prefer an already-approved filesystem watcher crate; pinning a version belongs in the implementation PR.
 
-Watch the WASM tools directory (`~/.ironclaw/tools/`) for changes and reload
+Watch the configured WASM tools directory for changes and reload
 modified modules without restarting the process. The implementation follows
 Roko's debounce pattern (see Example 4 above).
 
@@ -3074,14 +3047,14 @@ impl ToolRegistry {
 **Where**: `src/skills/` (extend skill system) or new `src/profiles/`
 **Integration surface**: `src/tools/registry.rs` (tool filtering),
 `src/skills/` (attenuation composing with profiles)
-**Effort**: ~200-300 lines
+**Complexity**: Low-medium
 **Risk**: Low (additive)
 
 IronClaw's skill system already has trust-based tool attenuation. Adding named
 profiles would provide a more explicit, user-facing configuration surface:
 
 ```toml
-# Stored in ~/.ironclaw/settings.json under "profiles" key
+# Stored in the configured user settings under a "profiles" key
 
 {
   "profiles": {
@@ -3118,7 +3091,7 @@ effective_tools = (profile_allowed ∩ skill_attenuated) - profile_denied
 
 **Where**: `src/evaluation/` (extend existing evaluators)
 **Integration surface**: `src/evaluation/` (SuccessEvaluator trait)
-**Effort**: ~150-200 lines
+**Complexity**: Low-medium
 **Risk**: Low (additive)
 
 Add `CompositeEvaluator` wrappers that compose existing `SuccessEvaluator`
@@ -3187,13 +3160,14 @@ impl SuccessEvaluator for CompositeEvaluator {
 
 ### Story 1: Denied Network Access
 
-**Trigger**: A declarative tool's shell command attempts outbound HTTP to a
-domain not in the IronClaw network policy allowlist.
+**Trigger**: A declarative tool resolves to an HTTP-capable registered tool and
+attempts outbound access to a domain not in the IronClaw network policy
+allowlist.
 
-**Expected behavior**: The subprocess launches but the connection is blocked
-by IronClaw's sandbox proxy (`src/sandbox/proxy/`). The tool call returns an
-error body with the blocked domain. The agent receives a `ToolError::NetworkDenied`
-variant and can explain to the user what happened.
+**Expected behavior**: The dispatcher applies the normal outbound policy before
+network access. The tool call returns a typed denial such as
+`ToolError::NetworkDenied`, and the agent can explain the blocked domain to the
+user.
 
 **Regression test**:
 
@@ -3201,20 +3175,19 @@ variant and can explain to the user what happened.
 #[cfg(feature = "integration")]
 #[tokio::test]
 async fn test_declarative_tool_network_denied() {
-    // Install a declarative tool that calls a non-allowlisted URL
+    // Install a declarative tool that dispatches to the registered HTTP tool.
     let tool_def = DeclarativeToolDef {
         name: "bad-fetch".to_string(),
         description: "Fetch from disallowed domain".to_string(),
-        command: "curl -s https://not-in-allowlist.example.com/api".to_string(),
+        tool: "http".to_string(),
+        argv: vec!["GET".to_string(), "https://not-in-allowlist.example.invalid/api".to_string()],
         timeout_ms: 5000,
         working_dir: None,
         env: Default::default(),
     };
     let runner = DeclarativeToolRunner::new(tool_def);
-    // When network policy blocks the domain, the command should fail with
-    // a non-zero exit code or connection refused error
     let result = runner.call(serde_json::json!({})).await;
-    assert!(result.is_err() || result.unwrap().content.contains("refused"));
+    assert!(matches!(result, Err(ToolError::NetworkDenied { .. })));
 }
 ```
 
@@ -3223,7 +3196,7 @@ async fn test_declarative_tool_network_denied() {
 **Trigger**: A WASM plugin file changes repeatedly during active development
 (e.g., a build system that writes the file multiple times before stabilizing).
 
-**Expected behavior**: Reload happens after the debounce window (500ms) and
+**Expected behavior**: Reload happens after the configured debounce window and
 emits one compilation attempt, not one per filesystem write. Only the final
 file state is compiled.
 
@@ -3310,24 +3283,22 @@ critical to their function.
 
 ## 21. Complexity Assessment
 
-| Feature | Lines (est.) | Risk | New Dependencies | Priority |
-|---------|-------------|------|------------------|----------|
-| EventSource trait | 300-400 | Low | `notify`, `tokio_util` | Medium |
-| FeedbackCollector trait | 200-300 | Low | None | Low |
-| Declarative TOML tools | 400-500 | Low | `toml` (already dep) | Medium |
-| Hot-reload for WASM | 300 | Low | `notify` | Low |
-| Role-based profiles | 200-300 | Low | None | Low |
-| Composable evaluators | 150-200 | Low | None | Low |
-| **Total** | **1,550-2,000** | **Low** | **`notify` only new dep** | |
+| Feature | Complexity | Main risk | Priority |
+|---------|------------|-----------|----------|
+| EventSource trait | Medium | ingress/auth/scheduling boundaries | Medium |
+| FeedbackCollector trait | Low-medium | durable episode mapping and replay | Low |
+| Declarative TOML tools | Medium | raw command execution and approval bypass | Medium |
+| Hot-reload for WASM | Medium | stale module state and in-flight calls | Low |
+| Role-based profiles | Low-medium | conflicting policy layers | Low |
+| Composable evaluators | Low-medium | ambiguous success semantics | Low |
 
-All features are additive (no existing behavior changes). The only new
-dependency is `notify` (the `cron` crate is not needed because IronClaw's
-existing routine/heartbeat system covers scheduled execution).
+Treat these as candidate additions, not guaranteed additive changes. Any
+implementation touching inbound triggers, tool execution, credentials, or
+runtime scheduling needs caller-level tests through the real boundary.
 
 ### Implementation Order
 
-The recommended implementation order prioritizes features with the highest
-impact-to-effort ratio:
+The recommended implementation order prioritizes contained behavior first:
 
 1. **Declarative TOML tools** (highest user impact, covers most common extension
    use case — wrapping CLI tools)
@@ -3349,10 +3320,9 @@ impact-to-effort ratio:
    pipeline (`crates/ironclaw_safety/`) covers the same trust/taint concerns
    through a different mechanism.
 
-2. **22-hook Extension trait** — The v2 hook system is designed for Roko's
-   9-step agent pipeline, which is structurally different from IronClaw's agent
-   loop. IronClaw's 6-hook system (`src/hooks/`) is well-matched to its
-   architecture. Expanding to 22 hooks would require rearchitecting the agent loop.
+2. **Broad Extension trait** — The v2 hook system is designed for Roko's agent
+   pipeline, which is structurally different from IronClaw's agent loop.
+   Expanding hooks broadly would risk a parallel lifecycle model.
 
 3. **Bus-based trigger chaining** — Roko's Bus is a central pub/sub system
    that does not exist in IronClaw. Implementing trigger chaining would

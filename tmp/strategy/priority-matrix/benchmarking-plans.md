@@ -1,6 +1,8 @@
 # Benchmarking Plans
 
-Measure before enabling behavior changes. For low-risk pure logic, unit and fixture tests may be enough. For routing, retrieval, gates, or autonomous background work, use shadow mode or canaries before active rollout.
+Measure before enabling behavior changes. For low-risk pure logic, unit and
+fixture tests may be enough. For routing, retrieval, gates, or autonomous
+background work, use shadow mode or canaries before active rollout.
 
 ## Shared Measurement Rules
 
@@ -13,15 +15,15 @@ Measure before enabling behavior changes. For low-risk pure logic, unit and fixt
 
 ## Metrics By Candidate
 
-| Candidate | Baseline | Primary metric | Guardrail | Minimum evidence before default-on |
-|-----------|----------|----------------|-----------|------------------------------------|
+| Candidate | Baseline | Primary metric | Guardrail | Minimum evidence before active/default use |
+|-----------|----------|----------------|-----------|--------------------------------------------|
 | Robust statistics | Current estimator error on clean and spiky traces | Lower error on spiky traces | No worse than current on clean traces | Deterministic fixture plus estimator caller test. |
 | Exact memory dedup | Duplicate rate in fixture workspace | Duplicate writes merged | No false merge of different content | Memory tool test plus sampled real workspace dry run. |
 | Memory decay | Current memory relevant@10 and stale-hit rate | Lower stale-hit rate | No identity/system archival | Search fixture with controlled clock plus restore test. |
 | Metacognitive monitor | Existing duplicate-call detection | Earlier detection of repeated failed loops | False intervention rate below agreed threshold | Agent-loop harness over synthetic stuck and non-stuck traces. |
 | Composable scorers | Current caller-specific scoring | Same or clearer caller decision | No behavior change without a consuming caller | Caller test showing the scorer result changes the intended side effect. |
 | Cancellation propagation | Current cancel-to-stop time | Tool/process stops within bounded time | No orphan subprocesses | Integration test through real tool path. |
-| Cascade router | Current model choice, cost, latency, quality | Cost/request reduction at equal quality | Zero safety override violations | Shadow-mode episodes, then small canary. |
+| Cascade router | Current model choice, cost, latency, quality | Lower cost/request at equal reviewed quality | Zero safety override violations | Shadow-mode episodes, then small canary. |
 | Gate expansion | Current generated-code defect catch rate | More defects caught before completion | Low false-fail rate and no secret leakage | Hermetic projects with known failures, then canary on code-edit turns. |
 | HDC signal | Current FTS/vector RRF relevant@10 | Relevant@10 lift on compositional queries | No regression on ordinary queries | Offline corpus benchmark before any active ranking. |
 | Cognitive speed labels | Current unlabeled routing/context behavior | Improved caller decision where label is consumed | Classification does not force lower-capability model on risky tasks | Classifier fixture plus caller test. |
@@ -129,7 +131,7 @@ Fixture:
 
 Pass condition:
 
-- HDC improves compositional relevant@10 enough to justify a third rank source.
+- HDC shows enough compositional relevant@10 lift to justify a third rank source.
 - Ordinary query quality does not regress.
 - Latency and memory overhead remain acceptable for local use.
 

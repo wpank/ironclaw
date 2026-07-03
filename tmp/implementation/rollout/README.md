@@ -1,21 +1,20 @@
 # Rollout And Risk Playbooks
 
-This folder turns implementation ideas into operational steps. It should be read
-before enabling any feature from the numbered analysis documents outside a local
-development environment.
+This directory describes how experimental features move from disabled code to
+local fixtures, shadow runs, canaries, limited rollout, and default behavior.
 
-| File | Contents |
-|---|---|
-| `01-feature-rollout-runbooks.md` | Shadow/canary/default rollout steps for the highest-value features |
-| `02-security-and-risk-register.md` | Security review checklist, risk register, rollback triggers, and DB parity rules |
-| `03-feature-flag-inventory.md` | Fail-closed feature flag inventory, ownership, stages, default states, and rollback semantics |
-| `04-feature-threat-models.md` | Threat models for routing, gates, memory, dreams, code intelligence, control plane, extensions, reputation, and configuration |
+| File | Purpose |
+| --- | --- |
+| `01-feature-rollout-runbooks.md` | Stage-by-stage runbooks for core features |
+| `02-security-and-risk-register.md` | Shared rollback triggers and risk records |
+| `03-feature-flag-inventory.md` | Flag keys, defaults, reload behavior, owners |
+| `04-feature-threat-models.md` | Feature-specific abuse cases and validation fixtures |
 
 ## Non-Negotiables
 
-- Feature flags must fail closed.
-- Security-sensitive behavior must keep existing approval and auth paths.
-- Database changes must pass both PostgreSQL and libSQL contract tests.
-- Rollback must preserve readable existing data.
-- Every canary needs an exposure event, metric event, guardrail verdict, and
-  rollback trigger that can be joined by `run_id` and `turn_id`.
+- Runtime flags fail closed and default off.
+- Shadow mode records metrics but baseline behavior remains authoritative.
+- Canary/default promotion requires caller-level tests, benchmark evidence, and
+  an exercised rollback switch.
+- Metrics and artifacts must be redacted before persistence.
+- DB changes ship for PostgreSQL and libSQL together.

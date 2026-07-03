@@ -1,128 +1,65 @@
 # Rollout Metrics
 
-This file defines the concrete metrics and windows behind phrases such as
-"guardrails green", "canary passed", and "rollback trigger fired".
+Rollout metrics answer whether a feature can leave observe-only mode. They also
+define when to hold or rollback.
 
-## 1. Artifact Naming
-
-Every benchmark or rollout comparison should produce this directory shape:
+## Artifact Naming
 
 ```text
-artifacts/benchmarks/<feature>/<scenario>/<run_id>/
-  manifest.toml
+target/rollouts/<feature>/<stage>/<run_id>/
+  manifest.yaml
+  exposures.jsonl
   baseline.jsonl
   candidate.jsonl
-  comparison.json
-  summary.md
-  fixtures/
-  logs/
+  verdict.json
+  report.md
 ```
 
-Rules:
+## Shadow Metrics
 
-- `run_id` should include UTC date and a short monotonic suffix.
-- `baseline.jsonl` and `candidate.jsonl` use the same `MetricEvent` schema.
-- `comparison.json` is machine-readable and should not contain raw prompts.
-- `summary.md` is the human-readable review artifact.
+Required for every shadow run:
 
-## 2. Shadow Metrics
+| Metric | Formula | Bound |
+| --- | --- | --- |
+| `decision_agreement_rate` | candidate decision equals baseline / scored decisions | `0.0..=1.0` |
+| `would_have_saved_cost_pct` | `(baseline_cost - candidate_cost) / baseline_cost` | `-100..=100` |
+| `p95_latency_delta_pct` | candidate p95 vs baseline p95 | rollback if `> 10` |
+| `quality_delta_pp` | candidate pass rate - baseline pass rate | rollback if `< -2` |
+| `policy_violation_count` | candidate policy violations | rollback if `> 0` |
 
-Shadow mode means the feature computes a decision but cannot affect the user
-path.
+Shadow candidates do not control behavior.
 
-Required metrics:
+## Canary Dashboard
 
-| Metric | Formula | Required window |
-|---|---|---|
-| `shadow_decision_count` | number of candidate decisions scored | 200+ events or full fixture set |
-| `decision_agreement_rate` | candidate decision equals baseline decision / scored decisions | report only |
-| `would_have_saved_cost_pct` | `(baseline_cost - candidate_cost) / baseline_cost` | report only |
-| `would_have_changed_quality_count` | candidate decisions with different quality oracle result | must be reviewed before canary |
-| `shadow_error_count` | panics, serialization failures, missing state | must be zero |
+| Signal | Promote | Hold | Rollback |
+| --- | --- | --- | --- |
+| quality delta | `>= -1pp` | `-1pp..-2pp` | `< -2pp` |
+| p95 latency delta | `<= +5%` | `+5%..+10%` | `> +10%` |
+| fallback rate delta | `<= +2pp` | `+2pp..+5pp` | `> +5pp` |
+| policy/auth/secret issue | `0` | n/a | `> 0` |
 
-Exit to canary:
+## Rollback Triggers
 
-```text
-shadow_error_count == 0
-and no policy_violation events
-and every changed decision has an explainable reason
-```
+- Any secret, prompt, file body, private path, or token leak in metrics/artifacts.
+- Any bearer-token, CORS/origin, webhook-auth, rate-limit, sandbox, or approval
+  regression.
+- Any DB parity failure between PostgreSQL and libSQL for new persistent data.
+- Candidate p95 latency regression above 10% for two windows.
+- Candidate quality regression below -2pp for one statistically meaningful
+  window.
 
-## 3. Canary Dashboard
+## Review Cadence
 
-Canary mode affects a limited cohort.
+| Stage | Review |
+| --- | --- |
+| `local` | before merge |
+| `shadow` | daily while collecting |
+| `canary` | daily for first week |
+| `limited` | twice weekly |
+| `default` | weekly until flag cleanup |
 
-Required dashboard rows:
+## Privacy
 
-| Row | Green | Yellow | Red |
-|---|---:|---:|---:|
-| quality pass rate delta | >= -1pp | -1pp to -2pp | < -2pp |
-| p95 latency delta | <= +5% | +5% to +10% | > +10% |
-| cost delta for cost features | <= -10% | -10% to 0% | > 0% |
-| fallback rate | <= baseline +2pp | +2pp to +5pp | > +5pp |
-| policy violations | 0 | 0 | > 0 |
-| approval bypasses | 0 | 0 | > 0 |
-
-Canary minimum:
-
-```text
-200 eligible events
-or 7 days of low-volume production traffic
-or full hermetic fixture suite for local-only features
-```
-
-## 4. Rollback Triggers
-
-Immediate rollback:
-
-- Any policy violation.
-- Any secret leak in a metric, artifact, memory, or event.
-- Any auth/origin/rate-limit/body-limit regression.
-- Any production panic introduced by the feature.
-
-Metric rollback:
-
-```text
-quality_pass_rate_delta < -2 percentage points
-or p95_latency_delta > +10%
-or fallback_rate_delta > +5 percentage points
-or cost_delta > 0 for a cost-saving feature
-or false_block_rate > 5% for a blocking feature
-```
-
-## 5. Owner Review Cadence
-
-| Stage | Review cadence | Required reviewer |
-|---|---|---|
-| Local fixture | every run | feature owner |
-| Shadow | every 200 events | feature owner |
-| Canary | daily | feature owner + subsystem owner |
-| Limited default | twice weekly | subsystem owner |
-| Full default | weekly until stable | normal operations |
-
-Security-sensitive features require security review before canary.
-
-## 6. Privacy And Redaction
-
-Telemetry may include:
-
-- feature key
-- variant
-- model family
-- status enum
-- latency/cost/token counts
-- gate rung/status
-- artifact hash
-
-Telemetry must not include by default:
-
-- full prompts
-- raw user messages
-- command output
-- secrets
-- webhook payloads
-- full memory body
-
-If raw content is necessary for a local benchmark, keep it in `fixtures/` and do
-not promote that artifact to production telemetry.
-
+Telemetry may include ids, hashes, bounded classes, timestamps, counts, cost,
+latency, token counts, and redaction status. It must not include raw prompts,
+secrets, file bodies, private paths, unredacted stack traces, or arbitrary URLs.

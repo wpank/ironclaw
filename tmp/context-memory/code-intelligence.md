@@ -36,7 +36,7 @@ Code intelligence gives an AI agent structural understanding of a codebase — n
 
 The fundamental problem is **context assembly**. Given a natural-language task description ("add error handling to `process_input`"), an AI coding agent must decide which source code fragments to include in its prompt. Without code intelligence, the agent falls back to text search (grep), which produces noisy results: 20–50 candidate files, roughly 50,000 tokens of raw source text, with no structural understanding of how the matched symbols relate to each other. The LLM must then spend its own capacity figuring out which function is the right one, what it calls, what calls it, and what types it depends on.
 
-With code intelligence, the same agent gets a ranked, graph-expanded, budget-constrained context of roughly 5,000 tokens containing exactly the target function, its callers, its type dependencies, and nothing else. The savings compound: fewer tokens means faster inference, lower cost, and higher accuracy because the model's attention is not diluted by irrelevant code.
+With code intelligence, the agent can request a ranked, graph-expanded, budget-constrained context that focuses on the target function, callers, and type dependencies instead of dumping whole files. The target is fewer irrelevant tokens, faster inference, and better use of model attention; exact savings must be measured per repository and task mix.
 
 This matters especially in IronClaw because the agent works on its own codebase (during self-improvement tasks), on user project code via the per-project sandbox (engine v2), and on WASM skill development tasks. In each case the agent today relies on `file_read`, `grep_tool`, and `glob_tool` to explore code — a process that costs 10–75× more tokens than structural context assembly would for the same tasks.
 
@@ -128,30 +128,7 @@ The separation is deliberate: `roko-index` contains zero language-specific logic
 
 A symbol is a named entity extracted from source code (`crates/roko-core/src/language.rs` lines 43–106):
 
-```rust
-pub enum SymbolKind {
-    Function,   // fn, function, func
-    Struct,     // struct, class, type X struct
-    Enum,       // enum
-    Trait,      // trait, interface, type X interface
-    Const,      // const, var (Go)
-    Type,       // type alias
-    Module,     // mod, export default
-    Impl,       // impl block
-}
-
-pub enum Visibility {
-    Public,     // pub, export, capitalized (Go)
-    Private,    // default, unexported
-}
-
-pub struct Symbol {
-    pub name: String,
-    pub kind: SymbolKind,
-    pub visibility: Visibility,
-    pub line: usize,         // 1-based line number
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 The 8-variant `SymbolKind` normalizes constructs across languages:
 
@@ -368,22 +345,7 @@ pub struct StructuralQuery {
 
 The dependency graph uses dual adjacency lists for O(1) lookup in either direction (`crates/roko-index/src/graph.rs` lines 1–42):
 
-```rust
-pub struct SymbolGraph {
-    nodes: HashSet<SymbolId>,
-    forward: HashMap<SymbolId, Vec<(SymbolId, EdgeKind)>>,  // X depends on Y
-    reverse: HashMap<SymbolId, Vec<(SymbolId, EdgeKind)>>,  // Y is depended on by X
-}
-
-#[non_exhaustive]
-pub enum EdgeKind {
-    Calls,       // A calls B (function/method invocation)
-    Imports,     // A imports B (use/require/import)
-    Implements,  // A implements B (trait/interface)
-    Contains,    // A contains B (method in impl block)
-    TypeRef,     // A references type B in its signature or body
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 For ~10K symbols and ~30K edges, memory cost is ~2MB. Dual adjacency lists enable traversal in either direction (callers and callees) in O(1).
 
@@ -436,7 +398,7 @@ flowchart LR
     PR --> SCORES[HashMap of SymbolId to f64]
 ```
 
-Construction algorithm (verbatim from `crates/roko-index/src/graph.rs` lines 279–465):
+Captured construction summary from `crates/roko-index/src/graph.rs`:
 
 ```
 Phase 1: Register all symbols as graph nodes.
@@ -499,37 +461,7 @@ Where `d = 0.85` (damping factor) and `N` = total nodes. The damping factor mode
 
 Full implementation (`crates/roko-index/src/graph.rs` lines 589–622):
 
-```rust
-pub fn pagerank(
-    graph: &SymbolGraph,
-    iterations: u32,    // typically 30
-    damping: f64,       // typically 0.85
-) -> HashMap<SymbolId, f64> {
-    let n_f = n as f64;
-    // Initialize: every node gets 1/N
-    let mut rank: HashMap<SymbolId, f64> = all_nodes.iter()
-        .map(|id| ((*id).clone(), 1.0 / n_f))
-        .collect();
-
-    for _ in 0..iterations {
-        let base = (1.0 - damping) / n_f;
-        for &node in &all_nodes {
-            let mut incoming_sum = 0.0;
-            if let Some(inbound) = graph.reverse.get(node) {
-                for (src, _) in inbound {
-                    let src_rank = rank.get(src).copied().unwrap_or(0.0);
-                    let out_degree = graph.forward.get(src)
-                        .map_or(1, Vec::len).max(1) as f64;
-                    incoming_sum += src_rank / out_degree;
-                }
-            }
-            new_rank.insert(node.clone(), damping.mul_add(incoming_sum, base));
-        }
-        rank = new_rank;
-    }
-    rank
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Convergence**: Power iteration converges geometrically with rate `d = 0.85`. After 30 iterations the error is bounded by `0.85^30 < 0.008`. For 5K nodes, computation takes roughly 1ms.
 
@@ -611,26 +543,7 @@ pub struct HdcFingerprint {
 
 Random-like base vectors are generated deterministically from byte seeds using FNV-1a hashing followed by splitmix64 PRNG expansion:
 
-```rust
-fn fnv1a(data: &[u8]) -> u64 {
-    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;   // FNV offset basis
-    for &byte in data {
-        hash ^= u64::from(byte);
-        hash = hash.wrapping_mul(0x0100_0000_01b3); // FNV prime
-    }
-    if hash == 0 { hash = 0xA5A5_A5A5_5A5A_5A5A; } // avoid zero seed
-    hash
-}
-
-fn vector_from_seed(seed: &[u8]) -> [u64; WORDS] {
-    let mut state = fnv1a(seed);
-    let mut bits = [0u64; WORDS];
-    for word in &mut bits {
-        *word = splitmix64(&mut state);
-    }
-    bits
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 Deterministic generation means the same seed always produces the same 10,240-bit vector. No randomness, no model dependency.
 
@@ -640,24 +553,9 @@ Each symbol's fingerprint encodes three properties:
 
 **1. Role vector** — deterministic base vector for each `SymbolKind`:
 
-```rust
-fn role_vector(kind: &SymbolKind) -> [u64; WORDS] {
-    let seed: &[u8] = match kind {
-        SymbolKind::Function => b"roko:role:function",
-        SymbolKind::Struct   => b"roko:role:struct",
-        SymbolKind::Enum     => b"roko:role:enum",
-        SymbolKind::Trait    => b"roko:role:trait",
-        SymbolKind::Const    => b"roko:role:const",
-        SymbolKind::Type     => b"roko:role:type",
-        SymbolKind::Module   => b"roko:role:module",
-        SymbolKind::Impl     => b"roko:role:impl",
-        _                    => b"roko:role:unknown",
-    };
-    vector_from_seed(seed)
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
-Role vectors are near-orthogonal by the high-dimensional quasi-orthogonality property — random 10,240-bit vectors have expected Hamming distance of exactly 5,120 (50%).
+Role vectors are near-orthogonal by the high-dimensional quasi-orthogonality property — random 10,240-bit vectors have mean Hamming distance of 5,120 (50%).
 
 **2. Name vector** — encoded via overlapping character trigrams:
 
@@ -722,22 +620,7 @@ pub fn fingerprint_file(source: &SourceFile) -> HdcFingerprint {
 
 Similarity is computed via normalized Hamming distance:
 
-```rust
-impl HdcFingerprint {
-    pub fn similarity(&self, other: &Self) -> f64 {
-        let dist = hamming_distance(&self.bits, &other.bits);
-        1.0 - (f64::from(dist) / TOTAL_BITS as f64)
-    }
-}
-
-fn hamming_distance(a: &[u64; WORDS], b: &[u64; WORDS]) -> u32 {
-    let mut diff = 0u32;
-    for (left, right) in a.iter().zip(b.iter()) {
-        diff += (left ^ right).count_ones();  // maps to POPCNT instruction
-    }
-    diff
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 Range [0.0, 1.0]: 1.0 = identical, ~0.5 = unrelated (random), 0.0 = maximally different.
 
@@ -774,39 +657,7 @@ The SQLite-backed persistent index provides FTS5 full-text search over symbol na
 
 ### Schema
 
-```sql
--- `crates/roko-index/src/sqlite.rs`
-
-CREATE TABLE files (
-    path     TEXT PRIMARY KEY,
-    mtime_ns INTEGER NOT NULL,
-    hash     TEXT NOT NULL
-);
-
-CREATE TABLE symbols (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    file_path  TEXT NOT NULL,
-    name       TEXT NOT NULL,
-    kind       TEXT NOT NULL,
-    line       INTEGER NOT NULL,
-    col        INTEGER NOT NULL DEFAULT 0,
-    visibility TEXT NOT NULL DEFAULT 'Private',
-    UNIQUE(file_path, name, kind)
-);
-
-CREATE TABLE edges (
-    from_file TEXT NOT NULL,
-    from_name TEXT NOT NULL,
-    from_kind TEXT NOT NULL,
-    to_file   TEXT NOT NULL,
-    to_name   TEXT NOT NULL,
-    to_kind   TEXT NOT NULL,
-    edge_kind TEXT NOT NULL,
-    UNIQUE(from_file, from_name, from_kind, to_file, to_name, to_kind, edge_kind)
-);
-
-CREATE VIRTUAL TABLE symbols_fts USING fts5(name, file_path, kind, sym_id);
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### FTS Search with BM25
 
@@ -891,52 +742,11 @@ flowchart LR
 
 Full implementation (`crates/roko-index/src/workspace.rs` lines 1430–1464):
 
-```rust
-fn rrf_merge(lists: &[Vec<SearchResult>], k: f64, limit: usize) -> Vec<SearchResult> {
-    let mut scores: HashMap<SymbolId, (f64, SearchResult)> = HashMap::new();
-    for list in lists {
-        for (rank, result) in list.iter().enumerate() {
-            let rrf_score = 1.0 / (k + (rank + 1) as f64);
-            match scores.entry(result.symbol.id.clone()) {
-                Entry::Occupied(mut entry) => {
-                    entry.get_mut().0 += rrf_score;   // accumulate
-                }
-                Entry::Vacant(entry) => {
-                    entry.insert((rrf_score, result.clone()));
-                }
-            }
-        }
-    }
-    let mut merged: Vec<SearchResult> = scores.into_values()
-        .map(|(rrf_score, mut result)| { result.score = rrf_score; result })
-        .collect();
-    sort_search_results(&mut merged);
-    merged.truncate(limit);
-    merged
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 The unified search method handles oversampling — it requests 3× the limit from each sub-strategy (minimum 30) before merging:
 
-```rust
-pub fn search(&self, strategy: SearchStrategy, limit: usize) -> Vec<SearchResult> {
-    match strategy {
-        SearchStrategy::Hybrid { keyword, structural, hdc } => {
-            let oversample = limit.saturating_mul(3).max(30);
-            let mut lists: Vec<Vec<SearchResult>> = Vec::new();
-            if let Some(q) = keyword    { lists.push(self.keyword_search(&q, oversample)); }
-            if let Some(q) = structural { lists.push(self.structural_search(&q, oversample)); }
-            if let Some(q) = hdc {
-                let mut q = q;
-                q.max_results = oversample;
-                lists.push(self.hdc_search(&q));
-            }
-            rrf_merge(&lists, 60.0, limit)
-        }
-        // ... single-strategy cases
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### Worked Example: "process_input error handling"
 
@@ -1037,33 +847,7 @@ Privacy redaction happens after search/ranking but before context assembly. Sens
 
 The `WorkspaceIndex` implements the `CodeIndex` trait, which provides the full suite of code intelligence queries (`crates/roko-index/src/workspace.rs` lines 350–410):
 
-```rust
-pub trait CodeIndex {
-    fn lookup_symbol(&self, name: &str) -> Vec<SymbolInfo>;
-    fn search_by_keyword(&self, query: &KeywordQuery, limit: usize) -> Vec<SearchResult>;
-    fn search_by_structure(&self, query: &StructuralQuery, limit: usize) -> Vec<SearchResult>;
-    fn search_by_fingerprint(&self, query: &HdcQuery) -> Vec<SearchResult>;
-    fn search_by_embedding(&self, query: &EmbeddingQuery) -> Vec<SearchResult>;
-    fn list_imports_for_file(&self, file: &str) -> Result<Vec<Import>>;
-    fn build_symbol_context(&self, name: &str, file: Option<&str>, depth: usize)
-        -> Result<Vec<SymbolContext>>;
-    fn find_call_graph(&self, function: &str, depth: u32) -> CallGraph;
-    fn file_ast(&self, file: &str) -> Result<FileAst>;
-    fn index_stats(&self) -> IndexStats;
-    fn find_references(&self, name: &str, file: Option<&str>, include_defs: bool)
-        -> Result<Vec<ReferenceMatch>>;
-    fn find_implementations(&self, trait_name: &str) -> Vec<ImplementationMatch>;
-    fn workspace_map(&self, focus: Option<&str>) -> WorkspaceMap;
-    fn assemble_context(
-        &self,
-        query: &str,
-        max: usize,
-        budget: usize,
-        overlay: Option<&ContextOverlay>,
-        privacy: Option<&PrivacyConfig>,
-    ) -> AssembledContext;
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### The 6-Step Assembly Pipeline
 
@@ -1088,23 +872,7 @@ flowchart TD
 
 Output types:
 
-```rust
-pub struct AssembledContext {
-    pub query: String,
-    pub slices: Vec<CodeSlice>,
-    pub token_estimate: usize,
-    pub truncated: bool,        // true if budget was exceeded
-}
-
-pub struct CodeSlice {
-    pub file_path: String,
-    pub start_line: usize,
-    pub end_line: usize,
-    pub content: String,
-    pub symbols_included: Vec<SymbolId>,
-    pub token_estimate: usize,  // ~4 chars per token heuristic
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### Connection to Budget Composition
 
@@ -1115,28 +883,13 @@ The `AssembledContext` produced here feeds directly into the budget-constrained 
 - The budget allocator chooses among code slices, memory entries, skill content, and conversation history under the remaining token limit
 - The U-shaped attention placement algorithm then positions the winning slices at the primacy and recency zones of the assembled prompt
 
-This means the code intelligence pipeline does not stand alone: it produces ranked, budget-estimated fragments that the composition pipeline then places. A code slice with high `score` but large `token_estimate` may lose to a smaller, slightly lower-ranked slice — exactly the tradeoff the allocator is designed to navigate.
+The code intelligence pipeline does not stand alone: it produces ranked, budget-estimated fragments that the composition pipeline then places. A code slice with high `score` but large `token_estimate` may lose to a smaller, slightly lower-ranked slice because budget allocation uses density, placement, and diagnostics together.
 
 ### Semantic Search
 
 HDC-powered semantic search creates a fingerprint from the query text and compares against all indexed symbols:
 
-```rust
-pub fn semantic_search(&self, query: &str, limit: u32) -> Vec<SearchResult> {
-    let query_file = SourceFile {
-        path: "<query>".to_string(),
-        content: query.to_string(),
-        language: "query".to_string(),
-        symbols: Vec::new(),
-        imports: Vec::new(),
-    };
-    let query_fp = fingerprint_file(&query_file);
-
-    // score = 0.7 * similarity(query, symbol_fp)
-    //       + 0.3 * similarity(query, file_fp)
-    // This blend captures both direct matches and contextual relevance
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### Call Graph Queries
 
@@ -1292,22 +1045,7 @@ For most code search tasks, HDC + FTS5 + graph already achieves precision compar
 
 **Scenario**: You discover a bug in `validate_credentials`. You need to find every function that calls it to assess blast radius before patching.
 
-```rust
-// Using the CodeIndex trait
-let call_graph = index.find_call_graph("validate_credentials", 2);
-
-// Direct callers (depth=1)
-for caller in &call_graph.callers {
-    println!("Direct caller: {}:{}", caller.file_path, caller.line);
-}
-
-// All edges (direct + transitive)
-for edge in &call_graph.edges {
-    if edge.direction == EdgeDirection::Incoming {
-        println!("  depth {}: {} → validate_credentials", edge.depth, edge.from.name);
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 Alternatively, using the graph directly:
 
@@ -1360,38 +1098,7 @@ The agent can assemble an architecture overview from just these 20 symbols with 
 
 **Scenario**: You suspect two modules have duplicated validation logic. HDC fingerprints detect structural similarity without requiring identical code.
 
-```rust
-// Find structurally similar function pairs
-let function_fingerprints: Vec<(&SymbolId, &HdcFingerprint)> = index
-    .symbol_fingerprints
-    .iter()
-    .filter(|(id, _)| {
-        index.symbols_by_id.get(id)
-            .map(|s| s.symbol.kind == SymbolKind::Function)
-            .unwrap_or(false)
-    })
-    .collect();
-
-// Pairwise similarity scan
-let threshold = 0.85;
-let mut duplicates = Vec::new();
-for i in 0..function_fingerprints.len() {
-    for j in (i + 1)..function_fingerprints.len() {
-        let (id_a, fp_a) = function_fingerprints[i];
-        let (id_b, fp_b) = function_fingerprints[j];
-        let sim = fp_a.similarity(fp_b);
-        if sim > threshold {
-            duplicates.push((id_a.clone(), id_b.clone(), sim));
-        }
-    }
-}
-
-// Sort by similarity descending
-duplicates.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap());
-for (a, b, sim) in &duplicates {
-    println!("{:.3}  {} <-> {}", sim, a.symbol_name, b.symbol_name);
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 For 5K symbols, the brute-force pairwise scan takes ~250 ms (25 million comparisons at 10 ns each). This is fast enough for on-demand analysis; for production use, HNSW approximate nearest neighbor search would reduce this to ~1 ms.
 
@@ -1399,55 +1106,7 @@ For 5K symbols, the brute-force pairwise scan takes ~250 ms (25 million comparis
 
 **Scenario**: The agent needs to implement `retry_on_failure` in the HTTP client module. It must understand the existing error types and the caller chain without reading the entire codebase.
 
-```rust
-// Hybrid search finds the focal point
-let results = index.search(
-    SearchStrategy::Hybrid {
-        keyword: Some(KeywordQuery {
-            text: "http retry error".to_string(),
-            scope: SearchScope::Both,
-            case_sensitive: false,
-            whole_word: false,
-        }),
-        structural: Some(StructuralQuery {
-            kind: Some(SymbolKind::Function),
-            visibility: None,
-            file_pattern: Some("src/tools/builtin/http*".to_string()),
-            has_callers: None,
-            min_pagerank: None,
-        }),
-        hdc: Some(HdcQuery {
-            query: "retry_on_failure http client".to_string(),
-            max_results: 15,
-            min_similarity: 0.5,
-        }),
-    },
-    10,
-);
-
-// Assemble context with 8K token budget
-let ctx = index.assemble_context(
-    "implement retry_on_failure in HTTP client",
-    10,       // max results
-    8192,     // token budget
-    Some(&ContextOverlay {
-        pinned_files: vec!["src/tools/builtin/http.rs".to_string()],
-        excluded_patterns: vec!["tests/*".to_string()],
-        importance_overrides: HashMap::new(),
-        max_expansion_depth: 2,
-    }),
-    Some(&PrivacyConfig {
-        redact_patterns: vec![
-            r"(?i)(api[_-]?key|secret|password)\s*=\s*\S+".to_string(),
-        ],
-        ignore_files: vec![".env".to_string()],
-        blocked_symbols: vec![],
-    }),
-);
-
-println!("Context: {} slices, {} tokens (truncated: {})",
-    ctx.slices.len(), ctx.token_estimate, ctx.truncated);
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **What the agent receives**: The HTTP handler function, the `HttpError` type, the retry-relevant helper functions, and the callers of the HTTP tool — all in under 5,000 tokens, with credential patterns redacted.
 
@@ -1486,30 +1145,11 @@ IronClaw already has several of the building blocks needed for code intelligence
 
 IronClaw's workspace already implements both Reciprocal Rank Fusion and weighted score fusion for combining FTS and vector search results. The `SearchConfig` struct mirrors roko-index's approach:
 
-```rust
-// /Users/will/dev/near/ironclaw/src/workspace/search.rs
-pub struct SearchConfig {
-    pub limit: usize,
-    pub rrf_k: u32,          // default 60 — identical to roko-index constant
-    pub use_fts: bool,
-    pub use_vector: bool,
-    pub min_score: f32,
-    pub pre_fusion_limit: usize,
-    pub fusion_strategy: FusionStrategy,
-    pub fts_weight: f32,
-    pub vector_weight: f32,
-}
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
-pub fn reciprocal_rank_fusion(
-    fts_results: Vec<RankedResult>,
-    vector_results: Vec<RankedResult>,
-    config: &SearchConfig,
-) -> Vec<SearchResult> { ... }
-```
+The `rrf_k` default of 60 matches the constant from the original RRF paper [1]. The existing code handles hybrid matches, normalization to [0, 1], min-score filtering, and limit truncation.
 
-The `rrf_k` default of 60 exactly matches the constant from the original RRF paper [1]. The code already handles hybrid matches, normalization to [0, 1], min-score filtering, and limit truncation.
-
-**Extension needed**: Add HDC fingerprint results as a third `RankedResult` stream. The existing `fuse_results` dispatcher can be extended to accept `N` ranked lists rather than exactly two.
+**Extension needed**: Add HDC fingerprint results as a third `RankedResult` stream. The existing `fuse_results` dispatcher can be extended to accept `N` ranked lists rather than being fixed to two.
 
 #### Dual-Backend Persistence — `src/db/`
 
@@ -1533,7 +1173,7 @@ Key dialect differences relevant to code index tables:
 Multi-provider embedding support is already available:
 
 ```rust
-// /Users/will/dev/near/ironclaw/crates/ironclaw_embeddings/src/provider.rs
+// crates/ironclaw_embeddings/src/provider.rs
 #[async_trait]
 pub trait EmbeddingProvider: Send + Sync {
     fn dimension(&self) -> usize;
@@ -1551,7 +1191,7 @@ Providers: OpenAI, NEAR AI, Ollama, Bedrock, fastembed. This can be used to embe
 The `PrivacyClassifier` trait and implementations already handle sensitive content detection:
 
 ```rust
-// /Users/will/dev/near/ironclaw/src/workspace/privacy.rs
+// src/workspace/privacy.rs
 pub trait PrivacyClassifier: Send + Sync {
     fn classify(&self, content: &str) -> SensitivityResult;
 }
@@ -1567,7 +1207,7 @@ The `PatternPrivacyClassifier` already redacts SSNs, credit card numbers, and au
 The `Tool` trait pattern used by `memory_search`, `memory_write`, `memory_read`, and `memory_tree` provides the exact template for the three new code intelligence tools:
 
 ```rust
-// /Users/will/dev/near/ironclaw/src/tools/tool.rs
+// src/tools/tool.rs
 #[async_trait]
 pub trait Tool: Send + Sync {
     fn name(&self) -> &str;
@@ -1613,193 +1253,15 @@ If extracted, the crate should keep core indexing modules independent from the h
 
 **`code_search`** — Hybrid code search across a project's source files:
 
-```rust
-// src/tools/builtin/code_search.rs
-
-pub struct CodeSearchTool {
-    index: Arc<RwLock<WorkspaceIndex>>,
-    privacy: PatternPrivacyClassifier,
-}
-
-#[async_trait]
-impl Tool for CodeSearchTool {
-    fn name(&self) -> &str { "code_search" }
-    fn description(&self) -> &str {
-        "Search a codebase for symbols, functions, types, and files. \
-         Uses hybrid keyword + structural + HDC fingerprint search with \
-         Reciprocal Rank Fusion. Returns ranked symbol list with file paths \
-         and line numbers."
-    }
-    fn parameters(&self) -> serde_json::Value {
-        serde_json::json!({
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "Natural language or symbol name to search for"
-                },
-                "strategy": {
-                    "type": "string",
-                    "enum": ["keyword", "structural", "hdc", "hybrid"],
-                    "default": "hybrid"
-                },
-                "scope": {
-                    "type": "string",
-                    "enum": ["symbols", "files", "both"],
-                    "default": "both"
-                },
-                "limit": {
-                    "type": "integer",
-                    "default": 20,
-                    "maximum": 100
-                },
-                "kind_filter": {
-                    "type": "string",
-                    "enum": ["Function", "Struct", "Enum", "Trait",
-                             "Const", "Type", "Module", "Impl"],
-                    "description": "Optional: filter by symbol kind"
-                },
-                "file_pattern": {
-                    "type": "string",
-                    "description": "Optional glob pattern to restrict search scope"
-                },
-                "min_pagerank": {
-                    "type": "number",
-                    "description": "Optional minimum PageRank score (0.0–1.0)"
-                }
-            },
-            "required": ["query"]
-        })
-    }
-
-    async fn execute(
-        &self,
-        params: serde_json::Value,
-        _ctx: &JobContext,
-    ) -> Result<ToolOutput, ToolError> {
-        let query = require_str(&params, "query")?;
-        let strategy = params["strategy"].as_str().unwrap_or("hybrid");
-        let limit = params["limit"].as_u64().unwrap_or(20) as usize;
-        let kind_filter = params["kind_filter"].as_str()
-            .and_then(|k| SymbolKind::from_str(k).ok());
-        let file_pattern = params["file_pattern"].as_str().map(String::from);
-        let min_pagerank = params["min_pagerank"].as_f64();
-
-        let index = self.index.read().await;
-
-        let search_strategy = match strategy {
-            "keyword" => SearchStrategy::Keyword(KeywordQuery {
-                text: query.to_string(),
-                scope: SearchScope::Both,
-                case_sensitive: false,
-                whole_word: false,
-            }),
-            "structural" => SearchStrategy::Structural(StructuralQuery {
-                kind: kind_filter,
-                visibility: None,
-                file_pattern,
-                has_callers: None,
-                min_pagerank,
-            }),
-            "hdc" => SearchStrategy::Hdc(HdcQuery {
-                query: query.to_string(),
-                max_results: limit * 3,
-                min_similarity: 0.5,
-            }),
-            _ => SearchStrategy::Hybrid {
-                keyword: Some(KeywordQuery {
-                    text: query.to_string(),
-                    scope: SearchScope::Both,
-                    case_sensitive: false,
-                    whole_word: false,
-                }),
-                structural: Some(StructuralQuery {
-                    kind: kind_filter,
-                    visibility: None,
-                    file_pattern,
-                    has_callers: None,
-                    min_pagerank,
-                }),
-                hdc: Some(HdcQuery {
-                    query: query.to_string(),
-                    max_results: limit * 3,
-                    min_similarity: 0.5,
-                }),
-            },
-        };
-
-        let results = index.search(search_strategy, limit);
-
-        let output = results.iter().map(|r| {
-            serde_json::json!({
-                "name": r.symbol.symbol.name,
-                "kind": format!("{:?}", r.symbol.symbol.kind),
-                "file": r.symbol.file_path,
-                "line": r.symbol.symbol.line,
-                "visibility": format!("{:?}", r.symbol.symbol.visibility),
-                "pagerank": index.pagerank_scores.get(&r.symbol.id)
-                    .copied()
-                    .unwrap_or(0.0),
-                "score": r.score,
-            })
-        }).collect::<Vec<_>>();
-
-        Ok(ToolOutput::json(serde_json::json!({
-            "query": query,
-            "count": output.len(),
-            "results": output,
-        })))
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **`code_graph`** — Call graph and reference queries:
 
-```rust
-// src/tools/builtin/code_graph.rs
-
-pub struct CodeGraphTool {
-    index: Arc<RwLock<WorkspaceIndex>>,
-}
-
-// Tool parameters:
-// {
-//   "function": "process_input",
-//   "mode": "call_graph" | "references" | "implementations" | "impact",
-//   "depth": 2
-// }
-//
-// Modes:
-//   call_graph    → callers, callees, edges (bidirectional BFS)
-//   references    → all locations where a symbol is used
-//   implementations → all types implementing a trait
-//   impact        → transitive reverse-neighbor analysis (blast radius)
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **`code_symbols`** — Workspace structure queries:
 
-```rust
-// src/tools/builtin/code_symbols.rs
-
-pub struct CodeSymbolsTool {
-    index: Arc<RwLock<WorkspaceIndex>>,
-}
-
-// Tool parameters:
-// {
-//   "mode": "file_ast" | "workspace_map" | "stats" | "symbol_context" | "top_symbols",
-//   "file": "src/main.rs",      // for file_ast mode
-//   "name": "process_input",    // for symbol_context mode
-//   "limit": 20                 // for top_symbols mode (PageRank-sorted)
-// }
-//
-// Modes:
-//   file_ast       → all symbols in a file, imports, structure
-//   workspace_map  → high-level map with PageRank-sorted entrypoints
-//   stats          → IndexStats (symbol counts by kind, file count, edge count)
-//   symbol_context → callers, callees, type refs, definition slice, PageRank
-//   top_symbols    → PageRank top-N symbols (architecture overview)
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### Mapping to Existing IronClaw Modules
 
@@ -1899,7 +1361,7 @@ All three tools are `ToolDomain::Orchestrator` (safe to run in the agent process
 
 [1] G. V. Cormack, C. L. A. Clarke, and S. Buettcher. "Reciprocal Rank Fusion Outperforms Condorcet and Individual Rank Learning Methods." In *Proceedings of the 32nd International ACM SIGIR Conference on Research and Development in Information Retrieval* (SIGIR '09), pp. 758–759. ACM, 2009. https://doi.org/10.1145/1571941.1572114
 
-The original RRF paper. The constant `k = 60` from this paper is used verbatim in both roko-index's `rrf_merge()` and IronClaw's `reciprocal_rank_fusion()`. The paper demonstrates that RRF outperforms individual rankers and score-based fusion methods on TREC collections.
+The original RRF paper. The constant `k = 60` appears in both captured `roko-index` RRF logic and IronClaw's `reciprocal_rank_fusion()`. Treat this as provenance for the default, not as proof it is optimal for every IronClaw corpus.
 
 [2] S. Brin and L. Page. "The Anatomy of a Large-Scale Hypertextual Web Search Engine." In *Proceedings of the 7th International World Wide Web Conference*, pp. 107–117. Brisbane, Australia, 1998. http://infolab.stanford.edu/pub/papers/google.pdf
 
@@ -1911,7 +1373,7 @@ Describes the push-based approximate Personalized PageRank (PPR) algorithm. The 
 
 [4] D. Kleyko, D. Rachkovskij, E. Osipov, and A. Rahimi. "A Survey on Hyperdimensional Computing aka Vector Symbolic Architectures, Part I: Models and Data Transformations." *ACM Computing Surveys*, 55(6), Article 130. 2023. https://doi.org/10.1145/3538531
 
-Comprehensive survey of HDC/VSA formalisms. The XOR-bind, majority-vote bundle, and FNV-1a seeding approach used in roko-index's `hdc.rs` corresponds to the Binary Spatter Code (BSC) model described in Section 3.1. The quasi-orthogonality property guaranteeing expected Hamming distance of D/2 is proved in Theorem 2.
+Comprehensive survey of HDC/VSA formalisms. The XOR-bind, majority-vote bundle, and FNV-1a seeding approach used in captured `roko-index` material corresponds to the Binary Spatter Code (BSC) model described in Section 3.1. Theorem 2 establishes the expected Hamming-distance behavior for random high-dimensional vectors.
 
 [5] M. Brunsfeld et al. "Tree-sitter: An Incremental Parsing System for Programming Tools." https://tree-sitter.github.io/tree-sitter/. Based on incremental LR parsing research by T. A. Wagner and S. L. Graham, "Efficient and Flexible Incremental Parsing," *ACM Transactions on Programming Languages and Systems*, 20(5), 980–1013, 1998.
 
@@ -1940,7 +1402,7 @@ Mini-batch k-means for clustering code symbols by HDC fingerprint — useful for
 | Document | Relationship |
 |---|---|
 | [language-support.md](language-support.md) | Full per-language coverage: dual-mode Rust parser (heuristic vs. tree-sitter), TypeScript tsconfig resolution, Go module graph, polyglot project detection. The `LanguageProvider` trait referenced in Section 4 is fully specified there. |
-| [budget-composition.md](budget-composition.md) | `AssembledContext` produced by this pipeline feeds into the VCG token auction described here. Code slices become `PromptSection` bids. U-shaped placement positions winning slices at primacy/recency zones. |
+| [budget-composition.md](budget-composition.md) | `AssembledContext` produced by this pipeline feeds into density allocation plus VCG-style diagnostics. Code slices become `PromptSection` bids. U-shaped placement positions winning slices at primacy/recency zones. |
 | [../core-concepts/hyperdimensional-computing/](../core-concepts/hyperdimensional-computing/) | Mathematical foundations of the HDC algebra used in Section 7. Includes capacity analysis (why 10,240 bits), VSA variant comparison (BSC vs HRR vs MAP), and a dedicated `ironclaw-integration.md` plan for an `ironclaw_hdc` crate that could replace `crates/ironclaw_code_index/src/hdc.rs`. |
 | [../core-concepts/hyperdimensional-computing/theory.md](../core-concepts/hyperdimensional-computing/theory.md) | Formal proofs of quasi-orthogonality, capacity bounds, and error analysis for the 10,240-bit choice. |
 
@@ -1956,9 +1418,9 @@ Mini-batch k-means for clustering code symbols by HDC fingerprint — useful for
 
 | Path | Role in integration |
 |---|---|
-| `/Users/will/dev/near/ironclaw/src/workspace/search.rs` | Existing RRF implementation to extend (lines 208–299) |
-| `/Users/will/dev/near/ironclaw/src/workspace/privacy.rs` | `PatternPrivacyClassifier` for code-slice redaction |
-| `/Users/will/dev/near/ironclaw/src/tools/tool.rs` | `Tool` trait template for the three new tools |
-| `/Users/will/dev/near/ironclaw/src/tools/builtin/memory.rs` | Pattern to follow: `WorkspaceResolver`, tool struct, `execute()` |
-| `/Users/will/dev/near/ironclaw/src/tools/builtin/mod.rs` | Where to add `pub mod code_search; pub mod code_graph; pub mod code_symbols;` |
-| `/Users/will/dev/near/ironclaw/crates/ironclaw_embeddings/src/provider.rs` | `EmbeddingProvider` for Phase 5 embedding search |
+| `src/workspace/search.rs` | Existing RRF implementation to extend; confirm line numbers in the current checkout before editing |
+| `src/workspace/privacy.rs` | `PatternPrivacyClassifier` for code-slice redaction |
+| `src/tools/tool.rs` | `Tool` trait template for the three new tools |
+| `src/tools/builtin/memory.rs` | Pattern to follow: `WorkspaceResolver`, tool struct, `execute()` |
+| `src/tools/builtin/mod.rs` | Where to add `pub mod code_search; pub mod code_graph; pub mod code_symbols;` |
+| `crates/ironclaw_embeddings/src/provider.rs` | `EmbeddingProvider` for Phase 5 embedding search |

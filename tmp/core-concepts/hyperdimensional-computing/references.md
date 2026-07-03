@@ -2,7 +2,7 @@
 
 # Academic References
 
-All citations for the Hyperdimensional Computing documents. Organized by topic area.
+All citations for the Hyperdimensional Computing documents. Organized by topic area. Performance numbers in cited papers are external baselines only; IronClaw rollout decisions require local benchmarks on target hardware and representative corpora.
 
 ---
 

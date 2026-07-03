@@ -46,7 +46,7 @@ Bad outcome:
 Detection signal:
 
 - Static safety rule and bandit decision disagree.
-- Quality pass rate drops by more than 2 percentage points.
+- Quality pass rate breaches the rollout guardrail.
 - Fallback-to-primary rises.
 
 Mitigation:
@@ -74,7 +74,7 @@ Bad outcome:
 
 Detection signal:
 
-- False block rate above 5%.
+- False block rate breaches the rollout guardrail.
 - Same remediation repeated twice.
 - Blocked run passes when only the high-risk gate is disabled.
 
@@ -133,7 +133,7 @@ Detection signal:
 
 - Provider selection alternates repeatedly within cooldown window.
 - Fallback rate doubles.
-- Healthy-provider false positive rate exceeds 3%.
+- Healthy-provider false positives breach the rollout guardrail.
 
 Mitigation:
 

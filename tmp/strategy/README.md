@@ -1,12 +1,15 @@
 # Strategy
 
-This folder turns the captured Roko analysis into IronClaw build decisions. Treat it as a planning layer, not as an implementation spec. The deeper subsystem docs and the current code remain authoritative when work begins.
+This folder turns captured agent-system ideas into IronClaw build decisions. It
+is a planning layer, not an implementation spec. The deeper subsystem docs and
+the current code remain authoritative when work begins.
 
 The strategy is deliberately conservative:
 
 - Build narrow, reversible improvements before architectural changes.
 - Measure current IronClaw behavior before claiming improvement.
-- Keep Roko context self-contained through captured concepts and source-path names, not live upstream links.
+- Keep external context self-contained through captured concepts and source-path
+  names, not live source links.
 - Prefer existing IronClaw modules, traits, and Reborn runtime boundaries over new crates unless a feature clearly needs one.
 
 ## Documents
@@ -14,14 +17,14 @@ The strategy is deliberately conservative:
 | Document | Use it for |
 |----------|------------|
 | [integration-roadmap.md](integration-roadmap.md) | Phase order, rollout gates, risks, and implementation principles. |
-| [ux-improvements.md](ux-improvements.md) | REPL, TUI, and web UX improvements distilled from captured Roko interface patterns. |
+| [ux-improvements.md](ux-improvements.md) | REPL, TUI, and web UX improvements distilled from captured interface patterns. |
 | [priority-matrix/README.md](priority-matrix/README.md) | Scoring model, priority tiers, and recommended build order. |
 | [priority-matrix/detailed-rankings.md](priority-matrix/detailed-rankings.md) | One-page rationale for each candidate capability. |
 | [priority-matrix/quick-wins.md](priority-matrix/quick-wins.md) | First PRs that can be started with low design risk. |
-| [priority-matrix/implementation-sketches.md](priority-matrix/implementation-sketches.md) | Integration contracts and test targets, not copy-paste implementation. |
+| [priority-matrix/implementation-sketches.md](priority-matrix/implementation-sketches.md) | Integration contracts and test targets, not porting instructions. |
 | [priority-matrix/benchmarking-plans.md](priority-matrix/benchmarking-plans.md) | Baselines, metrics, canary gates, and rollback thresholds. |
 | [priority-matrix/synergy-analysis.md](priority-matrix/synergy-analysis.md) | Dependencies and combinations that change feature value. |
-| [priority-matrix/references.md](priority-matrix/references.md) | Internal source map, captured Roko path names, and research anchors. |
+| [priority-matrix/references.md](priority-matrix/references.md) | Internal source map, captured path names, and research anchors. |
 
 ## Decision Flow
 
@@ -33,7 +36,7 @@ The strategy is deliberately conservative:
 
 ## Current Recommendation
 
-Do not start with the largest Roko-derived systems. The first useful sequence is:
+Do not start with the largest captured systems. The first useful sequence is:
 
 1. Robust statistics for heavy-tailed cost and latency data.
 2. Exact memory deduplication.

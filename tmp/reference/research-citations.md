@@ -14,6 +14,6 @@ monolithic citation file or an external Roko checkout.
 
 ## Use Rule
 
-Treat paper lists and counts as captured reference context. Before relying on a
-specific quantitative research claim in implementation work, open the cited
-paper or the relevant topic file and verify the claim in context.
+Treat paper lists as captured reference context. Before relying on a specific
+quantitative research claim in implementation work, open the cited paper or the
+relevant topic file and verify the claim in context.

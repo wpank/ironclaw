@@ -1,8 +1,6 @@
 # Operator Debugging Runbooks
 
-Each runbook follows:
-
-Pseudocode format for each runbook:
+Each runbook follows this shape:
 
 ```text
 symptom -> inspect -> likely cause -> recovery -> regression test
@@ -19,7 +17,7 @@ Symptom:
 Inspect:
 
 - `provider_conductor` metric events.
-- p95 latency by provider and request class.
+- latency distribution by provider and request class.
 - circuit breaker state.
 - routing decisions from cascade router audit logs.
 
@@ -79,7 +77,7 @@ Regression test:
 - Drive the real code-generation caller with a known valid change.
 - Use [`tmp/implementation/benchmarking/scenarios/gate-pipeline.yaml`](../../implementation/benchmarking/scenarios/gate-pipeline.yaml)
   for the webhook-signature defect case.
-- Assert false-block rate stays below 5%.
+- Assert false-block rate stays within the fixture guardrail.
 
 ## 3. Memory Pollution Or Duplicate Recall
 
@@ -115,7 +113,8 @@ Recovery:
 Regression test:
 
 - Replay [`tmp/implementation/benchmarking/scenarios/memory-dedup.yaml`](../../implementation/benchmarking/scenarios/memory-dedup.yaml).
-- Assert top-5 relevance stays above threshold with one canonical answer.
+- Assert retrieval relevance stays within the fixture guardrail with one
+  canonical answer.
 
 ## 4. SSE/WebSocket Reconnect Debugging
 

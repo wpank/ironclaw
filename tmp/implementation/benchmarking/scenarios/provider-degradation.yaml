@@ -2,6 +2,7 @@ schema_version: 1
 id: provider_conductor.latency_ramp
 feature: provider_conductor
 feature_flag_id: flag.provider_conductor
+flag_default: "off"
 owner: crates/ironclaw_llm
 stage: local
 repetitions: 100
@@ -27,5 +28,14 @@ expected_metrics:
 guardrails:
   max_healthy_provider_false_positive_rate: 0.03
   max_oscillation_count: 1
+  max_prediction_lead_time_requests: 10
+  max_p95_latency_regression_pct: 10
+metric_bounds:
+  pct_values_min: 0
+  pct_values_max: 100
+  rate_values_min: 0.0
+  rate_values_max: 1.0
+  latency_ms_min: 0
 artifacts:
   retain_health_series: true
+  retain_raw_prompt: false

@@ -1,6 +1,8 @@
 # Synergy Analysis
 
-Synergy claims are hypotheses. They should influence sequencing, but each combined value claim still needs a benchmark or caller-level test.
+Synergy claims are hypotheses. They can influence sequencing, but they are not
+roadmap commitments. Each combined value claim still needs a benchmark or
+caller-level test.
 
 ## Dependency Map
 
@@ -125,5 +127,5 @@ Risk:
 - HDC plus decay can overcomplicate search if FTS/vector RRF already performs well. Benchmark first.
 - Cascade router plus cognitive labels can create opaque routing if labels are not logged with decisions.
 - Gate expansion plus DAG execution can produce a second workflow system if not routed through existing Reborn and tool-dispatch paths.
-- Full dream consolidation plus weak cost controls can create unbounded background spend.
+- Full consolidation plus weak cost controls can create unbounded background spend.
 - UI event expansion plus existing SSE can fragment event taxonomies. Extend current web platform boundaries instead.

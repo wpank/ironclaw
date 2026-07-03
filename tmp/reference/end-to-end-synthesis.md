@@ -1,7 +1,7 @@
 # End-to-End Synthesis
 
 This synthesis summarizes the local end-to-end flow without requiring access to
-Roko source paths. For the full walkthrough, use [end-to-end-flow.md](end-to-end-flow.md).
+captured-source paths. For the full walkthrough, use [end-to-end-flow.md](end-to-end-flow.md).
 
 ## Captured Flow Shape
 

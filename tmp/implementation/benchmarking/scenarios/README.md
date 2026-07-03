@@ -1,27 +1,20 @@
 # Scenario Fixtures
 
-These manifests are examples of the concrete benchmark inputs expected by
-[`../03-harness-code.md`](../03-harness-code.md). They are intentionally
-implementation-neutral: an IronClaw benchmark runner can translate them into
-Rust integration tests, local JSONL runs, or CI jobs.
-
-| Fixture | Purpose |
-|---|---|
-| [`cascade-router.yaml`](cascade-router.yaml) | Compare static routing with LinUCB shadow/canary routing |
-| [`memory-dedup.yaml`](memory-dedup.yaml) | Measure Signal/HDC duplicate-memory handling |
-| [`gate-pipeline.yaml`](gate-pipeline.yaml) | Measure progressive gate defect catching and false blocks |
-| [`provider-degradation.yaml`](provider-degradation.yaml) | Measure Conductor provider health routing |
-| [`dream-consolidation.yaml`](dream-consolidation.yaml) | Measure background learning usefulness and budget impact |
-| [`workspace-code-search.yaml`](workspace-code-search.yaml) | Measure symbol/HDC/RRF code search quality |
+Scenario YAML files are executable benchmark manifests for `ironclaw-bench`.
+They should be small, deterministic, and safe to run in local CI with mocked
+external services.
 
 ## Required Fields
 
+Each fixture must include:
+
 ```yaml
 schema_version: 1
-id: feature.scenario
-feature: feature_key
-feature_flag_id: flag.feature_key
-owner: owning_ironclaw_module
+id: feature_name.short_case
+feature: feature_name
+feature_flag_id: flag.feature_name
+flag_default: "off"
+owner: src/or/crate/path
 stage: local
 repetitions: 50
 input: {}
@@ -33,3 +26,14 @@ expected_metrics: {}
 guardrails: {}
 artifacts: {}
 ```
+
+## Field Rules
+
+- `stage` is one of `local`, `shadow`, `canary`, `limited`, or `default`.
+- `repetitions` is a positive integer with an explicit upper bound per fixture.
+- `expected_metrics` contains target improvements only.
+- `guardrails` contains bounded maximum regressions, rates, latency, cost, and
+  privacy requirements.
+- `artifacts` states what can be retained and whether raw user content is banned.
+- Fixtures may reference synthetic corpora or recorded local fixtures, but not a
+  private repository or external live service.

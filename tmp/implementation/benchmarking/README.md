@@ -1,61 +1,51 @@
 # Benchmarking And Quantification
 
-This folder defines how to measure whether the captured concept proposals
-actually help IronClaw. The goal is not to produce flattering numbers. The goal
-is to make cost, quality, latency, safety, and maintenance tradeoffs visible.
+Benchmarks decide whether an experimental feature can move from local/shadow to
+canary or default. A feature is not better unless it improves one target metric
+and keeps every guardrail inside budget.
 
-| File | Contents |
-|---|---|
-| `01-measurement-framework.md` | Metrics schema, harness patterns, A/B method, statistical rules |
-| `02-feature-playbooks.md` | Per-feature benchmark plans and acceptance thresholds |
-| `03-harness-code.md` | JSONL loader, robust summaries, guardrail evaluator, scenario runner shape |
-| `04-rollout-metrics.md` | Shadow/canary metrics, rollback triggers, artifact naming, review cadence |
-| `05-runner-contract.md` | Executable benchmark-runner contract for manifests, adapters, canonical JSONL events, reports, and CI thresholds |
-| `scenarios/` | Concrete benchmark fixture manifests |
-
-For document-by-document rollout gates, use
-[`../05-per-file-action-matrix.md`](../05-per-file-action-matrix.md).
-For event shape and persistence guarantees, use
-[`../schemas/04-canonical-event-and-persistence-contract.md`](../schemas/04-canonical-event-and-persistence-contract.md).
+| File | Purpose |
+| --- | --- |
+| `01-measurement-framework.md` | Metric schema, comparison rules, and rollout decisions |
+| `02-feature-playbooks.md` | Per-feature targets and guardrails |
+| `03-harness-code.md` | Minimal runner and report shapes |
+| `04-rollout-metrics.md` | Shadow/canary windows, dashboards, rollback triggers |
+| `05-runner-contract.md` | CLI contract for manifests, JSONL events, reports, and CI |
+| `scenarios/` | YAML scenario fixtures |
 
 ## Standard Metrics
 
-Every feature should report:
+- Quality: pass rate, policy violation count, oracle disagreement.
+- Cost: median and p95 `cost_microusd` per request or run.
+- Latency: p50, p95, timeout rate.
+- Reliability: fallback rate, retry count, cancellation success.
+- Safety: secret leak count, redaction failures, auth/origin bypasses.
 
-- Quality: pass rate, user correction rate, gate success, retrieval relevance.
-- Cost: input tokens, output tokens, USD/request, background USD/day.
-- Latency: p50, p95, p99, timeout rate.
-- Reliability: error rate, retry rate, fallback rate.
-- Safety: approvals requested, denied actions, policy violations, secret leaks.
-- Drift: score deltas from baseline and confidence intervals.
+Metric values must be bounded and comparable between baseline and candidate.
+Raw prompts, source bodies, secrets, and private paths stay out of JSONL metrics.
 
 ## Minimum Rule
 
-A feature is not "better" unless it improves at least one target metric without
-regressing a guardrail metric beyond its budget.
-
-Example:
-
-```text
-Cascade Router target:
-  improve: median cost/request -20% or better on eligible low-risk cases
-  guardrails: quality pass rate no worse than -2pp, p95 latency no worse than +10%
+```yaml
+target: candidate improves the declared primary metric
+guardrails:
+  quality: no worse than -2pp unless explicitly tighter
+  latency: p95 no worse than +10%
+  cost: no unexpected increase when cost is a guardrail
+  safety: zero policy, auth, secret, or redaction regressions
+decision: promote only when target and guardrails pass
 ```
 
-## Artifact Naming
-
-Use a stable artifact layout for every comparison:
+## Artifact Layout
 
 ```text
-artifacts/benchmarks/<feature>/<scenario>/<run_id>/
-  manifest.toml
+target/benchmarks/<feature>/<run_id>/
+  manifest.yaml
   baseline.jsonl
   candidate.jsonl
-  comparison.json
-  summary.md
-  fixtures/
-  logs/
+  report.md
+  verdict.json
 ```
 
-The `baseline.jsonl` and `candidate.jsonl` files should use the same metric
-schema so comparisons can be recomputed after the run.
+`baseline.jsonl` and `candidate.jsonl` use the metric schema in
+`../schemas/04-canonical-event-and-persistence-contract.md`.

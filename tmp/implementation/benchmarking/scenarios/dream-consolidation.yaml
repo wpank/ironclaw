@@ -2,6 +2,7 @@ schema_version: 1
 id: dream_consolidation.rare_dependency_failure
 feature: dream_consolidation
 feature_flag_id: flag.dream_consolidation
+flag_default: "off"
 owner: src/agent
 stage: local
 repetitions: 50
@@ -13,8 +14,10 @@ mocked_dependencies:
   memory_store: ephemeral_dual_backend_contract
 baseline:
   variant: no_background_consolidation
+  expected_background_writes: 0
 variant:
   variant: bounded_dream_replay
+  max_background_writes: 3
 oracle:
   type: later_retrieval_usefulness
   expected_memory_tags:
@@ -26,6 +29,15 @@ expected_metrics:
   promoted_memory_precision_min: 0.80
 guardrails:
   max_background_cost_microusd: 25000
+  max_background_latency_ms: 2000
+  max_promoted_memories: 3
   forbid_sensitive_data_leak: true
+metric_bounds:
+  pct_values_min: 0
+  pct_values_max: 100
+  rate_values_min: 0.0
+  rate_values_max: 1.0
+  latency_ms_min: 0
 artifacts:
   retain_derived_memories: redacted
+  retain_raw_session: false

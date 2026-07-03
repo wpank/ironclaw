@@ -26,7 +26,7 @@ Navigation: [README](./README.md) | **NEAR Contracts** |
 
 | Contract | Status | Required before mainnet |
 |----------|--------|-------------------------|
-| `AgentRegistry` | Ready for first implementation | Storage refund helper, event tests, heartbeat benchmark |
+| `AgentRegistry` | Smallest first slice | Storage refund helper, event tests, heartbeat benchmark |
 | `WorkerRegistry` | Design target | NEP-141 receiver tests, withdrawal cooldown, slashing policy review |
 | `BountyMarket` | Design target | End-to-end token escrow tests, callback retry path, resolver authorization |
 | `ReputationRegistry` | Optional | Domain key limits, paginated decay, caller-level tests |
@@ -81,7 +81,6 @@ use near_sdk::{
     env, near, AccountId, BorshStorageKey, PanicOnDefault,
 };
 
-const MIN_AGENT_STORAGE_DEPOSIT_YOCTO: u128 = 2_000_000_000_000_000_000_000;
 const MAX_CAPABILITIES_BYTES: usize = 2_048;
 const MAX_DESCRIPTOR_URI_BYTES: usize = 512;
 
@@ -143,8 +142,9 @@ impl AgentRegistry {
             self.agents.get(&account_id).is_none(),
             "agent already registered"
         );
+        let attached_deposit = env::attached_deposit();
         assert!(
-            env::attached_deposit().as_yoctonear() >= MIN_AGENT_STORAGE_DEPOSIT_YOCTO,
+            attached_deposit.as_yoctonear() > 0,
             "attach storage deposit"
         );
         assert!(
@@ -209,8 +209,9 @@ impl AgentRegistry {
 
 Implementation notes:
 
-- Replace the fixed deposit check with a storage accounting helper before
-  production. The fixed amount is a conservative placeholder for the example.
+- Replace the minimal deposit check with a storage accounting helper before
+  deployment. Refund excess deposit and reject underfunded writes based on
+  measured `env::storage_usage()` deltas.
 - Add `get_agent` and pagination only after deciding the public view shape.
 - Test duplicate registration, under-deposit, oversized fields, and heartbeat
   from an unregistered account.
@@ -248,7 +249,6 @@ use near_sdk::json_types::U128;
 use near_sdk::serde::Deserialize;
 use near_sdk::{env, near, AccountId, PromiseOrValue};
 
-const MIN_BOND: u128 = 1_000_000_000_000_000_000_000;
 const MAX_RECEIVER_MSG_BYTES: usize = 512;
 
 #[derive(Deserialize)]
@@ -279,7 +279,7 @@ impl WorkerRegistry {
 
         match parsed {
             WorkerReceiverMessage::Bond { metadata: _ } => {
-                assert!(amount.0 >= MIN_BOND, "bond below minimum");
+                assert!(amount.0 >= self.min_bond_yocto, "bond below minimum");
                 self.add_or_increase_bond(sender_id, amount.0);
                 PromiseOrValue::Value(U128(0))
             }
@@ -405,9 +405,10 @@ impl BountyMarket {
 }
 ```
 
-The callback checks only the final promise in this simplified chain. A full
-implementation should distinguish payout failure from reputation failure if it
-needs different repair behavior for each receipt.
+The callback checks only the final promise in this simplified chain. Do not
+copy this shape into production when payout failure and reputation failure need
+different repair behavior. Prefer explicit pending states and separate
+callback metadata for each external receipt.
 
 ## Optional Contracts
 
@@ -474,5 +475,5 @@ logs=[...]
 - Every state-changing method has success and failure tests.
 - Events include enough data for IronClaw to reconstruct state without reading
   private payloads.
-- Emergency pause and repair methods are tested before any valuable token is
+- Emergency pause and repair methods are tested before any valuable funds are
   used.

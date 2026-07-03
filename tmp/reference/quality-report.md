@@ -1,83 +1,72 @@
 # Quality Report
 
-**Generated**: 2026-07-03
-**Scope**: `/Users/will/dev/near/ironclaw/tmp`
+Last refined: 2026-07-03.
 
-This report is a current, concise health check for the documentation tree. It is
-not a historical audit log; stale findings should be removed rather than
-preserved.
+Scope: `tmp/reference/**`. This report records editorial standards and current
+validation commands for the reference folder. It intentionally avoids volatile
+inventory counts.
 
-## Inventory
+## Current Status
 
-| Metric | Current value |
-|---|---:|
-| Top-level directories | 8 |
-| Markdown files | 116 |
-| YAML benchmark fixtures | 6 |
-| Total files | 122 |
-| Directories including root | 19 |
-| Approximate disk size | 3.2 MB |
-
-Top-level directories:
-
-```text
-agent-intelligence/
-context-memory/
-core-concepts/
-ecosystem/
-execution-verification/
-implementation/
-reference/
-strategy/
-```
-
-## Validation Status
-
-| Check | Status | Notes |
-|---|---|---|
-| Markdown local links | Passing | Use a code-fence-aware checker so inline syntax examples are not treated as Markdown links |
-| YAML fixtures | Passing | Six files under `implementation/benchmarking/scenarios/` |
-| Direct Roko checkout dependency | Not present | Source references are captured-source identifiers, not required checkout paths |
-| Folder organization | Passing | Topic folders are clear; volatile counts should stay in this report and root README only |
+| Check | Status |
+|---|---|
+| Local Markdown links | Validate with the Node command in [Validation Commands](#validation-commands). |
+| Captured-source language | Use provenance labels; do not imply external checkout access. |
+| Count-heavy claims | Avoid unless regenerated in the same pass and clearly marked as local. |
+| Implementation status | Phrase absence as "no equivalent identified in the local pass" unless source inspection proves more. |
+| Examples | Keep as adaptation sketches unless backed by an existing fixture or test. |
 
 ## Editorial Standard
 
-Use these rules when editing the corpus:
+- Keep indexes short and self-contained.
+- Prefer local links over external assumptions.
+- Use `Signal`, `Store`, `Cell`, and `Graph` for normalized design language;
+  use `Engram`, `Substrate`, and other captured terms only when quoting source
+  labels.
+- Mark proposed crates/modules as proposed until they exist.
+- Do not claim VCG truthfulness, crash safety, tamper evidence, cost savings,
+  or model-quality gains without local implementation and benchmark evidence.
+- For security, listener, auth, secret, sandbox, approval, or network claims,
+  point to the owning subsystem docs before implementation.
 
-- Prefer implementation contracts, owner paths, caller tests, and rollout gates over long speculative code blocks.
-- Mark proposed crates/modules as proposed until they exist in the IronClaw workspace.
-- Avoid exact route/event/test counts unless generated from the current checkout.
-- Treat Roko paths as captured-source identifiers; do not require external Roko source access.
-- Do not claim VCG truthfulness, crash safety, tamper evidence, or cost savings unless the shown implementation and benchmark evidence support the claim.
-- Keep indexes short. Detailed theory belongs in child docs or appendices.
+## Continued Attention
 
-## Current Cleanup Priorities
-
-| Priority | Area | Action |
-|---|---|---|
-| P0 | Pseudo-compilable snippets | Remove or rewrite snippets that use stale IronClaw APIs |
-| P0 | External/source wording | Keep captured-source labels; avoid direct repo dependency language |
-| P1 | Overengineered plans | Scope MVPs to existing IronClaw systems before proposing new crates or loops |
-| P1 | Cross-reference quality | Use specific document titles instead of terse labels like `schemas/04` |
-| P2 | Volatile stats | Keep counts in this report and README; avoid repeating them across folder indexes |
-
-## Files That Need Continued Attention
-
-| File | Reason |
+| Area | Watch for |
 |---|---|
-| [../context-memory/budget-composition.md](../context-memory/budget-composition.md) | VCG-inspired allocation must not overclaim full VCG guarantees |
-| [../execution-verification/gate-verification.md](../execution-verification/gate-verification.md) | Adaptive gate learning should use per-rung verdicts or be deferred |
-| [../ecosystem/mcp-editor-integration.md](../ecosystem/mcp-editor-integration.md) | MCP/ACP capability claims should distinguish implemented tool-client support from future surfaces |
-| [../agent-intelligence/online-learning.md](../agent-intelligence/online-learning.md) | Router implementation guidance should match current `ironclaw_llm` APIs |
-| [../reference/glossary.md](glossary.md) | Alias entries and volatile count claims should be consolidated |
+| Routing and cost | Learned routing must not override privacy or high-risk rules. |
+| Memory dedup | HDC similarity should produce candidates before hard merges. |
+| Background learning | Derived memories need taint, source links, confidence, and budget caps. |
+| Gate verification | Caller-level tests are required when a helper gates a side effect. |
+| Web projections | SSE/WebSocket reconnect behavior needs idempotency coverage. |
+| Captured citations | Bibliographic details should be verified before external publication. |
 
-## Final Gate
+## Validation Commands
 
-Before sharing or implementing from these docs, run:
+```sh
+node - <<'NODE'
+const fs = require('fs');
+const path = require('path');
+const files = fs.readdirSync('tmp/reference', {recursive: true})
+  .filter(f => f.endsWith('.md'))
+  .map(f => path.join('tmp/reference', f));
+let broken = [];
+for (const file of files) {
+  const text = fs.readFileSync(file, 'utf8');
+  const re = /\[[^\]]*\]\(([^)]+)\)/g;
+  for (let m; (m = re.exec(text)); ) {
+    const raw = m[1].split('#')[0];
+    if (!raw || /^[a-z]+:/i.test(raw) || raw.startsWith('mailto:')) continue;
+    const resolved = path.normalize(path.join(path.dirname(file), decodeURIComponent(raw)));
+    if (!fs.existsSync(resolved)) broken.push(`${file}: ${m[1]} -> ${resolved}`);
+  }
+}
+if (broken.length) {
+  console.error(broken.join('\n'));
+  process.exit(1);
+}
+console.log(`checked ${files.length} markdown files`);
+NODE
 
-```text
-markdown local-link check
-YAML fixture parse for implementation/benchmarking/scenarios/*.yaml
-forbidden source-dependency phrase scan
-git diff --check -- tmp
+rg -n "todo marker|fixme marker" tmp/reference
+git diff --check -- tmp/reference
 ```

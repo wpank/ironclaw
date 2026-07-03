@@ -1,6 +1,8 @@
-# Integration Roadmap: Captured Roko Ideas Into IronClaw
+# Integration Roadmap
 
-This roadmap gives the order of operations. It does not replace the subsystem specs, `FEATURE_PARITY.md`, or implementation readiness docs.
+This roadmap gives the order of operations for evaluating captured ideas in
+IronClaw. It does not replace subsystem specs, `FEATURE_PARITY.md`, or
+implementation readiness docs.
 
 Use it with:
 
@@ -19,7 +21,7 @@ Use it with:
 
 ## Phase 0: Baseline And Design Check
 
-Do before coding any Big Bet or autonomous background feature.
+Do this before coding any broad runtime change or autonomous background feature.
 
 | Work | Output |
 |------|--------|
@@ -55,7 +57,7 @@ These change model selection, verification, or retrieval. They need baselines an
 
 | Feature | Build stance | Required gate |
 |---------|--------------|---------------|
-| Cascade router | Start with shadow decisions around existing smart routing. | No safety override violations; quality within tolerance; cost/latency benefit demonstrated. |
+| Cascade router | Start with shadow decisions around existing smart routing. | No safety override violations; quality within tolerance; cost/latency benefit shown in traces. |
 | Gate verification expansion | Extend existing gate/builder validation in rungs. | Safe command construction, bounded/redacted diagnostics, known-defect fixtures. |
 | HDC similarity signal | Prototype offline as an additional retrieval signal. | Relevant@10 lift on compositional queries with no ordinary-query regression. |
 | Cognitive speed labels | Add only if consumed by router, budgets, or UI. | Caller test proves the label changes a real decision. |
@@ -115,8 +117,8 @@ Do not schedule these as implementation work without a separate design document 
 1. Keep PRs scoped to one candidate and one owning boundary.
 2. Prefer metadata or existing tables for reversible experiments; add schema only when query requirements demand it.
 3. Test through the caller when a helper gates a side effect.
-4. Do not add live upstream dependencies or links.
-5. Do not port Roko UI themes, execution loops, or storage models directly.
+4. Do not add live external dependencies or source-repo links.
+5. Do not port external UI themes, execution loops, or storage models directly.
 6. Preserve existing defaults unless the feature explicitly changes them.
 7. Update relevant docs, specs, and `FEATURE_PARITY.md` when behavior status changes.
 

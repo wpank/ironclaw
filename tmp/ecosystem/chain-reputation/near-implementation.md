@@ -84,7 +84,9 @@ Use fixed-point math on-chain. Keep floating point in off-chain simulation only.
 ```rust
 const SCALE: u64 = 1_000_000;
 const NEUTRAL: u64 = 500_000;
-const HALF_LIFE_NS: u64 = 30 * 24 * 60 * 60 * 1_000_000_000;
+pub struct ReputationPolicy {
+    pub half_life_ns: u64,
+}
 
 pub struct DomainTrack {
     pub score: u64,
@@ -105,8 +107,9 @@ pub fn adaptive_alpha(job_count: u64) -> u64 {
 For decay, avoid unbounded exponentiation. A first contract can use whole-half-life steps with a capped loop, then improve precision after benchmarking:
 
 ```rust
-pub fn decayed_score(mut score: u64, elapsed_ns: u64) -> u64 {
-    let halvings = (elapsed_ns / HALF_LIFE_NS).min(64);
+pub fn decayed_score(mut score: u64, elapsed_ns: u64, policy: &ReputationPolicy) -> u64 {
+    let half_life_ns = policy.half_life_ns.max(1);
+    let halvings = (elapsed_ns / half_life_ns).min(64);
     for _ in 0..halvings {
         if score >= NEUTRAL {
             score = NEUTRAL + (score - NEUTRAL) / 2;
@@ -185,13 +188,14 @@ Recommended flow:
 4. Continue to require explicit capability grants, approvals, and sandbox checks for tool execution.
 5. Record chain events in workspace or observability systems for audit and replay.
 
-## Validation Before Mainnet
+## Validation Before Valuable Deployment
 
 - Localnet tests for every state transition and callback failure.
 - Testnet measurements for storage deltas, gas, finality, and retry behavior.
 - Property tests for accounting invariants: escrow conservation, no double payout, no replayed nonce.
 - Contract review for all value-moving methods.
 - Caller-level integration tests from IronClaw request handling through payment/reputation side effects.
+- A rollback or repair procedure for every pending-settlement state.
 
 ## Navigation
 

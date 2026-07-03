@@ -27,7 +27,7 @@
 10. [C-Factor: Collective Intelligence Measurement](#10-c-factor-collective-intelligence-measurement)
 11. [Benchmarking](#11-benchmarking)
 12. [Practical Examples](#12-practical-examples)
-13. [IronClaw Integration — Full Implementation Plan](#13-ironclaw-integration--full-implementation-plan)
+13. [IronClaw Integration Plan](#13-ironclaw-integration-plan)
 14. [Academic Foundations](#14-academic-foundations)
 15. [Complexity Assessment and Risk](#15-complexity-assessment-and-risk)
 
@@ -273,161 +273,23 @@ Delta ticks use T2 (full model, e.g., Claude Opus/Sonnet class) for deep reasoni
 
 From `crates/roko-core/src/operating_frequency.rs:`
 
-```rust
-/// Cognitive operating frequency for agent work.
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum OperatingFrequency {
-    /// Reactive mode: perceive, retrieve, act.
-    ///
-    /// Tool calls, cache lookups, and signal routing.
-    Gamma,
-    /// Strategic mode: re-plan, update goals, evaluate progress.
-    ///
-    /// Periodic step-back / course-correction passes.
-    Theta,
-    /// Consolidation mode: replay, distill, meta-cognate.
-    ///
-    /// Slow learning and knowledge consolidation.
-    Delta,
-}
-
-impl OperatingFrequency {
-    /// Map to the existing inference tier model.
-    #[must_use]
-    pub const fn inference_tier(self) -> InferenceTier {
-        match self {
-            Self::Gamma => InferenceTier::T0,
-            Self::Theta => InferenceTier::T1,
-            Self::Delta => InferenceTier::T2,
-        }
-    }
-
-    /// Map operating frequency to the default agent turn limit.
-    ///
-    /// - `Gamma` reactive work does not dispatch an agent.
-    /// - `Theta` deliberative work uses the default 20-turn budget.
-    /// - `Delta` reflective work gets a 50-turn budget.
-    #[must_use]
-    pub const fn turn_limit(self) -> u32 {
-        match self {
-            Self::Gamma => 0,
-            Self::Theta => 20,
-            Self::Delta => 50,
-        }
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### 3.6 InferenceTier Enum (Source Code)
 
 From `crates/roko-primitives/src/tier.rs:`
 
-```rust
-/// Three-tier gate for inference spend and latency.
-///
-/// - `T0`: suppress -- heuristics only, no LLM call
-/// - `T1`: analyze -- light LLM (Haiku-class)
-/// - `T2`: deliberate -- full LLM (Opus/Sonnet based on vitality)
-#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[repr(u8)]
-pub enum InferenceTier {
-    /// Suppress inference entirely. Returns `None` from `TierRouter`.
-    T0 = 0,
-    /// Light inference. Always routes to Haiku-class model.
-    T1 = 1,
-    /// Full inference. Routes to Opus above vitality threshold, Sonnet below.
-    T2 = 2,
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 The `TierRouter` maps tiers to concrete models with vitality-aware degradation:
 
-```rust
-/// Vitality threshold: below this, T2 degrades from Opus to Sonnet.
-pub const T2_VITALITY_THRESHOLD: f32 = 0.3;
-
-pub struct TierRouter;
-
-impl TierRouter {
-    /// Select a model based on tier and vitality.
-    ///
-    /// - `T0` -> `None` (suppress inference)
-    /// - `T1` -> `"claude-haiku-4-5"` (regardless of vitality)
-    /// - `T2` -> `"claude-opus-4-6"` if vitality >= 0.3, `"claude-sonnet-4-6"` if below
-    #[must_use]
-    pub fn select_model(tier: InferenceTier, vitality: f32) -> Option<&'static str> {
-        match tier {
-            InferenceTier::T0 => None,
-            InferenceTier::T1 => Some("claude-haiku-4-5"),
-            InferenceTier::T2 => {
-                if vitality >= T2_VITALITY_THRESHOLD {
-                    Some("claude-opus-4-6")
-                } else {
-                    Some("claude-sonnet-4-6")
-                }
-            }
-        }
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### 3.7 Frequency Selection Logic (Source Code)
 
 From `crates/roko-core/src/operating_frequency.rs:`
 
-```rust
-impl OperatingFrequency {
-    /// Select the operating frequency for a task and its current affect state.
-    #[must_use]
-    pub fn select(task: &Task, affect: &impl OperatingFrequencyAffect) -> Self {
-        if is_reactive_task(task) {
-            return Self::Gamma;
-        }
-
-        if is_reflective_task(task) {
-            return Self::Delta;
-        }
-
-        if affect_suggests_reflection(affect) && task.is_substantial() {
-            return Self::Delta;
-        }
-
-        Self::Theta
-    }
-}
-
-fn is_reactive_task(task: &Task) -> bool {
-    task_tag_matches(task, "quick_fix")
-        || task_text_matches(
-            task,
-            &[
-                "quick fix", "quick-fix", "gate re-check", "gate recheck",
-                "permission check", "permission checks",
-                "tool permission", "tool permissions",
-                "subscription filter", "filter evaluation",
-            ],
-        )
-}
-
-fn is_reflective_task(task: &Task) -> bool {
-    task_text_matches(
-        task,
-        &[
-            "dream", "dream cycle", "plan regeneration", "regeneration",
-            "retrospective", "retrospective analysis", "retro",
-            "meta-cognition", "meta cognition", "consolidation",
-        ],
-    )
-}
-
-const LOW_CONFIDENCE_THRESHOLD: f64 = 0.3;
-
-fn affect_suggests_reflection(affect: &impl OperatingFrequencyAffect) -> bool {
-    affect.confidence() < LOW_CONFIDENCE_THRESHOLD
-        && (affect.arousal() > 0.25 || affect.dominance() < -0.1)
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 Key behavior: when the Daimon reports low confidence (<0.3), combined with high arousal (>0.25) or low dominance (<-0.1), substantial tasks are promoted from Theta to Delta — giving the agent more time and deeper reasoning. The `is_substantial()` method checks for tasks estimated at 30+ minutes, high reasoning level, deep context weight, or hardened quality profile.
 
@@ -435,39 +297,7 @@ Key behavior: when the Daimon reports low confidence (<0.3), combined with high 
 
 The `OperatingFrequencyScheduler` manages when Theta and Delta ticks fire, with adaptive cadence that responds to the agent's state:
 
-```rust
-/// Selects the next operating frequency from runtime context.
-///
-/// - Idle systems consolidate with `Delta`.
-/// - Stalling or anxious systems shorten the theta cadence.
-/// - Otherwise the scheduler stays in `Gamma` until theta becomes due.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct OperatingFrequencyScheduler {
-    theta_interval: Duration,  // default: 180s (3 minutes)
-    delta_interval: Duration,  // default: 1800s (30 minutes)
-}
-
-impl OperatingFrequencyScheduler {
-    /// Choose the next loop to run.
-    #[must_use]
-    pub fn select(&self, context: &OperatingFrequencyScheduleContext) -> OperatingFrequency {
-        if context.is_idle() {
-            return OperatingFrequency::Delta;
-        }
-
-        if context.time_since_last_theta >= self.delta_interval {
-            return OperatingFrequency::Delta;
-        }
-
-        let theta_due = self.theta_interval_for(context);
-        if context.time_since_last_theta >= theta_due {
-            OperatingFrequency::Theta
-        } else {
-            OperatingFrequency::Gamma
-        }
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 The Theta interval adapts dynamically:
 
@@ -561,7 +391,7 @@ graph TB
 | Layer | Purpose | Key Crates | Beer VSM |
 |---|---|---|---|
 | **L0: Runtime** | Process lifecycle, Store/Substrate (durable Engrams/Signals), Bus (ephemeral Pulses), HDC, adaptive clock | `roko-core`, `roko-primitives`, `roko-runtime` | System 1: Operations |
-| **L1: Framework** | LLM backends, tool registry, model routing (CascadeRouter), safety | `roko-agent`, `roko-std` | System 2: Coordination |
+| **L1: Framework** | LLM backends, tool registry, model routing (14D Cascade Router), safety | `roko-agent`, `roko-std` | System 2: Coordination |
 | **L2: Scaffold** | SystemPromptBuilder (6-layer), context enrichment, token budget | `roko-compose` | System 3: Control |
 | **L3: Harness** | Gate pipeline (compile/test/clippy/diff/format/schema/judge/simulation), adaptive thresholds | `roko-gate`, `roko-fs` | System 3*: Audit |
 | **L4: Orchestration** | Plan DAGs, parallel execution, state machines, multi-agent coordination, session resumption | `roko-orchestrator`, `roko-conductor` | System 4: Intelligence |
@@ -578,24 +408,7 @@ L0 depends on -> (nothing above)
 
 Cross-cutting crates are NOT layer-bound. They are injected as `&dyn Trait` objects:
 
-```rust
-fn compose_with_knowledge(
-    composer: &dyn Composer,
-    knowledge: &dyn Substrate,
-    bus: &dyn Bus,
-    budget: &Budget,
-    scorer: &dyn Scorer,
-    ctx: &Context,
-) -> Result<Engram> {
-    let knowledge_engrams = knowledge
-        .query(&Query::of_kind(Kind::Insight).limit(5), ctx)
-        .await?;
-    let recent_pulses = bus
-        .replay_since(ctx.checkpoint_seq, &TopicFilter::Glob("gate.verdict.*".into()))
-        .await?;
-    composer.compose_with(knowledge_engrams, recent_pulses, budget, scorer, ctx)
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### 4.4 IronClaw Layer Mapping
 
@@ -664,7 +477,7 @@ flowchart TD
     Neuro["2. Neuro wins<br/>(validated knowledge)"]
     Dreams["3. Dreams signal<br/>(speculative hypothesis)"]
     Tied{Still tied?}
-    VCG["VCG Attention Auction<br/>Each cross-cut bids confidence.<br/>Winner pays 2nd-highest bid.<br/>Truthful by mechanism design."]
+    VCG["VCG-style diagnostics<br/>Each cross-cut reports confidence.<br/>Displacement payment is a calibration signal."]
     Result["Winning signal applied"]
 
     Conflict --> Daimon
@@ -781,44 +594,7 @@ graph LR
 
 From `crates/roko-orchestrator/src/coordination.rs:`
 
-```rust
-/// The type of coordination signal a pheromone carries.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum PheromoneKind {
-    /// Something dangerous or harmful has been detected.
-    Threat,
-    /// A favorable condition has been detected.
-    Opportunity,
-    /// Validated knowledge or insight that should persist.
-    Wisdom,
-    /// First-mover advantage or ephemeral edge.
-    Alpha,
-    /// Recurring structure or regularity detected.
-    Pattern,
-    /// Something unusual or unexpected detected.
-    Anomaly,
-    /// Collective agreement on a fact or decision.
-    Consensus,
-    /// User-defined pheromone kind for domain-specific signals.
-    Custom(String),
-}
-
-impl PheromoneKind {
-    /// Return the documented default half-life for this kind.
-    #[must_use]
-    pub const fn default_half_life(&self) -> Duration {
-        match self {
-            Self::Threat    => Duration::from_secs(2  * 60 * 60),  // 2 hours
-            Self::Opportunity => Duration::from_secs(4 * 60 * 60), // 4 hours
-            Self::Wisdom    => Duration::from_secs(24 * 60 * 60),  // 24 hours
-            Self::Alpha     => Duration::from_secs(60 * 60),        // 1 hour
-            Self::Pattern   => Duration::from_secs(12 * 60 * 60),  // 12 hours
-            Self::Anomaly | Self::Custom(_) => Duration::from_secs(6 * 60 * 60), // 6 hours
-            Self::Consensus => Duration::from_secs(48 * 60 * 60),  // 48 hours
-        }
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### 7.3 All Seven Pheromone Kinds in Detail
 
@@ -1027,44 +803,7 @@ Where `I_k` = current intensity, `theta_k` = agent's response threshold, `n` = H
 
 The Hill coefficient controls steepness: n=1 gives a hyperbolic curve, n=2 gives a sigmoidal transition, n=4 gives an almost step-function. The default n=2 balances sensitivity and stability.
 
-```rust
-/// Per-agent response thresholds for pheromone-driven task allocation.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ResponseThresholds {
-    pub thresholds: HashMap<PheromoneKind, f64>,  // lower = more responsive
-    pub hill_coefficient: u32,                     // default: 2
-    pub learning_rate: f64,                        // default: 0.05
-    pub min_threshold: f64,                        // default: 0.05
-    pub max_threshold: f64,                        // default: 0.95
-}
-
-impl ResponseThresholds {
-    pub fn response_probability(&self, kind: &PheromoneKind, intensity: f64) -> f64 {
-        let theta = clamp_unit(self.thresholds.get(kind).copied().unwrap_or(0.5));
-        let n = f64::from(self.hill_coefficient.max(1));
-        let i_n = clamp_unit(intensity).powf(n);
-        let theta_n = theta.powf(n);
-        let denom = i_n + theta_n;
-        if denom == 0.0 { 0.0 } else { i_n / denom }
-    }
-
-    /// Successful response -> lower threshold -> more responsive
-    pub fn reinforce(&mut self, kind: &PheromoneKind) {
-        if let Some(theta) = self.thresholds.get_mut(kind) {
-            *theta = (*theta - self.learning_rate).max(self.min_threshold);
-        }
-    }
-
-    /// Ignoring a signal -> raise threshold -> less responsive (slower rate)
-    pub fn habituate(&mut self, kind: &PheromoneKind) {
-        if let Some(theta) = self.thresholds.get_mut(kind) {
-            *theta = self.learning_rate
-                .mul_add(0.5, *theta)
-                .min(self.max_threshold);
-        }
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 Note: habituation is asymmetric — the threshold increases at half the learning rate (0.025) compared to reinforcement's decrease rate (0.05). This produces a bias toward responsiveness: it takes twice as many non-responses to undo one successful response.
 
@@ -1116,29 +855,7 @@ Key design choices:
 
 ### 8.3 SINR-Adjusted Intensity Computation
 
-```rust
-fn sinr_adjusted_intensity(
-    target_kind: usize,
-    target_intensity: f64,
-    active_intensities: &[f64; 7],
-    matrix: &[[f64; 7]; 7],
-    noise_floor: f64,
-    min_sinr: f64,
-) -> f64 {
-    let interference: f64 = active_intensities.iter()
-        .enumerate()
-        .filter(|&(j, _)| j != target_kind)
-        .map(|(j, &intensity)| matrix[j][target_kind] * intensity)
-        .sum();
-
-    let sinr = target_intensity / (interference + noise_floor);
-    if sinr < min_sinr {
-        0.0  // Below detection threshold
-    } else {
-        target_intensity * (sinr / (1.0 + sinr))  // Graceful degradation
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### 8.4 Anti-Saturation Mechanisms
 
@@ -1212,23 +929,7 @@ Each agent maintains an 8-dimensional strategy vector (a probability distributio
 
 Domain plugins can redefine these dimensions. For code development: `[refactoring, feature_dev, testing, docs, perf, security, deps, arch]`. For DeFi: `[momentum, mean_reversion, lp, risk, time_horizon, asset_breadth, vol, cross_chain]`.
 
-```rust
-/// Number of strategy dimensions used by the morphogenetic model.
-pub const STRATEGY_DIMS: usize = 8;
-
-/// Morphogenetic state for an agent.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MorphogeneticState {
-    /// Strategy concentration vector in `[0, 1]`, normalized to sum to 1.
-    pub strategy: [f64; STRATEGY_DIMS],
-    /// Per-dimension returns attributed since the last update.
-    pub attributed_returns: [f64; STRATEGY_DIMS],
-    /// Aggregated strategy vectors received from the collective.
-    pub collective_pheromone: [f64; STRATEGY_DIMS],
-    /// Number of agents in the collective.
-    pub collective_size: usize,
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Specialization Index** (normalized Shannon entropy):
 
@@ -1260,50 +961,7 @@ For each dimension k:
 s_k(t+1) = s_k(t) + activation_k - inhibition_k - decay_k + noise_k
 ```
 
-```rust
-/// Morphogenetic parameters controlling reaction-diffusion dynamics.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MorphogeneticParams {
-    pub alpha: f64,                    // Activation rate. Default: 0.05.
-    pub beta: f64,                     // Inhibition rate. Default: 0.15. Must be > alpha.
-    pub mu: f64,                       // Decay toward baseline. Default: 0.01.
-    pub baseline: f64,                 // 1/STRATEGY_DIMS = 0.125
-    pub sigma_noise: f64,              // Noise for symmetry breaking. Default: 0.005.
-    pub resource_pressure_scalar: f64, // Modulated by agent vitality. Default: 1.0.
-}
-
-impl MorphogeneticState {
-    /// Update morphogenetic field using Gierer-Meinhardt reaction-diffusion dynamics.
-    pub fn update(&mut self, params: &MorphogeneticParams) {
-        let pressure = params.resource_pressure_scalar;
-        let size = (self.collective_size as f64).max(1.0);
-
-        for i in 0..STRATEGY_DIMS {
-            let activation = params.alpha * self.attributed_returns[i] * pressure;
-            let inhibition = params.beta * self.collective_pheromone[i] / size;
-            let decay = params.mu * (self.strategy[i] - params.baseline);
-            let noise = box_muller_normal() * params.sigma_noise;
-            self.strategy[i] += activation - inhibition - decay + noise;
-            // Prevent negative concentrations.
-            if self.strategy[i] < 0.001 {
-                self.strategy[i] = 0.001;
-            }
-        }
-
-        // Re-normalize to sum to 1.0.
-        let sum: f64 = self.strategy.iter().sum();
-        if sum > 0.0 {
-            for s in &mut self.strategy {
-                *s /= sum;
-            }
-        }
-
-        // Reset accumulators for next cycle.
-        self.attributed_returns = [0.0; STRATEGY_DIMS];
-        self.collective_pheromone = [0.0; STRATEGY_DIMS];
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 Where:
 - `activation_k = alpha × attributed_returns[k] × resource_pressure_scalar` — profitable dimensions grow
@@ -1364,7 +1022,7 @@ From homogeneous initial conditions, convergence scales as O(N × log N) ticks:
 | 20 | ~1,800 | ~7.5 hours |
 | 50 | ~3,000 | ~12.5 hours |
 
-**Observed convergence target**: In the captured simulation setup, beta/alpha >= 2.0 and collective_size <= 50 converged to a stable pattern with probability > 0.99 within 3000 ticks across 10,000 Monte Carlo runs per parameter setting. Treat this as a reproduction target, not a production guarantee.
+**Observed convergence target**: In the captured simulation setup, beta/alpha >= 2.0 and collective_size <= 50 converged to a stable pattern with probability > 0.99 within 3000 ticks across 10,000 Monte Carlo runs per parameter setting. Treat this as a reproduction target, not production evidence.
 
 ### 9.8 Stability Monitoring
 
@@ -1412,47 +1070,7 @@ For multi-agent scenarios, roko measures collective intelligence across five axe
 
 From `crates/roko-orchestrator/src/coordination.rs:`
 
-```rust
-/// The five axes used to measure collective intelligence.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct CohortMetrics {
-    pub turn_taking_entropy: f64,
-    pub peer_prediction_accuracy: f64,
-    pub citation_reciprocity: f64,
-    pub delivery_rate: f64,
-    pub hdc_diversity: f64,
-}
-
-/// Linear weights for the c-factor model.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct CohortWeights {
-    pub turn_taking_entropy: f64,
-    pub peer_prediction_accuracy: f64,
-    pub citation_reciprocity: f64,
-    pub delivery_rate: f64,
-    pub hdc_diversity: f64,
-    pub bias: f64,
-}
-
-/// Compute the c-factor for a cohort.
-#[must_use]
-pub fn c_factor(metrics: &CohortMetrics, weights: &CohortWeights) -> f64 {
-    let weighted_sum = weights.turn_taking_entropy.mul_add(
-        metrics.turn_taking_entropy,
-        weights.peer_prediction_accuracy.mul_add(
-            metrics.peer_prediction_accuracy,
-            weights.citation_reciprocity.mul_add(
-                metrics.citation_reciprocity,
-                weights.delivery_rate.mul_add(
-                    metrics.delivery_rate,
-                    weights.hdc_diversity * metrics.hdc_diversity,
-                ),
-            ),
-        ),
-    );
-    weighted_sum + weights.bias
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 The c-factor formula is a weighted linear combination:
 
@@ -1478,36 +1096,7 @@ This is a critical design choice: c-factor is a diagnostic covariate, not a dire
 
 Before a consensus artifact is finalized, it passes a WisdomGate that encodes Surowiecki's four conditions (Surowiecki, J., 2004, "The Wisdom of Crowds", Doubleday):
 
-```rust
-/// `WisdomGate` inputs for consensus aggregation.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct WisdomGate {
-    pub min_turn_taking_entropy: f64,
-    pub min_peer_prediction_accuracy: f64,
-    pub min_citation_reciprocity: f64,
-    pub min_hdc_diversity: f64,          // diversity of opinion
-    pub max_lineage_overlap: f64,        // independence
-    pub max_sender_share: f64,           // decentralization
-}
-
-impl WisdomGate {
-    /// Return true when the cohort is broad enough for consensus aggregation.
-    #[must_use]
-    pub fn allows(
-        &self,
-        metrics: &CohortMetrics,
-        lineage_overlap: f64,
-        sender_share: f64,
-    ) -> bool {
-        metrics.turn_taking_entropy >= self.min_turn_taking_entropy
-            && metrics.peer_prediction_accuracy >= self.min_peer_prediction_accuracy
-            && metrics.citation_reciprocity >= self.min_citation_reciprocity
-            && metrics.hdc_diversity >= self.min_hdc_diversity
-            && lineage_overlap <= self.max_lineage_overlap
-            && sender_share <= self.max_sender_share
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 Three anti-groupthink countermeasures:
 1. **Devil's-advocate Pulse**: Emit an explicit opposing view on consensus topics
@@ -1548,7 +1137,7 @@ Three anti-groupthink countermeasures:
 1. **Baseline**: N agents use explicit message-passing to coordinate task assignment. Measure: total messages sent, duplicate work rate, task completion time.
 2. **Pheromone**: N agents use only pheromone deposits and reads for coordination. Measure the same metrics.
 
-**Expected results** (from roko docs, validated via simulation):
+**Captured simulation baseline** (reproduce before treating as an IronClaw target):
 
 | Metric | Explicit Messaging | Pheromone-Based | Expected Improvement |
 |---|---|---|---|
@@ -1567,7 +1156,7 @@ Three anti-groupthink countermeasures:
 2. Run for T ticks with identical workload
 3. Measure: time to specialization_index >= 0.5 for all agents, inter-agent cosine similarity (target < 0.3 for distinct specialists), stability state (target: `Converged`)
 
-**Expected results** (from Monte Carlo simulation in roko source):
+**Captured Monte Carlo baseline** (validation target, not production evidence):
 
 | Group Size | Median Convergence (ticks) | 95th Percentile | % Within 3000 ticks |
 |---|---|---|---|
@@ -1778,251 +1367,19 @@ No explicit role assignment was ever made. The specialization emerged entirely f
 
 ---
 
-## 13. IronClaw Integration — Full Implementation Plan
+## 13. IronClaw Integration Plan
 
 ### 13.1 CognitiveSpeedSelector
 
 **Target file**: `src/agent/cognitive_speed.rs`
 
-```rust
-// src/agent/cognitive_speed.rs
-//
-// Implements the three-speed cognitive classification for IronClaw,
-// adapted from roko's OperatingFrequency (roko-core/src/operating_frequency.rs).
-
-use std::time::{Duration, Instant};
-
-/// Cognitive speed classification for IronClaw agent processing.
-/// Mapped to roko's OperatingFrequency with IronClaw-specific adaptations.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CognitiveSpeed {
-    /// Reactive: direct response, cheap or zero model cost (T0/T1).
-    /// Maps to: simple queries, tool calls, pattern-matched responses.
-    Gamma,
-    /// Reflective: planning, self-correction, strategy evaluation (T1/T2).
-    /// Maps to: mid-conversation re-planning, error analysis.
-    Theta,
-    /// Consolidation: background learning, memory reorganization (T2).
-    /// Maps to: heartbeat processing, cross-session synthesis.
-    Delta,
-}
-
-/// Context used by the speed classifier.
-pub struct TurnContext {
-    pub message: String,
-    pub tool_calls_only: bool,
-    pub is_background: bool,
-    pub is_heartbeat: bool,
-    pub confidence: f64,     // 0.0-1.0, from Daimon equivalent
-    pub arousal: f64,        // 0.0-1.0
-    pub recent_error_count: usize,
-    pub requires_planning: bool,
-}
-
-impl TurnContext {
-    pub fn is_simple_query(&self) -> bool {
-        let msg = self.message.to_lowercase();
-        // Quick pattern matches — no model needed
-        msg.starts_with("what time")
-            || msg.starts_with("what is the date")
-            || msg.starts_with("who are you")
-            || (msg.len() < 30 && !self.requires_planning)
-    }
-
-    pub fn is_tool_only(&self) -> bool {
-        self.tool_calls_only
-    }
-
-    pub fn is_substantial(&self) -> bool {
-        self.message.len() > 500
-            || self.requires_planning
-            || self.recent_error_count > 2
-    }
-}
-
-/// Classify the current turn context into a cognitive speed.
-pub fn classify_speed(ctx: &TurnContext) -> CognitiveSpeed {
-    // T0 fast path: reactive task, no LLM needed
-    if ctx.is_simple_query() || ctx.is_tool_only() {
-        return CognitiveSpeed::Gamma;
-    }
-
-    // Background/heartbeat processing -> Delta for consolidation
-    if ctx.is_background || ctx.is_heartbeat {
-        return CognitiveSpeed::Delta;
-    }
-
-    // Affect-driven Delta promotion for substantial tasks
-    // Mirrors roko's affect_suggests_reflection() + is_substantial()
-    let affect_suggests_reflection = ctx.confidence < 0.3
-        && (ctx.arousal > 0.25);
-    if affect_suggests_reflection && ctx.is_substantial() {
-        return CognitiveSpeed::Delta;
-    }
-
-    // Default: reflective Theta
-    CognitiveSpeed::Theta
-}
-
-impl CognitiveSpeed {
-    /// Map to IronClaw model tier.
-    /// Integrates with the cascade router in crates/ironclaw_llm/.
-    pub fn model_preference(&self) -> ModelPreference {
-        match self {
-            Self::Gamma => ModelPreference::Fast,     // Haiku-class
-            Self::Theta => ModelPreference::Standard,  // Sonnet-class
-            Self::Delta => ModelPreference::Best,      // Opus-class
-        }
-    }
-
-    /// Maximum agent turns before forced reflection.
-    pub fn turn_budget(&self) -> u32 {
-        match self {
-            Self::Gamma => 1,
-            Self::Theta => 10,
-            Self::Delta => 25,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum ModelPreference {
-    Fast,
-    Standard,
-    Best,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn ctx(msg: &str) -> TurnContext {
-        TurnContext {
-            message: msg.to_string(),
-            tool_calls_only: false,
-            is_background: false,
-            is_heartbeat: false,
-            confidence: 0.8,
-            arousal: 0.1,
-            recent_error_count: 0,
-            requires_planning: false,
-        }
-    }
-
-    #[test]
-    fn simple_query_is_gamma() {
-        assert_eq!(classify_speed(&ctx("what time is it")), CognitiveSpeed::Gamma);
-    }
-
-    #[test]
-    fn heartbeat_is_delta() {
-        let mut c = ctx("run heartbeat cycle");
-        c.is_heartbeat = true;
-        assert_eq!(classify_speed(&c), CognitiveSpeed::Delta);
-    }
-
-    #[test]
-    fn low_confidence_substantial_is_delta() {
-        let c = TurnContext {
-            message: "A".repeat(600),
-            confidence: 0.2,
-            arousal: 0.4,
-            requires_planning: true,
-            ..ctx("placeholder")
-        };
-        assert_eq!(classify_speed(&c), CognitiveSpeed::Delta);
-    }
-
-    #[test]
-    fn normal_task_is_theta() {
-        assert_eq!(classify_speed(&ctx("Fix the login validation bug")), CognitiveSpeed::Theta);
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### 13.2 Adaptive Reflection Scheduler
 
 **Target file**: `src/agent/reflection.rs`
 
-```rust
-// src/agent/reflection.rs
-//
-// Adaptive scheduler for reflective pauses in the IronClaw agent loop.
-// Adapted from roko's OperatingFrequencyScheduler (roko-core/src/operating_frequency.rs).
-
-use std::time::{Duration, Instant};
-
-/// Scheduler that determines when the agent should pause for reflection.
-pub struct ReflectionScheduler {
-    /// Base interval between reflective pauses.
-    theta_interval: Duration,
-    /// Maximum interval before forced consolidation.
-    delta_interval: Duration,
-    /// Time of last reflective pause.
-    last_theta: Instant,
-}
-
-impl Default for ReflectionScheduler {
-    fn default() -> Self {
-        Self {
-            theta_interval: Duration::from_secs(180),   // 3 minutes
-            delta_interval: Duration::from_secs(1800),  // 30 minutes
-            last_theta: Instant::now(),
-        }
-    }
-}
-
-/// Current context for the scheduler's decision.
-pub struct SchedulerContext {
-    pub is_idle: bool,
-    pub completion_rate: f64,   // recent task completions / attempts, 0.0–1.0
-    pub is_struggling: bool,    // confidence < 0.35 AND arousal > 0.25
-}
-
-/// The recommended mode for the next agent loop iteration.
-pub enum ReflectionMode {
-    /// Continue current processing at Gamma speed.
-    Continue,
-    /// Pause for reflective evaluation (summarize, re-plan). Theta speed.
-    Theta,
-    /// Enter deep consolidation mode. Delta speed.
-    Delta,
-}
-
-impl ReflectionScheduler {
-    pub fn should_reflect(&self, ctx: &SchedulerContext) -> ReflectionMode {
-        let elapsed = self.last_theta.elapsed();
-
-        if ctx.is_idle {
-            return ReflectionMode::Delta;
-        }
-
-        if elapsed >= self.delta_interval {
-            return ReflectionMode::Delta;
-        }
-
-        // Adaptive Theta interval:
-        // stalling (low completion) → reflect 2× more often
-        // struggling (low confidence + high arousal) → reflect 1.5× more often
-        let mut theta_due = self.theta_interval;
-        if ctx.completion_rate <= 0.25 {
-            theta_due = theta_due.mul_f64(0.5);
-        } else if ctx.is_struggling {
-            theta_due = theta_due.mul_f64(0.66);
-        }
-
-        if elapsed >= theta_due {
-            ReflectionMode::Theta
-        } else {
-            ReflectionMode::Continue
-        }
-    }
-
-    pub fn record_reflection(&mut self) {
-        self.last_theta = Instant::now();
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### 13.3 PheromoneOverlay for Workspace
 
@@ -2030,252 +1387,11 @@ impl ReflectionScheduler {
 
 The pheromone system overlays on IronClaw's existing `memory_write`/`memory_search` tools using a namespaced tagging convention. It implements the full decay model, confirmation extension, and Alpha paradox from the roko source.
 
-```rust
-// src/workspace/pheromone.rs
-//
-// Digital pheromone system for IronClaw workspace.
-// Implements the 7-kind pheromone model from roko
-// (roko-orchestrator/src/coordination.rs) using workspace memory
-// as the backing store.
-//
-// Pheromones are stored as tagged workspace memories in the "pheromone::"
-// namespace. Decay is computed lazily from the deposit timestamp.
-
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use std::time::Duration;
-
-/// Digital pheromone stored in the workspace.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Pheromone {
-    /// Unique identifier for this pheromone deposit.
-    pub id: uuid::Uuid,
-    /// Semantic kind determining behavior and decay profile.
-    pub kind: PheromoneKind,
-    /// What this pheromone is about (tool name, file path, topic, etc.)
-    pub location: String,
-    /// Intensity at the time of deposit. Range: [0.0, 1.0].
-    pub initial_intensity: f64,
-    /// Agent session ID or background task name that deposited this.
-    pub depositor: String,
-    /// When this pheromone was deposited.
-    pub deposited_at: DateTime<Utc>,
-    /// Base half-life for decay computation.
-    pub half_life: Duration,
-    /// Number of confirmations from other agents/sessions.
-    pub confirmations: u32,
-    /// Domain-specific metadata.
-    pub metadata: serde_json::Value,
-}
-
-/// The seven semantic kinds of pheromone signals.
-/// Mirrors roko's PheromoneKind enum exactly.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum PheromoneKind {
-    /// Something dangerous or harmful. Alarm signal.
-    Threat,
-    /// A favorable condition detected. Recruitment signal.
-    Opportunity,
-    /// Validated knowledge that should persist. Trail signal.
-    Wisdom,
-    /// First-mover advantage, ephemeral edge. Decays faster when confirmed.
-    Alpha,
-    /// Recurring structure or regularity. Intermediate signal.
-    Pattern,
-    /// Something unusual or unexpected. Investigation trigger.
-    Anomaly,
-    /// Collective agreement on a fact or decision. Long-lived.
-    Consensus,
-}
-
-impl PheromoneKind {
-    /// Default half-life for each kind.
-    pub fn default_half_life(&self) -> Duration {
-        match self {
-            Self::Threat      => Duration::from_secs(2  * 3600), // 2 h
-            Self::Opportunity => Duration::from_secs(4  * 3600), // 4 h
-            Self::Wisdom      => Duration::from_secs(24 * 3600), // 24 h
-            Self::Alpha       => Duration::from_secs(3600),       // 1 h
-            Self::Pattern     => Duration::from_secs(12 * 3600), // 12 h
-            Self::Anomaly     => Duration::from_secs(6  * 3600), // 6 h
-            Self::Consensus   => Duration::from_secs(48 * 3600), // 48 h
-        }
-    }
-
-    /// Workspace memory tag for this kind.
-    pub fn tag(&self) -> &'static str {
-        match self {
-            Self::Threat      => "pheromone:threat",
-            Self::Opportunity => "pheromone:opportunity",
-            Self::Wisdom      => "pheromone:wisdom",
-            Self::Alpha       => "pheromone:alpha",
-            Self::Pattern     => "pheromone:pattern",
-            Self::Anomaly     => "pheromone:anomaly",
-            Self::Consensus   => "pheromone:consensus",
-        }
-    }
-}
-
-impl Pheromone {
-    /// Create a new pheromone with default half-life for its kind.
-    pub fn new(
-        kind: PheromoneKind,
-        location: impl Into<String>,
-        initial_intensity: f64,
-        depositor: impl Into<String>,
-    ) -> Self {
-        let half_life = kind.default_half_life();
-        Self {
-            id: uuid::Uuid::new_v4(),
-            kind,
-            location: location.into(),
-            initial_intensity: initial_intensity.clamp(0.0, 1.0),
-            depositor: depositor.into(),
-            deposited_at: Utc::now(),
-            half_life,
-            confirmations: 0,
-            metadata: serde_json::Value::Null,
-        }
-    }
-
-    /// Compute current intensity using exponential decay.
-    ///
-    /// intensity(t) = initial_intensity * 2^(-t / effective_half_life)
-    pub fn current_intensity(&self) -> f64 {
-        let elapsed = Utc::now()
-            .signed_duration_since(self.deposited_at)
-            .to_std()
-            .unwrap_or_default();
-        let hl = self.effective_half_life();
-        if hl.is_zero() {
-            return 0.0;
-        }
-        let exponent = -(elapsed.as_secs_f64() / hl.as_secs_f64());
-        self.initial_intensity * 2.0_f64.powf(exponent)
-    }
-
-    /// Effective half-life after applying confirmation model.
-    ///
-    /// Alpha paradox: each confirmation reduces half-life (first-mover
-    /// advantage erodes as others confirm).
-    /// All other kinds: confirmations extend half-life linearly.
-    fn effective_half_life(&self) -> Duration {
-        let base = self.half_life.as_secs_f64();
-        let confs = f64::from(self.confirmations);
-
-        match self.kind {
-            PheromoneKind::Alpha => {
-                // Alpha paradox: divisor grows with confirmations.
-                let divisor = confs.mul_add(0.1, 1.0);
-                Duration::from_secs_f64(base / divisor)
-            }
-            _ => {
-                // Standard: linear half-life extension.
-                let multiplier = confs.mul_add(0.5, 1.0);
-                Duration::from_secs_f64(base * multiplier)
-            }
-        }
-    }
-
-    /// True if the pheromone has decayed below the detection threshold.
-    pub fn is_evaporated(&self) -> bool {
-        self.current_intensity() < 0.01
-    }
-
-    /// Response probability using the Hill function.
-    ///
-    /// P = I^n / (I^n + theta^n), n=2 (sigmoidal)
-    pub fn response_probability(&self, threshold: f64, hill_n: f64) -> f64 {
-        let intensity = self.current_intensity().clamp(0.0, 1.0);
-        let theta = threshold.clamp(0.0, 1.0);
-        let i_n = intensity.powf(hill_n);
-        let t_n = theta.powf(hill_n);
-        let denom = i_n + t_n;
-        if denom == 0.0 { 0.0 } else { i_n / denom }
-    }
-}
-
-/// Workspace key convention for storing pheromones.
-pub fn workspace_key(kind: &PheromoneKind, location: &str) -> String {
-    format!("pheromone:{}:{}", kind.tag().trim_start_matches("pheromone:"), location)
-}
-
-/// Intensity-weighted summary of the pheromone field at a location,
-/// used to detect when to avoid or pursue a topic.
-pub struct PheromoneField {
-    pub threat_intensity: f64,
-    pub opportunity_intensity: f64,
-    pub wisdom_intensity: f64,
-    pub alpha_intensity: f64,
-    pub pattern_intensity: f64,
-    pub anomaly_intensity: f64,
-    pub consensus_intensity: f64,
-}
-
-impl PheromoneField {
-    /// Should this location be avoided? (Threat > 0.7, no Wisdom override)
-    pub fn should_avoid(&self) -> bool {
-        self.threat_intensity > 0.7 && self.wisdom_intensity < 0.5
-    }
-
-    /// Is there an active "I'm working on this" lock?
-    pub fn is_locked_by_alpha(&self) -> bool {
-        self.alpha_intensity > 0.5
-    }
-
-    /// Opportunity score adjusted for threat interference.
-    /// Implements SINR interference: alpha[Threat][Opp] = 0.60.
-    pub fn effective_opportunity(&self) -> f64 {
-        let noise_floor = 0.01;
-        let interference = 0.60 * self.threat_intensity;
-        let sinr = self.opportunity_intensity / (interference + noise_floor);
-        if sinr < 1.0 {
-            0.0 // Below detection threshold
-        } else {
-            self.opportunity_intensity * (sinr / (1.0 + sinr))
-        }
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 **Integration with existing workspace memory**:
 
-```rust
-// Usage in a heartbeat or background task:
-
-// Deposit a Threat when something goes wrong:
-let pheromone = Pheromone::new(
-    PheromoneKind::Threat,
-    "github-api/rate-limit",
-    0.75, // High severity
-    "session-abc",
-);
-let key = workspace_key(&pheromone.kind, &pheromone.location);
-workspace.memory_write(&key, &serde_json::to_string(&pheromone)?, &["pheromone", "threat"]).await?;
-
-// Deposit an Opportunity after discovering something useful:
-let opp = Pheromone::new(
-    PheromoneKind::Opportunity,
-    "github-api/graphql-batch",
-    0.80,
-    "heartbeat",
-);
-workspace.memory_write(
-    &workspace_key(&opp.kind, &opp.location),
-    &serde_json::to_string(&opp)?,
-    &["pheromone", "opportunity"]
-).await?;
-
-// Read pheromones before starting work on a topic:
-let raw_entries = workspace.memory_search("pheromone:*:github-api*", None).await?;
-// Deserialize and filter evaporated ones:
-let active: Vec<Pheromone> = raw_entries
-    .into_iter()
-    .filter_map(|e| serde_json::from_str(&e.content).ok())
-    .filter(|p: &Pheromone| !p.is_evaporated())
-    .collect();
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### 13.4 MorphogeneticTracker
 
@@ -2283,235 +1399,7 @@ let active: Vec<Pheromone> = raw_entries
 
 For future multi-agent support, the MorphogeneticTracker maintains each agent's strategy vector and applies the Gierer-Meinhardt update rule.
 
-```rust
-// src/agent/morphogenetic.rs
-//
-// Morphogenetic specialization tracker for IronClaw.
-// Implements the 8-dimensional Gierer-Meinhardt strategy model
-// from roko (roko-orchestrator/src/coordination.rs).
-//
-// In single-agent mode, this tracker still provides value:
-// - Tracks which strategy dimensions are currently active
-// - Provides strategy signal to cognitive speed selection
-// - Ready for multi-agent integration when team support is added
-
-use serde::{Deserialize, Serialize};
-
-pub const STRATEGY_DIMS: usize = 8;
-
-/// Strategy dimension labels for code development domain.
-pub const STRATEGY_LABELS: [&str; STRATEGY_DIMS] = [
-    "depth",        // 0: deep analysis of narrow topics
-    "breadth",      // 1: broad survey across many topics
-    "execution",    // 2: implementing and building
-    "verification", // 3: testing and validation
-    "time_horizon", // 4: long-term vs short-term planning
-    "exploration",  // 5: trying new approaches
-    "exploitation", // 6: optimizing known approaches
-    "coordination", // 7: managing workflows
-];
-
-/// Morphogenetic state for an agent.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MorphogeneticState {
-    /// Strategy concentration vector in [0, 1], normalized to sum to 1.
-    pub strategy: [f64; STRATEGY_DIMS],
-    /// Per-dimension returns attributed since the last update.
-    pub attributed_returns: [f64; STRATEGY_DIMS],
-    /// Aggregated strategy vectors received from the collective.
-    /// In single-agent mode, this remains zero.
-    pub collective_pheromone: [f64; STRATEGY_DIMS],
-    /// Number of agents in the collective (1 for single-agent).
-    pub collective_size: usize,
-}
-
-impl Default for MorphogeneticState {
-    fn default() -> Self {
-        let uniform = 1.0 / STRATEGY_DIMS as f64;
-        Self {
-            strategy: [uniform; STRATEGY_DIMS],
-            attributed_returns: [0.0; STRATEGY_DIMS],
-            collective_pheromone: [0.0; STRATEGY_DIMS],
-            collective_size: 1,
-        }
-    }
-}
-
-/// Parameters controlling the Gierer-Meinhardt reaction-diffusion dynamics.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MorphogeneticParams {
-    /// Activation rate. Default: 0.05. (How much returns reinforce strategy)
-    pub alpha: f64,
-    /// Inhibition rate. Default: 0.15. Must be > alpha for Turing instability.
-    pub beta: f64,
-    /// Decay toward baseline. Default: 0.01.
-    pub mu: f64,
-    /// Baseline: 1/STRATEGY_DIMS = 0.125.
-    pub baseline: f64,
-    /// Noise for symmetry breaking. Default: 0.005.
-    pub sigma_noise: f64,
-    /// Modulated by agent vitality/budget. Default: 1.0.
-    pub resource_pressure_scalar: f64,
-}
-
-impl Default for MorphogeneticParams {
-    fn default() -> Self {
-        Self {
-            alpha: 0.05,
-            beta: 0.15,
-            mu: 0.01,
-            baseline: 1.0 / STRATEGY_DIMS as f64,
-            sigma_noise: 0.005,
-            resource_pressure_scalar: 1.0,
-        }
-    }
-}
-
-impl MorphogeneticState {
-    /// Apply one cycle of Gierer-Meinhardt reaction-diffusion.
-    ///
-    /// For each dimension k:
-    ///   s_k += alpha * returns[k] * pressure
-    ///          - beta * collective[k] / size
-    ///          - mu * (s_k - baseline)
-    ///          + N(0, sigma^2)
-    ///
-    /// Then clamp to [0.001, inf) and renormalize to sum to 1.0.
-    pub fn update(&mut self, params: &MorphogeneticParams) {
-        use std::f64;
-
-        let pressure = params.resource_pressure_scalar;
-        let size = (self.collective_size as f64).max(1.0);
-
-        for i in 0..STRATEGY_DIMS {
-            let activation = params.alpha * self.attributed_returns[i] * pressure;
-            let inhibition = params.beta * self.collective_pheromone[i] / size;
-            let decay = params.mu * (self.strategy[i] - params.baseline);
-            // Box-Muller transform for Gaussian noise
-            let noise = box_muller_sample() * params.sigma_noise;
-
-            self.strategy[i] += activation - inhibition - decay + noise;
-
-            // Clamp to prevent extinction of any dimension
-            if self.strategy[i] < 0.001 {
-                self.strategy[i] = 0.001;
-            }
-        }
-
-        // Renormalize to sum to 1.0
-        let sum: f64 = self.strategy.iter().sum();
-        if sum > 0.0 {
-            for s in &mut self.strategy {
-                *s /= sum;
-            }
-        }
-
-        // Reset accumulators for next cycle
-        self.attributed_returns = [0.0; STRATEGY_DIMS];
-        self.collective_pheromone = [0.0; STRATEGY_DIMS];
-    }
-
-    /// Attribute a return to a strategy dimension.
-    ///
-    /// Call this after a successful task completion with the primary dimension
-    /// that was exercised.
-    pub fn attribute_return(&mut self, dimension: usize, value: f64) {
-        if dimension < STRATEGY_DIMS {
-            self.attributed_returns[dimension] += value;
-        }
-    }
-
-    /// Compute the specialization index (normalized Shannon entropy complement).
-    ///
-    /// 0.0 = maximum generalization (uniform distribution)
-    /// 1.0 = maximum specialization (all weight in one dimension)
-    /// Healthy specialists: 0.5–0.7
-    pub fn specialization_index(&self) -> f64 {
-        let h: f64 = self.strategy
-            .iter()
-            .copied()
-            .filter(|&s| s > 1e-10)
-            .map(|s| -s * s.ln())
-            .sum();
-        let h_max = (STRATEGY_DIMS as f64).ln();
-        if h_max == 0.0 { 0.0 } else { 1.0 - h / h_max }
-    }
-
-    /// Return the dominant strategy dimension (highest weight) and its label.
-    pub fn dominant_role(&self) -> (usize, &'static str) {
-        let idx = self.strategy
-            .iter()
-            .enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-            .map(|(i, _)| i)
-            .unwrap_or(0);
-        (idx, STRATEGY_LABELS[idx])
-    }
-}
-
-/// Box-Muller transform to sample from N(0,1).
-fn box_muller_sample() -> f64 {
-    use std::f64::consts::PI;
-    let u1: f64 = rand::random::<f64>().max(f64::EPSILON);
-    let u2: f64 = rand::random::<f64>();
-    (-2.0 * u1.ln()).sqrt() * (2.0 * PI * u2).cos()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn default_is_uniform() {
-        let state = MorphogeneticState::default();
-        let expected = 1.0 / STRATEGY_DIMS as f64;
-        for &s in &state.strategy {
-            assert!((s - expected).abs() < 1e-10);
-        }
-    }
-
-    #[test]
-    fn uniform_specialization_index_is_zero() {
-        let state = MorphogeneticState::default();
-        assert!(state.specialization_index() < 0.01);
-    }
-
-    #[test]
-    fn activation_reinforces_dimension() {
-        let mut state = MorphogeneticState::default();
-        let params = MorphogeneticParams { sigma_noise: 0.0, ..Default::default() };
-        // Attribute returns to dimension 2 (execution)
-        state.attribute_return(2, 5.0);
-        state.update(&params);
-        // Dimension 2 should now have more weight than others
-        let max_dim = state.strategy
-            .iter()
-            .enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-            .map(|(i, _)| i)
-            .unwrap();
-        assert_eq!(max_dim, 2);
-    }
-
-    #[test]
-    fn inhibition_suppresses_crowded_dimension() {
-        let mut state = MorphogeneticState::default();
-        let params = MorphogeneticParams { sigma_noise: 0.0, ..Default::default() };
-        // Simulate collective pheromone on dimension 2
-        state.collective_pheromone[2] = 0.8;
-        state.collective_size = 5;
-        state.update(&params);
-        // Dimension 2 should lose weight due to inhibition
-        let min_dim = state.strategy
-            .iter()
-            .enumerate()
-            .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-            .map(|(i, _)| i)
-            .unwrap();
-        assert_eq!(min_dim, 2);
-    }
-}
-```
+> Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
 ### 13.5 Integration Wiring
 

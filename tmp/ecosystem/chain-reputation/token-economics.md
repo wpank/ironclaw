@@ -2,7 +2,7 @@
 
 [Back to overview](./README.md)
 
-This design can use a KORAI-style token for rewards, stake, and marketplace settlement, but IronClaw should not depend on a new token for the first implementation slice. Start with accounting interfaces that can later be backed by NEAR, a NEP-141 token, or a hosted payment facilitator.
+This design can use an application token for rewards, stake, and marketplace settlement, but IronClaw should not depend on a new token for the first implementation slice. Start with accounting interfaces that can later be backed by native NEAR, a NEP-141 token, or a hosted payment adapter.
 
 ## Token Policy
 
@@ -24,7 +24,7 @@ Demurrage is a holding cost applied to idle balances:
 effective_balance = stored_balance * (1 - annual_rate)^(elapsed / seconds_per_year)
 ```
 
-The captured policy uses a 1% annual rate. Treat that as an economic experiment, not a guarantee that circulation improves. Validate against simulated holder behavior and actual marketplace volume before enabling it for real funds.
+An example policy might use a low annual rate such as 1%. Treat any demurrage rate as an economic experiment, not a guarantee that circulation improves. Validate against simulated holder behavior and actual marketplace volume before enabling it for real funds.
 
 ```rust
 pub fn effective_balance(stored: u128, elapsed_secs: u64, annual_rate_bps: u32) -> u128 {
@@ -103,7 +103,7 @@ pub struct PaymentProof {
 }
 ```
 
-On EVM, ERC-3009-style authorizations are a natural fit. On NEAR, use NEAR-native primitives instead: function-call access keys with strict allowance, NEP-141 `ft_transfer_call`, signed intents if available, or a facilitator service that settles and returns a verifiable receipt. Do not copy EVM payment assumptions into NEAR without a protocol-specific threat model.
+On EVM, ERC-3009-style authorizations are one reference pattern. On NEAR, use NEAR-native primitives instead: function-call access keys with strict allowance, NEP-141 `ft_transfer_call`, signed intents if available, or a payment adapter that settles and returns a verifiable receipt. Do not copy EVM payment assumptions into NEAR without a protocol-specific threat model.
 
 ## Verification Rules
 
@@ -114,7 +114,7 @@ Before serving paid work, verify:
 - amount and asset match,
 - recipient matches,
 - payer is authorized for the request,
-- signature, transaction, or facilitator receipt is valid,
+- signature, transaction, or adapter receipt is valid,
 - the quote is bound to the endpoint, method, and request hash.
 
 Nonce storage must be durable enough to prevent replay across process restarts.
