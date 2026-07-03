@@ -18,9 +18,9 @@ graph TD
         ENC["HdcEncodable trait\nencoder.rs"]
     end
 
-    subgraph MEMORY["Memory Layer\ncrates/ironclaw_memory/"]
-        MW["memory_write\n+ hdc_fingerprint column"]
-        MS["memory_search\n+ HDC as third RRF signal"]
+    subgraph MEMORY["Workspace Memory\nsrc/workspace/ + repository"]
+        MW["memory_write\n+ metadata/DB-trait fingerprint"]
+        MS["memory_search\n+ shadow-mode HDC signal"]
     end
 
     subgraph SKILLS["Skills Layer\ncrates/ironclaw_skills/"]
@@ -61,7 +61,7 @@ graph TD
     style WORKSPACE fill:#f8f8e8,stroke:#f39c12
 ```
 
-The integration is **purely additive** at every phase. Existing functionality is never modified, only extended. Each phase can be reviewed and merged independently.
+The integration should be staged behind feature flags and reviewed at the actual call sites it changes. The first useful milestone is a shadow-mode HDC signal that records fingerprints and retrieval scores without changing user-visible search ranking.
 
 ---
 
@@ -421,26 +421,26 @@ pub fn extract_role(composite: &HdcVector, role: &str) -> HdcVector {
 
 ---
 
-## Phase 2 — Week 2: Memory Schema + Write Path
+## Phase 2 — Week 2: Memory Metadata + Write Path
 
-**Goal**: Add `hdc_fingerprint` column to the memory documents table and compute fingerprints on every `memory_write`. No search integration yet — pure data collection.
+**Goal**: compute an HDC fingerprint for each `MemoryDocument` write and store it without changing retrieval behavior. Prefer a metadata overlay first (`metadata.hdc`) unless the benchmark shows the query path needs a first-class column. Any schema change must be added through the shared DB trait and implemented for both PostgreSQL and libSQL.
 
 ### Migration SQL
 
 ```sql
 -- PostgreSQL
-ALTER TABLE documents ADD COLUMN IF NOT EXISTS hdc_fingerprint BYTEA;
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_documents_hdc_fingerprint
-    ON documents (id) WHERE hdc_fingerprint IS NOT NULL;
+ALTER TABLE memory_documents ADD COLUMN IF NOT EXISTS hdc_fingerprint BYTEA;
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_memory_documents_hdc_fingerprint
+    ON memory_documents (id) WHERE hdc_fingerprint IS NOT NULL;
 
 -- libSQL / SQLite
-ALTER TABLE documents ADD COLUMN hdc_fingerprint BLOB;
+ALTER TABLE memory_documents ADD COLUMN hdc_fingerprint BLOB;
 ```
 
 ### Write Path Change
 
 ```rust
-// In crates/ironclaw_memory/src/store.rs
+// Proposed helper behind the workspace memory write path.
 use ironclaw_hdc::{text_hv, role_hv, HdcVector};
 
 fn compute_document_fingerprint(
@@ -471,22 +471,22 @@ fn compute_document_fingerprint(
 ### Backfill Job
 
 ```rust
-/// Backfill HDC fingerprints for all existing documents that lack one.
-/// Safe to run while the system is live — uses a cursor-based approach.
+/// Backfill HDC fingerprints for existing memory documents that lack one.
+/// This must call typed repository/DB-trait methods, not raw backend-specific SQL.
 pub async fn backfill_hdc_fingerprints(
-    db: &dyn Database,
+    repo: &dyn MemoryDocumentRepository,
     batch_size: usize,
 ) -> anyhow::Result<u64> {
     let mut cursor: Option<uuid::Uuid> = None;
     let mut total = 0u64;
 
     loop {
-        let rows = db.fetch_documents_without_fingerprint(cursor, batch_size).await?;
+        let rows = repo.list_without_hdc_fingerprint(cursor, batch_size).await?;
         if rows.is_empty() { break; }
 
         for row in &rows {
             let fp = compute_document_fingerprint(&row.content, &row.tags, row.path.as_deref());
-            db.update_document_fingerprint(row.id, &fp).await?;
+            repo.update_hdc_fingerprint(row.id, &fp).await?;
             total += 1;
         }
 
@@ -499,13 +499,13 @@ pub async fn backfill_hdc_fingerprints(
 }
 ```
 
-**Validation gate (Phase 2)**: All existing tests pass. New documents have non-null `hdc_fingerprint`. Backfill completes without errors on a test corpus of 10K documents.
+**Validation gate (Phase 2)**: all existing memory tests pass; new writes preserve file-like path/content/metadata semantics; PostgreSQL and libSQL implementations behave identically; backfill completes on a 10K-document fixture; chunk metadata and version hashes remain unchanged.
 
 ---
 
 ## Phase 3 — Week 3: Search Fusion (HDC as Third RRF Signal)
 
-**Goal**: Add HDC similarity as an optional third signal in `fuse_results`. Feature-gated behind the `HDC_SEARCH_ENABLED` environment variable (default: `false`).
+**Goal**: add HDC similarity as an optional third signal to the existing hybrid memory search contract (`MemorySearchRequest` -> `MemorySearchResult`). Keep it disabled by default and run it in shadow mode before it can affect ranking.
 
 ### Config Addition
 
@@ -544,7 +544,8 @@ impl HdcConfig {
 ### Search Fusion
 
 ```rust
-// In crates/ironclaw_memory/src/search.rs
+// Proposed search helper. Wire through the existing repository/search facade,
+// not a parallel memory service.
 use ironclaw_hdc::{HdcVector, text_hv};
 
 /// HDC similarity search over stored fingerprints.
@@ -792,7 +793,7 @@ impl HeartbeatNoveltyFilter {
 ### Deduplication Guard in memory_write
 
 ```rust
-// In crates/ironclaw_memory/src/store.rs
+// In the workspace memory write path.
 pub enum DedupResult {
     Novel,
     Similar { existing_id: uuid::Uuid, similarity: f32 },
@@ -840,18 +841,19 @@ pub async fn check_before_write(
 
 | Week | Phase | Deliverable | Validation |
 |---|---|---|---|
-| 1 | Core crate | `crates/ironclaw_hdc/` — all types, unit tests, criterion benchmarks | All tests pass; similarity < 15 ns |
-| 2 | Schema + write | `hdc_fingerprint` column; compute on write; backfill job | Integration tests pass; all new docs have fingerprints |
-| 3 | Search fusion | HDC as third RRF signal; `HDC_SEARCH_ENABLED` flag | A/B shows no regression vs baseline |
+| 1 | Core crate/module | HDC vector operations, unit tests, criterion benchmarks | All tests pass; benchmark captured as local baseline |
+| 2 | Metadata + write | Fingerprint on memory writes; metadata overlay or DB-trait-backed column; backfill job | Dual-backend tests pass; chunk metadata and existing hashes unchanged |
+| 3 | Search fusion | Shadow-mode HDC as third RRF signal; `HDC_SEARCH_ENABLED` flag | Caller-level search tests and A/B show no regression vs baseline |
 | 4 | Skill matching | `SkillHdcIndex` at startup; scoring boost | Manual test: relevant skills surface for 10 test messages |
 | 5 | Tool selection | `ToolHdcIndex`; `suggest(intent)` API | Manual test: correct tools surface for 5 intent strings |
 | 6 | Novelty + dedup | Heartbeat filter; dedup guard in `memory_write` | FP rate test; dedup catches known-duplicate test cases |
 
 ## Risk Register
 
-- **Zero risk to existing functionality**: every change is additive (new column, new crate, new flag). Existing code paths are unmodified.
+- **Ranking regression**: any change that affects `memory_search` can reduce answer quality. Keep HDC in shadow mode until caller-level retrieval tests and recorded fixtures show no regression.
+- **DB parity**: schema or repository changes must support PostgreSQL and libSQL and preserve config/reload behavior.
 - **Memory overhead** (Phase 2+): 1,280 bytes per memory entry × N entries. For 100K entries = 125 MB additional memory if all fingerprints are loaded. Mitigate with cursor-based loading or mmap.
-- **Scan latency** (Phase 3): brute-force HDC scan of 100K entries takes ~1.3 ms. Acceptable as a background signal. If corpus grows past 500K, add a tiered filter (see [benchmarking.md](./benchmarking.md)).
+- **Scan latency** (Phase 3): brute-force HDC search is O(N) over fixed-width fingerprints. Use the captured ~1.3 ms / 100K result only as a benchmark target; if local measurements miss it, add a candidate filter before HDC scoring.
 - **False merges** (Phase 6): the 0.70 deduplication threshold is conservative. Confirm empirically before enabling by default; start with `DedupResult::Similar` being advisory only.
 
 ---

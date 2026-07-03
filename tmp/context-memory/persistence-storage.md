@@ -1,6 +1,6 @@
 # Roko Persistence and Storage Layer
 
-**Source crate**: `roko-fs` (`https://github.com/wpank/roko/blob/main/crates/roko-fs/`)
+**Source crate**: `roko-fs` (``crates/roko-fs/``)
 
 > **Companion documents**: [universal-engram.md](../core-concepts/universal-engram.md) (Engram struct, decay, content hashing), [budget-composition.md](budget-composition.md) (cache-aware prompt assembly that reads stored Engrams), [code-intelligence.md](code-intelligence.md) (hybrid search layer that writes Engrams), [schemas/02-storage-and-migrations.md](../implementation/schemas/02-storage-and-migrations.md) (backend migrations), [schemas/04-canonical-event-and-persistence-contract.md](../implementation/schemas/04-canonical-event-and-persistence-contract.md) (persistent event shapes).
 
@@ -35,7 +35,7 @@
 
 ### 1.1 The Case Against Mutable Storage
 
-Traditional databases assume data is mutable — rows are updated, deleted, replaced. For an AI agent, this assumption is wrong. An agent's most valuable asset is its full history: every decision, tool call, observation, and intermediate reasoning step. Mutating or deleting that history destroys the audit trail that makes the agent debuggable, explainable, and trustworthy.
+Traditional databases optimize for mutable rows, indexes, and transactions. An agent also needs an audit trail: decisions, tool calls, observations, and intermediate results must remain explainable after the fact. Append-only storage is one way to preserve that history; it is a tradeoff, not a replacement for IronClaw's database-backed persistence.
 
 Roko uses **append-only JSONL** (JSON Lines) files — one JSON object per line, appended sequentially, never overwritten. This draws on a long tradition in systems engineering:
 
@@ -48,18 +48,18 @@ Roko's JSONL approach is a simplification of all three: the log *is* the data, t
 
 ### 1.2 Properties of Append-Only JSONL
 
-**Crash safety by construction.** An append-only write either completes (the line is there) or it does not (the last line is partial). On restart, the system replays the log and skips any partial trailing line — no WAL, no transaction journal.
+**Simple replay and recovery.** An append-only write either completes (the line is there) or leaves a partial trailing line that can be skipped on replay. Stronger durability still requires `fsync`/`sync_data` and clear truncation rules after partial writes.
 
 **Human readability.** A JSONL file can be inspected with `cat`, filtered with `grep`, parsed with `jq`, diffed with `diff`. This is a key differentiator from binary formats like LevelDB's SST files or SQLite's B-tree pages.
 
-**Immutability as an audit guarantee.** Because records are never overwritten, the on-disk file is an authoritative, tamper-evident history. Lineage DAGs can always be traversed back to their roots.
+**Immutability as an audit aid.** Because records are never overwritten, the file is easier to inspect and replay. Tamper evidence requires hash chaining or signed checkpoints; append-only layout alone is not enough.
 
-**Trivial replication.** Appending to a file is the simplest possible write pattern, making streaming, backup, or live tailing trivial.
+**Simple streaming.** Appending to a file makes backup or live tailing straightforward, but replication still needs ordering, checkpoint, retention, and failure handling.
 
 The crate documentation states this rationale:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-fs/src/lib.rs, lines 1-19
+// Source: `crates/roko-fs/src/lib.rs`, lines 1-19
 
 //! Filesystem-backed Store trait implementation.
 //!
@@ -101,7 +101,7 @@ Example from `.roko/tool_audit.jsonl`:
 
 ## 2. The Store Trait — The Kernel Storage Contract
 
-Everything in roko flows through the `Store` trait. Full definition from [`crates/roko-core/src/traits.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/traits.rs), lines 37-80:
+Everything in roko flows through the `Store` trait. Full definition from `crates/roko-core/src/traits.rs`, lines 37-80:
 
 ```rust
 #[async_trait]
@@ -165,7 +165,7 @@ PointerStore            — large payload offloading
 
 ## 3. The Engram — What Gets Stored
 
-The universal datum in roko is the **Engram** — a content-addressed, scored, decaying, lineage-tracked record. Every event, tool call, agent output, gate verdict, episode, and knowledge entry is an Engram. Full details on the Engram type — its seven scoring axes, `Decay` variants, and `ContentHash` computation — are in [universal-engram.md](../core-concepts/universal-engram.md). The struct definition from [`crates/roko-core/src/engram.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/engram.rs), lines 62-98:
+The universal datum in roko is the **Engram** — a content-addressed, scored, decaying, lineage-tracked record. Every event, tool call, agent output, gate verdict, episode, and knowledge entry is an Engram. Full details on the Engram type — its seven scoring axes, `Decay` variants, and `ContentHash` computation — are in [universal-engram.md](../core-concepts/universal-engram.md). The struct definition from `crates/roko-core/src/engram.rs`, lines 62-98:
 
 ```rust
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -229,7 +229,7 @@ BLAKE3 is used for all content addressing: 10-20x faster than SHA-256 on modern 
 
 ### 4.1 Structure and Initialization
 
-From [`crates/roko-fs/src/file_substrate.rs`](https://github.com/wpank/roko/blob/main/crates/roko-fs/src/file_substrate.rs), lines 23-33:
+From `crates/roko-fs/src/file_substrate.rs`, lines 23-33:
 
 ```rust
 pub struct FileSubstrate {
@@ -258,7 +258,7 @@ This mirrors the in-memory index + on-disk log design of LSM-tree based systems 
 ### 4.2 Opening and Replay
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-fs/src/file_substrate.rs, lines 45-67
+// Source: `crates/roko-fs/src/file_substrate.rs`, lines 45-67
 pub async fn open(root: impl Into<PathBuf>) -> Result<Self> {
     let root = root.into();
     fs::create_dir_all(&root).await?;
@@ -286,7 +286,7 @@ pub async fn open(root: impl Into<PathBuf>) -> Result<Self> {
 ### 4.3 The Crash Recovery Replay Function
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-fs/src/file_substrate.rs, lines 181-208
+// Source: `crates/roko-fs/src/file_substrate.rs`, lines 181-208
 async fn replay_log(log_path: &Path) -> Result<HashMap<ContentHash, Engram>> {
     let mut index = HashMap::new();
     if !log_path.exists() {
@@ -324,7 +324,7 @@ Critical crash-safety properties:
 ### 4.4 The Write Protocol
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-fs/src/file_substrate.rs, lines 270-292
+// Source: `crates/roko-fs/src/file_substrate.rs`, lines 270-292
 async fn put(&self, signal: Engram) -> Result<ContentHash> {
     // Dedupe: skip write if already present.
     if self.index.read().contains_key(&signal.id) {
@@ -351,7 +351,7 @@ Note: `flush()` without `fsync()` pushes data to the kernel page cache but does 
 ### 4.5 Batch Writes
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-fs/src/file_substrate.rs, lines 137-178
+// Source: `crates/roko-fs/src/file_substrate.rs`, lines 137-178
 pub async fn put_batch(&self, signals: Vec<Engram>) -> Result<Vec<ContentHash>> {
     let mut ids = Vec::with_capacity(signals.len());
     let mut lines = String::new();
@@ -402,7 +402,7 @@ The three-phase design minimizes lock contention: expensive JSON serialization h
 Queries run entirely against the in-memory index — zero disk I/O for reads:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-fs/src/file_substrate.rs, lines 298-315
+// Source: `crates/roko-fs/src/file_substrate.rs`, lines 298-315
 async fn query(&self, q: &Query, ctx: &Context) -> Result<Vec<Engram>> {
     let mut matching: Vec<Engram> = self
         .index.read().values()
@@ -419,12 +419,12 @@ async fn query(&self, q: &Query, ctx: &Context) -> Result<Vec<Engram>> {
 }
 ```
 
-Results are sorted by effective weight (highest first), applying the temporal decay factors from each engram's `Decay` variant. The budget-composition system (see [budget-composition.md](budget-composition.md)) receives these pre-sorted results and uses the weight scores as bid values in the VCG auction.
+Results are sorted by effective weight (highest first), applying the temporal decay factors from each engram's `Decay` variant. The budget-composition system (see [budget-composition.md](budget-composition.md)) receives these pre-sorted results and uses the weight scores as inputs to density allocation and diagnostics.
 
 ### 4.7 Pruning
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-fs/src/file_substrate.rs, lines 317-325
+// Source: `crates/roko-fs/src/file_substrate.rs`, lines 317-325
 async fn prune(&self, threshold: f32, ctx: &Context) -> Result<usize> {
     let mut index = self.index.write();
     let before = index.len();
@@ -445,7 +445,7 @@ Pruning removes decayed engrams from the in-memory index but does not rewrite th
 
 Used for: engrams, tool audit events, metrics, traces, bandit arm snapshots.
 
-On POSIX systems, `O_APPEND` atomically sets the file offset to the end of the file before each write. The kernel guarantees concurrent `O_APPEND` writes do not interleave at the byte level for writes smaller than `PIPE_BUF` (at least 4096 bytes on Linux). For larger writes, roko serializes through a mutex [6].
+On POSIX systems, `O_APPEND` atomically sets the file offset to the end of the file before each write. For regular files, concurrent append behavior still depends on filesystem and write size; serialize writers through a mutex when log records must remain intact.
 
 `flush()` without `fsync()` means data may remain in the kernel page cache and be lost on power failure (though not on process crash). The `MetricsLog` and `JsonlMetricsSink` sinks offer optional `fsync` via `sync_data()` for workloads requiring stronger durability.
 
@@ -454,7 +454,7 @@ On POSIX systems, `O_APPEND` atomically sets the file offset to the end of the f
 Used for: executor snapshots, orchestrator snapshots, run state, cascade router state, gate thresholds, bandit router state.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-fs/src/atomic.rs, lines 29-65
+// Source: `crates/roko-fs/src/atomic.rs`, lines 29-65
 pub fn atomic_write_bytes(path: &Path, data: &[u8]) -> io::Result<()> {
     if let Some(parent) = path.parent() {
         if !parent.as_os_str().is_empty() {
@@ -480,7 +480,7 @@ The temp file (e.g., `data.json.tmp`) is kept on the same filesystem as the targ
 `FileSubstrate::compact()` uses a stricter variant that calls `sync_all()` before rename:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-fs/src/file_substrate.rs, lines 88-119
+// Source: `crates/roko-fs/src/file_substrate.rs`, lines 88-119
 pub async fn compact(&self) -> Result<()> {
     let snapshot: Vec<Engram> = self.index.read().values().cloned().collect();
     let log_path = self.log_path();
@@ -515,7 +515,7 @@ The compaction protocol: (1) snapshot in-memory index, (2) write to temp file, (
 
 ## 6. The Directory Layout — `.roko/` Structure
 
-The `RokoLayout` struct (in [`crates/roko-fs/src/layout.rs`](https://github.com/wpank/roko/blob/main/crates/roko-fs/src/layout.rs)) provides a typed path catalog:
+The `RokoLayout` struct (in `crates/roko-fs/src/layout.rs`) provides a typed path catalog:
 
 ```text
 .roko/
@@ -574,7 +574,7 @@ Roko implements a two-tier storage architecture [12]. Active data stays in the f
 ### 7.1 The ColdStore Trait
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-core/src/traits.rs, lines 82-151
+// Source: `crates/roko-core/src/traits.rs`, lines 82-151
 #[async_trait]
 pub trait ColdStore: Send + Sync {
     async fn archive(&self, engram: Engram) -> Result<ContentHash>;
@@ -591,7 +591,7 @@ pub trait ColdStore: Send + Sync {
 ### 7.2 ArchiveColdSubstrate — Monthly JSONL Archives
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-fs/src/cold_substrate.rs, lines 1-49
+// Source: `crates/roko-fs/src/cold_substrate.rs`, lines 1-49
 pub struct ArchiveColdSubstrate {
     root: PathBuf,
     /// hash -> archive location
@@ -611,7 +611,7 @@ Archives are organized by month (`.roko/cold/2026-04.jsonl`). The in-memory inde
 ### 7.3 The SubstrateMigrator — Automated Hot-to-Cold Migration
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-fs/src/cold_substrate.rs, lines 301-340
+// Source: `crates/roko-fs/src/cold_substrate.rs`, lines 301-340
 pub struct SubstrateMigrator {
     pub weight_threshold: f32,  // default: 0.1
     pub max_age_ms: i64,        // default: 7 days
@@ -628,7 +628,7 @@ Migration flow: `Hot Store → query aged-out engrams → archive to ColdStore �
 ### 8.1 Retention Policy
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-fs/src/gc.rs, lines 31-55
+// Source: `crates/roko-fs/src/gc.rs`, lines 31-55
 pub struct RetentionPolicy {
     pub max_episodes: usize,          // default: 200
     pub max_run_age_days: u32,        // default: 7
@@ -640,7 +640,7 @@ pub struct RetentionPolicy {
 
 ### 8.2 GC Safety Invariants
 
-From the module documentation ([`crates/roko-fs/src/gc.rs`](https://github.com/wpank/roko/blob/main/crates/roko-fs/src/gc.rs), lines 20-24):
+From the module documentation (`crates/roko-fs/src/gc.rs`, lines 20-24):
 
 ```
 - Never touches config/    -- user configuration is sacred.
@@ -674,7 +674,7 @@ Beyond the main engram store, `roko-fs` provides purpose-built JSONL sinks optim
 ### 9.1 ToolAuditLog
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-fs/src/tool_audit.rs, lines 52-55
+// Source: `crates/roko-fs/src/tool_audit.rs`, lines 52-55
 pub struct ToolAuditLog {
     path: PathBuf,
     writer: Mutex<BufWriter<tokio::fs::File>>,
@@ -686,7 +686,7 @@ Records every tool call admission and result as tagged JSONL. The `kind` discrim
 ### 9.2 JsonlTraceSink
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-fs/src/trace_sink.rs, lines 54-59
+// Source: `crates/roko-fs/src/trace_sink.rs`, lines 54-59
 pub struct JsonlTraceSink {
     root: PathBuf,
     inner: Arc<Mutex<Inner>>,
@@ -699,7 +699,7 @@ Organizes traces into daily directories with one file per trace (`.roko/traces/2
 ### 9.3 MetricsLog
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-fs/src/metrics.rs, lines 33-36
+// Source: `crates/roko-fs/src/metrics.rs`, lines 33-36
 pub struct MetricsLog {
     path: PathBuf,
     fsync: bool,
@@ -711,7 +711,7 @@ Optional `sync_data()` after each append: default on, `without_fsync()` availabl
 ### 9.4 JsonlMetricsSink
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-fs/src/tool_metrics_sink.rs, lines 54-58
+// Source: `crates/roko-fs/src/tool_metrics_sink.rs`, lines 54-58
 pub struct JsonlMetricsSink {
     path: PathBuf,
     fsync: bool,
@@ -734,7 +734,7 @@ Stores large tool-result payloads (above 4 KiB by default) on disk and reference
 ## 10. The Archiver — Compressing Old Data Into Summaries
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-fs/src/archive.rs, lines 22-61
+// Source: `crates/roko-fs/src/archive.rs`, lines 22-61
 pub struct ArchiveEntry {
     pub kind: ArchiveKind,
     pub date: NaiveDate,
@@ -789,7 +789,7 @@ When both snapshot and event log are available:
 ## 12. The Observability Layer
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-fs/src/observability.rs, lines 18-23
+// Source: `crates/roko-fs/src/observability.rs`, lines 18-23
 pub struct FsObservabilitySinks {
     pub trace_sink: Arc<JsonlTraceSink>,
     pub metrics_sink: Arc<JsonlMetricsSink>,
@@ -1109,7 +1109,7 @@ impl ToolAuditLog {
 }
 ```
 
-This provides a tamper-evident audit trail separate from the mutable `job_actions` table. Operators can `tail -f ~/.ironclaw/audit/tool_audit.jsonl` for live debugging.
+This provides an append-only operational audit trail separate from the mutable `job_actions` table. It becomes tamper-evident only if paired with hash chaining, signed checkpoints, or external log shipping. Operators can `tail -f` the configured audit path for live debugging.
 
 ### 16.2 GC Policies for Different Workloads
 
@@ -1228,7 +1228,7 @@ Default k=60. Two fusion strategies: `Rrf` (default) and `WeightedScore`. Docume
 
 **2. Hot/cold tiering for workspace memory.** IronClaw's workspace accumulates `memory_chunks` rows over time. For the libSQL backend (a single SQLite file), unbounded growth degrades both FTS5 and vector index performance. A cold tier could archive low-relevance old chunks while keeping them retrievable.
 
-**3. Append-only audit logs for tool dispatches.** IronClaw routes all actions through `ToolDispatcher::dispatch()` and records `ActionRecord`s in `job_actions`. A complementary append-only JSONL audit log would provide a tamper-evident trail separate from the mutable DB and `tail -f` observability.
+**3. Append-only audit logs for tool dispatches.** IronClaw routes all actions through `ToolDispatcher::dispatch()` and records `ActionRecord`s in `job_actions`. A complementary append-only JSONL audit log would improve live observability; tamper evidence requires hash chaining, signed checkpoints, or external log shipping.
 
 **4. Content-addressed deduplication for workspace chunks.** Roko's `ContentHash` makes `put()` idempotent. IronClaw's `memory_write` uses path-based addressing, and `content_sha256()` already exists in `src/workspace/document.rs`. Applying it at the chunk level would prevent duplicate chunks when the same content is written to different paths.
 
@@ -1433,7 +1433,7 @@ pub fn temporal_decay_factor(
     half_life_days: f64,
 ) -> f32 {
     let age_days = (now - created_at).num_seconds() as f64 / 86400.0;
-    f64::powi(2.0_f64, (-age_days / half_life_days) as i32) as f32
+    2.0_f64.powf(-age_days / half_life_days) as f32
 }
 
 // Integration: multiply the RRF score by temporal_decay_factor() when
@@ -1508,6 +1508,6 @@ Any new persistence operation under this plan must preserve PostgreSQL/libSQL pa
 
 ---
 
-**Source root**: `https://github.com/wpank/roko/blob/main/`
-**Module map**: [`crates/roko-fs/src/`](https://github.com/wpank/roko/blob/main/crates/roko-fs/src/) — `file_substrate.rs`, `cold_substrate.rs`, `gc.rs`, `archive.rs`, `atomic.rs`, `layout.rs`, `trace_sink.rs`, `tool_audit.rs`, `metrics.rs`, `tool_metrics_sink.rs`, `pointer.rs`, `bandit.rs`, `observability.rs`
+**Source root**: ````
+**Module map**: `crates/roko-fs/src` — `file_substrate.rs`, `cold_substrate.rs`, `gc.rs`, `archive.rs`, `atomic.rs`, `layout.rs`, `trace_sink.rs`, `tool_audit.rs`, `metrics.rs`, `tool_metrics_sink.rs`, `pointer.rs`, `bandit.rs`, `observability.rs`
 **Last updated**: 2026-07-03

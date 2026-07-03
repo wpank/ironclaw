@@ -2,12 +2,10 @@
 
 **Source provenance**: `roko-agent`, `roko-std`, `roko-core`
 **Priority**: HIGH -- foundational patterns for IronClaw's agent loop
-**GitHub source**: https://github.com/wpank/roko/blob/main/
 
-> **Self-contained document**: Code excerpts are taken verbatim from verified roko source
-> captures. IronClaw-native build guidance references `src/agent/` directly.
-> All `/Users/will/dev/nunchi/roko/...` paths have been replaced with canonical
-> GitHub URLs at `https://github.com/wpank/roko/blob/main/...`.
+> **Self-contained document**: Code excerpts are reproduced from captured source
+> identifiers for provenance. IronClaw-native build guidance references
+> `src/agent/` directly and does not require a Roko checkout.
 
 **Cross-references:**
 - [README.md](README.md) — data flow diagram and boundary table clarifying the relationship between this document's routing (Pattern 9: agent-branch selection via `SkillSelector`) and online-learning's model routing (LinUCB bandit)
@@ -171,7 +169,7 @@ classDiagram
     HarnessAdapter <|.. ClaudeCliAdapter
 ```
 
-### Source: [`roko-agent/src/agent.rs`](https://github.com/wpank/roko/blob/main/roko-agent/src/agent.rs)
+### Source: `roko-agent/src/agent.rs`
 
 ```rust
 /// An agent: an async executor that takes an input signal (typically a prompt)
@@ -344,7 +342,7 @@ classDiagram
     Translator --> BackendResponse
 ```
 
-### Source: [`roko-agent/src/translate/mod.rs`](https://github.com/wpank/roko/blob/main/roko-agent/src/translate/mod.rs)
+### Source: `roko-agent/src/translate/mod.rs`
 
 ```rust
 /// Bidirectional bridge between canonical tools and a backend's wire format.
@@ -409,12 +407,12 @@ pub enum BackendResponse {
 
 | Translator | File | Wire format | Tool delivery | Result format |
 |-----------|------|-------------|---------------|---------------|
-| `OpenAiTranslator` | [`translate/openai.rs`](https://github.com/wpank/roko/blob/main/roko-agent/src/translate/openai.rs) | OpenAI JSON | `JsonArray` | `JsonMessages` |
-| `StrictOpenAiTranslator` | [`translate/openai.rs`](https://github.com/wpank/roko/blob/main/roko-agent/src/translate/openai.rs) | Strict-mode OpenAI JSON | `JsonArray` | `JsonMessages` |
-| `ClaudeTranslator` | [`translate/claude.rs`](https://github.com/wpank/roko/blob/main/roko-agent/src/translate/claude.rs) | Claude CLI stream-json | `CliFlag` | `HandledByBackend` |
-| `OllamaTranslator` | [`translate/ollama.rs`](https://github.com/wpank/roko/blob/main/roko-agent/src/translate/ollama.rs) | Ollama `/api/chat` | `JsonArray` | `JsonMessages` |
-| `GeminiTranslator` | [`translate/gemini.rs`](https://github.com/wpank/roko/blob/main/roko-agent/src/translate/gemini.rs) | Gemini `functionDeclarations` | `JsonArray` | `JsonMessages` |
-| `ReActTranslator` | [`translate/react.rs`](https://github.com/wpank/roko/blob/main/roko-agent/src/translate/react.rs) | Text-level ReAct markers | `SystemPromptBlock` | `TextBlock` |
+| `OpenAiTranslator` | `roko-agent/src/translate/openai.rs` | OpenAI JSON | `JsonArray` | `JsonMessages` |
+| `StrictOpenAiTranslator` | `roko-agent/src/translate/openai.rs` | Strict-mode OpenAI JSON | `JsonArray` | `JsonMessages` |
+| `ClaudeTranslator` | `roko-agent/src/translate/claude.rs` | Claude CLI stream-json | `CliFlag` | `HandledByBackend` |
+| `OllamaTranslator` | `roko-agent/src/translate/ollama.rs` | Ollama `/api/chat` | `JsonArray` | `JsonMessages` |
+| `GeminiTranslator` | `roko-agent/src/translate/gemini.rs` | Gemini `functionDeclarations` | `JsonArray` | `JsonMessages` |
+| `ReActTranslator` | `roko-agent/src/translate/react.rs` | Text-level ReAct markers | `SystemPromptBlock` | `TextBlock` |
 
 ### Practical example: adapting between Claude, OpenAI, and Ollama backends
 
@@ -560,7 +558,7 @@ stateDiagram-v2
     Complete --> [*]
 ```
 
-### Source: [`roko-agent/src/streaming.rs`](https://github.com/wpank/roko/blob/main/roko-agent/src/streaming.rs)
+### Source: `roko-agent/src/streaming.rs`
 
 #### The stream chunk vocabulary
 
@@ -764,7 +762,7 @@ flowchart TD
     style K fill:#add8e6
 ```
 
-### Source: [`roko-agent/src/tool_loop/checkpoint.rs`](https://github.com/wpank/roko/blob/main/roko-agent/src/tool_loop/checkpoint.rs)
+### Source: `roko-agent/src/tool_loop/checkpoint.rs`
 
 ```rust
 /// Serializable snapshot of a ToolLoop mid-execution.
@@ -971,7 +969,7 @@ flowchart TD
     style Z fill:#d4edda
 ```
 
-### Source: [`roko-agent/src/introspection.rs`](https://github.com/wpank/roko/blob/main/roko-agent/src/introspection.rs)
+### Source: `roko-agent/src/introspection.rs`
 
 ```rust
 /// A single tool / reasoning turn observed by the metacognitive monitor.
@@ -1271,7 +1269,7 @@ flowchart TD
     style M fill:#d4edda
 ```
 
-### Source: [`roko-agent/src/harness/mod.rs`](https://github.com/wpank/roko/blob/main/roko-agent/src/harness/mod.rs) and [`roko-agent/src/harness/capability.rs`](https://github.com/wpank/roko/blob/main/roko-agent/src/harness/capability.rs)
+### Source: `roko-agent/src/harness/mod.rs` and `roko-agent/src/harness/capability.rs`
 
 #### The HarnessAdapter trait
 
@@ -1393,7 +1391,7 @@ multiplication -- to combine independent scoring functions [Wadler 1992]:
 - **Multiply** (`*`): scales each dimension independently. Use when each scorer
   acts as a gate -- a zero in any dimension zeros the whole score.
 
-### Source: [`roko-std/src/scorer.rs`](https://github.com/wpank/roko/blob/main/roko-std/src/scorer.rs)
+### Source: `roko-std/src/scorer.rs`
 
 ```rust
 use roko_core::traits::Score as ScoreFn;
@@ -1492,7 +1490,7 @@ The `TaskRunner` is the composition point for the task execution pipeline. It
 owns the agent and its support infrastructure as a single unit, ensuring every
 task iteration passes through the same pipeline of checks and accounting.
 
-### Source: [`roko-agent/src/task_runner.rs`](https://github.com/wpank/roko/blob/main/roko-agent/src/task_runner.rs)
+### Source: `roko-agent/src/task_runner.rs`
 
 ```rust
 pub struct TaskRunner {
@@ -1708,7 +1706,7 @@ Attempt 1: jitter range [1000, 4000] ms
 Attempt 2: jitter range [1000, 8000] ms
 No attempt 3 (max_attempts = 3 for rate limits)
 
-### Source: [`roko-agent/src/retry.rs`](https://github.com/wpank/roko/blob/main/roko-agent/src/retry.rs)
+### Source: `roko-agent/src/retry.rs`
 
 #### Error classification
 
@@ -1877,7 +1875,7 @@ any `Agent` (including composed agents) can be used as a component in any operat
 This follows the composite design pattern [Gamma et al. 1995] and draws on
 mixture-of-agents research [Wang et al. 2024].
 
-### Source: [`roko-agent/src/composition.rs`](https://github.com/wpank/roko/blob/main/roko-agent/src/composition.rs)
+### Source: `roko-agent/src/composition.rs`
 
 #### Merge strategies
 
@@ -2098,7 +2096,7 @@ enforces those conditions at resume time. This follows a "fail-closed" philosoph
 BLAKE3 was chosen for its speed (over 3x faster than SHA-256 on modern hardware)
 and its security properties [Aumasson et al. 2020].
 
-### Source: [`roko-agent/src/session.rs`](https://github.com/wpank/roko/blob/main/roko-agent/src/session.rs)
+### Source: `roko-agent/src/session.rs`
 
 #### Reuse scope hierarchy
 
@@ -2396,36 +2394,24 @@ when the user enables offline mode.
 
 ```rust
 // In crates/ironclaw_llm/src/translator.rs (proposed)
-pub fn select_translator(provider: &LlmProvider) -> Box<dyn Translator> {
-    match provider {
-        LlmProvider::Anthropic { .. } => Box::new(ClaudeTranslator),
-        LlmProvider::OpenAI { .. } => Box::new(OpenAiTranslator),
-        LlmProvider::Ollama { model, .. } => {
-            // Ollama models vary in function calling support
-            if supports_native_tools(model) {
-                Box::new(OllamaTranslator)
-            } else {
-                // Older Ollama models use ReAct fallback
-                Box::new(ReActTranslator)
-            }
-        }
-        LlmProvider::NearAI { .. } => Box::new(OpenAiTranslator), // compatible
-        LlmProvider::Bedrock { model_id, .. } => {
-            if model_id.contains("claude") {
-                Box::new(ClaudeTranslator)
-            } else {
-                Box::new(OpenAiTranslator)
-            }
-        }
+pub fn select_translator(metadata: &ProviderMetadata) -> Box<dyn Translator> {
+    match metadata.protocol {
+        ProviderProtocol::Anthropic => Box::new(ClaudeTranslator),
+        ProviderProtocol::OpenAiCompatible => Box::new(OpenAiTranslator),
+        ProviderProtocol::Ollama if metadata.supports_native_tools => Box::new(OllamaTranslator),
+        ProviderProtocol::Ollama => Box::new(ReActTranslator),
+        ProviderProtocol::BedrockClaude => Box::new(ClaudeTranslator),
+        ProviderProtocol::BedrockGeneric => Box::new(OpenAiTranslator),
     }
 }
 ```
 
 ### Detecting and breaking out of stuck loops
 
-A common failure mode in IronClaw's `self_repair.rs`: a job that repeatedly tries
-the same failing approach. The metacognitive monitor catches this earlier than
-the existing stuck threshold:
+A common failure mode in `self_repair.rs` is a job repeatedly trying the same
+failing approach. IronClaw already has duplicate failing tool-call tracking; the
+metacognitive monitor should extend and document that path rather than create a
+parallel detector:
 
 ```rust
 // Proposed enhancement to src/agent/self_repair.rs
@@ -2726,8 +2712,7 @@ observability dashboards, and the graduated budget response pattern).
 
 #### P3 (Priority 3): Metacognitive repetition detection -> `src/agent/self_repair.rs`
 
-**Current state**: `DefaultSelfRepair` detects stuck jobs via time threshold
-(`detect_stuck_jobs` in `self_repair.rs`) but does not fingerprint tool calls.
+**Current state**: `DefaultSelfRepair` detects stuck jobs and the runtime already tracks duplicate failing tool calls. The missing piece is a documented, caller-tested path that exposes those fingerprints to the metacognitive monitor.
 
 **Proposed change**: Add tool-call fingerprinting to the dispatcher's loop and
 feed it to an extended `SelfRepair` trait:

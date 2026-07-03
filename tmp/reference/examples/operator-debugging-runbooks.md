@@ -2,6 +2,8 @@
 
 Each runbook follows:
 
+Pseudocode format for each runbook:
+
 ```text
 symptom -> inspect -> likely cause -> recovery -> regression test
 ```
@@ -30,14 +32,15 @@ Likely causes:
 
 Recovery:
 
-1. Set `experimental.provider_conductor.mode = "observe"`.
+1. Set the provider conductor to observe mode. Adaptation sketch config key:
+   `experimental.provider_conductor.mode = "observe"`.
 2. Keep the existing reactive circuit breaker enabled.
 3. Pin affected request class to the known-good provider if needed.
 4. Preserve health metrics for postmortem.
 
 Regression test:
 
-- Replay `benchmarking/scenarios/provider-degradation.yaml`.
+- Replay [`tmp/implementation/benchmarking/scenarios/provider-degradation.yaml`](../../implementation/benchmarking/scenarios/provider-degradation.yaml).
 - Assert routing bias changes only after forecast threshold and does not
   oscillate more than once.
 
@@ -74,6 +77,8 @@ Recovery:
 Regression test:
 
 - Drive the real code-generation caller with a known valid change.
+- Use [`tmp/implementation/benchmarking/scenarios/gate-pipeline.yaml`](../../implementation/benchmarking/scenarios/gate-pipeline.yaml)
+  for the webhook-signature defect case.
 - Assert false-block rate stays below 5%.
 
 ## 3. Memory Pollution Or Duplicate Recall
@@ -101,14 +106,15 @@ Likely causes:
 
 Recovery:
 
-1. Set `experimental.signal_records.dedupe_mode = "observe"`.
+1. Set dedupe to observe mode. Adaptation sketch config key:
+   `experimental.signal_records.dedupe_mode = "observe"`.
 2. Filter low-confidence derived memories from retrieval.
 3. Rebuild duplicate candidate links.
 4. Review top offending memories and add regression fixtures.
 
 Regression test:
 
-- Replay `benchmarking/scenarios/memory-dedup.yaml`.
+- Replay [`tmp/implementation/benchmarking/scenarios/memory-dedup.yaml`](../../implementation/benchmarking/scenarios/memory-dedup.yaml).
 - Assert top-5 relevance stays above threshold with one canonical answer.
 
 ## 4. SSE/WebSocket Reconnect Debugging
@@ -170,12 +176,14 @@ Likely causes:
 
 Recovery:
 
-1. Disable scheduled dream jobs.
+1. Disable scheduled dream jobs through the owning runtime setting.
 2. Keep manual fixture runs available.
 3. Lower daily background budget.
 4. Filter low-confidence derived memories from retrieval.
 
 Regression test:
 
-- Replay a failing provider fixture and assert background spend stays below cap.
-
+- Replay [`tmp/implementation/benchmarking/scenarios/dream-consolidation.yaml`](../../implementation/benchmarking/scenarios/dream-consolidation.yaml)
+  with a failing-provider mock.
+- Assert background spend stays below cap and no sensitive data is retained in
+  artifacts.

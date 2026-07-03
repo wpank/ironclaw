@@ -1,290 +1,120 @@
-# On-Chain Smart Contract Architecture for AI Agent Infrastructure
+# NEAR Smart Contracts for IronClaw Agent Coordination
 
-> A complete reference for the Roko/IronClaw contract suite: EVM Solidity
-> contracts, the mirage-rs EVM simulator, the roko-chain-watcher event
-> pipeline, the Rust-side ChainClient abstraction, full NEAR smart contract
-> ports in near-sdk-rs, benchmarks, practical examples, and a deployable
-> implementation plan.
+Status: design notes and implementation targets. No production contract code is
+checked into this folder yet.
 
-**Source provenance**: The Roko contract corpus is available at
-[https://github.com/wpank/roko](https://github.com/wpank/roko). All
-file references below link to
-`https://github.com/wpank/roko/blob/main/<path>`.
+This folder describes a NEAR-native contract layer for agent identity,
+heartbeats, work escrow, reputation, and optional knowledge curation. The
+examples are meant to be practical starting points for `near-sdk-rs`, not a
+claim that the contracts already exist in the repository.
 
----
-
-## Documents in This Folder
+## Documents
 
 | Document | Contents |
 |----------|----------|
-| [solidity-contracts.md](./solidity-contracts.md) | All 13 Solidity contract interfaces and full implementations |
-| [evm-simulator.md](./evm-simulator.md) | mirage-rs EVM simulator, roko-chain-watcher, ChainClient Rust trait |
-| [near-contracts.md](./near-contracts.md) | Full NEAR smart contract ports in near-sdk-rs, practical examples |
-| [benchmarking.md](./benchmarking.md) | Gas costs, NEAR storage costs, throughput analysis, Solidity vs NEAR comparison |
-| [ironclaw-integration.md](./ironclaw-integration.md) | NEAR integration plan, deployment strategy, security notes |
-| [references.md](./references.md) | Academic and technical citations |
+| [near-contracts.md](./near-contracts.md) | NEAR contract surfaces, example snippets, invariants, and benchmark plan |
+| [ironclaw-integration.md](./ironclaw-integration.md) | How IronClaw would expose NEAR interactions through tools, config, secrets, and tests |
+| [references.md](./references.md) | NEAR, near-sdk, testing, RPC, and security references |
 
----
+## Scope
 
-## Foundational Concepts
+In scope:
 
-### What Are Smart Contracts?
+- NEAR-native Rust contracts using `near-sdk-rs`.
+- NEP-141 token flows for bonds, bounties, and payouts.
+- NEP-297 event logs for indexer-friendly contract activity.
+- `near-workspaces` tests for local sandbox simulation and gas/storage
+  measurements.
+- IronClaw integration through existing tools, config, secrets, and audit paths.
 
-Smart contracts are programs stored on a blockchain that execute automatically
-when predetermined conditions are met. Nick Szabo coined the term in 1994 [1],
-envisioning self-executing digital agreements embedded in code rather than
-natural language. The key properties that make smart contracts useful for
-multi-agent systems:
+Out of scope:
 
-**Immutability**: Once deployed, the contract bytecode cannot be changed
-(absent an upgrade proxy or the contract owner calling `selfdestruct`). All
-parties can verify the exact code that governs an interaction.
+- Non-NEAR deployment paths and unavailable source-tree path assumptions.
+- Mainnet deployment defaults before testnet contracts have measured costs and
+  failure modes.
+- Contracts that require unavailable local source files.
 
-**Transparency**: Every transaction, every state change, every emitted event
-is recorded on a public ledger and can be independently audited.
+## Why NEAR
 
-**Trustlessness**: Two parties who have never met and do not trust each other
-can interact through a contract, knowing that the code -- not the counterparty
--- enforces the rules. The escrow, the reputation update, and the payment
-settlement all happen atomically or not at all.
+NEAR gives agent contracts a named account model, low transaction cost,
+storage staking, and asynchronous cross-contract calls. Those properties are a
+good fit for agent workflows where accounts need human-readable identities,
+token escrow, and explicit callback handling.
 
-**Composability**: Contracts can call other contracts. A bounty market can
-call a worker registry, which calls a reputation store, which calls a token
-contract. The result is a programmable economy composed from interoperable
-building blocks.
+Important NEAR constraints:
 
-These properties make smart contracts the natural substrate for agent
-coordination: they provide the trustless coordination layer that allows
-agents developed by different teams, running on different infrastructure,
-to interact economically without a common trusted server.
+- A contract is deployed to an account, and account names are part of the trust
+  surface. Use predictable subaccounts such as `registry.ironclaw.testnet`
+  during testnet work.
+- Storage must be funded. Any registration or post that writes persistent state
+  needs an attached deposit or token-standard storage registration.
+- Cross-contract calls are asynchronous. Settlement code must handle partial
+  failure with private callbacks and retryable repair paths.
+- Gas is prepaid. Every benchmark should report gas burnt, attached gas,
+  storage delta, and receipt count.
 
-### Solidity and the EVM
+## Proposed Contract Set
 
-**Solidity** [2] is the primary high-level language for Ethereum smart
-contracts. It is statically typed, compiles to EVM bytecode, and provides:
+| Contract | Status | Purpose | First useful benchmark |
+|----------|--------|---------|------------------------|
+| `AgentRegistry` | Phase 1 target | Register agent metadata hash and heartbeat liveness | Register 1,000 agents, then heartbeat active agents |
+| `WorkerRegistry` | Phase 2 target | Hold token bonds, update reputation, derive worker tiers | Bond, update reputation, slash, and withdraw flows |
+| `BountyMarket` | Phase 2 target | Hold bounties in escrow and settle accepted/rejected work | Post, assign, submit, resolve, retry failed callback |
+| `ReputationRegistry` | Optional Phase 2 | Track domain-specific reputation when worker-level score is insufficient | Domain update and paginated decay batches |
+| `InsightBoard` | Optional Phase 3 | Store content hashes/URIs and reward confirmations | Post, confirm, claim, and search/indexer read path |
 
-- **Value types**: `uint256`, `int256`, `bool`, `address`, `bytes32`
-- **Reference types**: `mapping`, `array`, `struct`, `string`, `bytes`
-- **Access modifiers**: `public`, `external`, `internal`, `private`
-- **State mutability**: `view` (read-only), `pure` (no state access), `payable`
-- **Error handling**: `require()`, `revert()`, custom errors (`error Foo()`)
-- **Events**: `emit EventName(indexed param, param)` stored in the transaction log
+Keep the first implementation small: `AgentRegistry`, then `WorkerRegistry`,
+then `BountyMarket`. Add the optional contracts only after the core lifecycle
+has tests and measured costs.
 
-The **Ethereum Virtual Machine (EVM)** [3] is a stack-based virtual machine
-with 256-bit words. Every operation has a gas cost:
-
-| Operation | Gas | Notes |
-|-----------|-----|-------|
-| SSTORE (new slot) | 20,000 | Write new value to storage |
-| SSTORE (update) | 5,000 | Update existing storage slot |
-| SLOAD | 2,100 | Cold read; 100 for warm |
-| CALL | 2,600 | Cross-contract call |
-| LOG3 | 1,500 + data | Emit indexed event |
-| SHA3 | 30 + 6/word | Keccak256 hash |
-| ADD/MUL | 3/5 | Arithmetic |
-
-Gas costs enforce economic limits on computation: every operation must be
-paid for by the transaction sender, preventing infinite loops and incentivizing
-efficient code.
-
-### NEAR Protocol Smart Contracts
-
-**NEAR Protocol** [4] is a sharded, proof-of-stake blockchain with a different
-execution model from the EVM:
-
-**Account model**: Named accounts (`alice.near`, `worker.app.near`) with
-a sub-account hierarchy. Contracts are deployed directly to accounts. An
-account can have at most one contract. Sub-accounts (`x.y.near`) can only
-be created by the parent account (`y.near`), enabling a controlled namespace.
-
-**WebAssembly execution**: NEAR contracts compile to WASM, not EVM bytecode.
-The `near-sdk-rs` crate provides procedural macros (`#[near]`,
-`#[near(contract_state)]`) that generate the WASM ABI and storage glue.
-
-**Storage staking**: Storage is not free. Contracts must hold a staked NEAR
-balance proportional to their on-chain storage footprint: 1 NEAR per 100KB
-(10^19 yoctoNEAR per byte). This balance is locked but refunded if storage
-is freed. Storage staking eliminates "storage griefing" attacks where attackers
-fill contract storage at others' expense.
-
-**Asynchronous cross-contract calls**: Unlike EVM's synchronous
-`call()`/`delegatecall()`, NEAR cross-contract calls are asynchronous
-receipts. A contract schedules a promise (`Promise::new(account).function_call(...)`)
-and the result arrives in a callback in a subsequent block. This makes
-re-entrancy impossible but requires explicit callback handling.
-
-**Gas model**: Gas is prepaid per transaction with a ~300 TGas limit.
-Cross-contract calls require attaching gas from the prepaid budget.
-
-**Token standard**: NEAR tokens use **NEP-141** (Fungible Token Standard)
-rather than ERC-20. The key difference is `ft_transfer_call()`, which
-atomically transfers tokens and calls a receiver function on the target
-contract in a single promise chain.
-
-### Why AI Agents Need On-Chain Infrastructure
-
-Traditional AI agents run in isolated processes with no way to prove their
-identity, no mechanism for trustless economic coordination, and no verifiable
-track record. When agents need to collaborate -- delegating tasks, sharing
-knowledge, resolving disputes -- there is no neutral substrate that all
-parties can trust.
-
-On-chain infrastructure solves three fundamental problems:
-
-**Verifiable Identity.** An agent's identity is anchored to a cryptographic
-key pair and recorded in an immutable registry. Its capabilities, system
-prompt hash, and TEE attestation are all publicly auditable. No central
-authority can fabricate or revoke an identity without on-chain evidence.
-Roko implements this through ERC-8004 soulbound passports
-(`IdentityRegistry.sol`) and a lighter-weight heartbeat-based registry
-(`AgentRegistry.sol`). The ERC-8004 standard -- proposed specifically for
-AI agent identity [5] -- establishes three on-chain registries for Identity,
-Reputation, and Validation, making each agent's identity a non-transferable
-on-chain credential analogous to the ERC-5192 Minimal Soulbound NFT
-interface [6] but extended with capability bitmasks, TEE attestations, and
-domain staking.
-
-**Trustless Coordination.** When agent A posts a bounty and agent B claims
-it, neither party needs to trust the other. The bounty funds are locked in
-escrow (`BountyMarket.sol`), a committee of validators evaluates the work
-(`ConsortiumValidator.sol`), and the outcome triggers an automatic
-settlement -- bounty to the worker if accepted, refund to the poster if
-rejected, with reputation updates in both cases. No intermediary can steal
-the funds or bias the outcome.
-
-**Economic Incentives.** Reputation is not a badge -- it is an economic
-signal backed by staked tokens. Workers bond tokens to register
-(`WorkerRegistry.sol`, minimum 1,000 DAEJI). Poor performance triggers
-slashing (5% of bond for rejected work). Reputation decays over time via
-exponential moving average (EMA), so agents cannot rest on past performance
-[7]. The fee distribution contract (`FeeDistributor.sol`) splits payments
-across validators (40%), data providers (30%), the performing agent (20%),
-and protocol treasury (10%).
-
-These three properties -- identity, coordination, incentives -- compose into
-an agent economy where autonomous software can participate in markets, build
-reputations, and be held accountable, all without human intermediaries.
-
----
-
-## Contract Suite Overview
-
-The contract suite contains 13 Solidity files in
-[`contracts/src/`](https://github.com/wpank/roko/blob/main/contracts/src/):
-
-| # | Contract | Purpose | Dependencies |
-|---|----------|---------|--------------|
-| 1 | `MockERC20.sol` | Test token (DAEJI) with open mint | OpenZeppelin ERC20 |
-| 2 | `RoleRegistry.sol` | RBAC for ISFR contracts | None |
-| 3 | `AgentRegistry.sol` | Lightweight agent identity + heartbeat | None |
-| 4 | `IdentityRegistry.sol` | ERC-8004 soulbound passport + domain staking | IERC20Minimal (local) |
-| 5 | `WorkerRegistry.sol` | Stake bonds + EMA reputation + tiers | OZ IERC20 |
-| 6 | `ReputationRegistry.sol` | Multi-domain reputation with adaptive EMA | IdentityRegistry |
-| 7 | `BountyMarket.sol` | 4-state programmable escrow | OZ IERC20, WorkerRegistry |
-| 8 | `ConsortiumValidator.sol` | 2-of-3 validation committee | WorkerRegistry, BountyMarket |
-| 9 | `ValidationRegistry.sol` | Work proofs + validator attestations | IdentityRegistry |
-| 10 | `InsightBoard.sol` | On-chain knowledge with pheromone curation | OZ IERC20 |
-| 11 | `ISFROracle.sol` | Interest rate oracle with epoch submissions | RoleRegistry |
-| 12 | `ISFRBountyPool.sol` | Keeper reward pool for oracle submissions | RoleRegistry, OZ IERC20 |
-| 13 | `FeeDistributor.sol` | Multi-party fee splitting (4 buckets) | OZ IERC20 |
-
-All contracts target Solidity `^0.8.26` and use OpenZeppelin for ERC20 and
-access-control primitives. Note that `IdentityRegistry` defines its own
-minimal `IERC20Minimal` interface inline (only `transfer` and `transferFrom`)
-rather than importing the full OpenZeppelin `IERC20`.
-
----
-
-## Contract Interaction Architecture
+## Reference Flow
 
 ```mermaid
 graph TD
-    DAEJI[MockERC20 DAEJI]
-    AR[AgentRegistry]
-    WR[WorkerRegistry]
-    BM[BountyMarket]
-    CV[ConsortiumValidator]
-    IR[IdentityRegistry]
-    RR[ReputationRegistry]
-    VR[ValidationRegistry]
-    IB[InsightBoard]
-    ISFR[ISFROracle]
-    IBP[ISFRBountyPool]
-    FD[FeeDistributor]
-    RG[RoleRegistry]
+    Agent["IronClaw agent account"]
+    Registry["AgentRegistry"]
+    Worker["WorkerRegistry"]
+    Market["BountyMarket"]
+    Token["NEP-141 token"]
+    Validator["Resolver or validator account"]
 
-    DAEJI -->|stakeToken| WR
-    DAEJI -->|bountyToken| BM
-    DAEJI -->|rewardToken| IB
-    DAEJI -->|token| IBP
-    DAEJI -->|rewardToken| FD
-    DAEJI -->|stakeToken| IR
-
-    WR <-->|updateReputation / slash| BM
-    BM <-->|resolve| CV
-    CV -->|canAccept / registeredCount| WR
-
-    IR --> RR
-    IR --> VR
-
-    RG --> ISFR
-    RG --> IBP
-    ISFR -.->|notifies| IBP
-
-    AR -.- IR
+    Agent -->|"register / heartbeat"| Registry
+    Agent -->|"ft_transfer_call bond"| Worker
+    Agent -->|"ft_transfer_call post job"| Market
+    Agent -->|"claim / submit"| Market
+    Validator -->|"resolve"| Market
+    Token -->|"ft_on_transfer"| Worker
+    Token -->|"ft_on_transfer"| Market
+    Market -->|"payout promise"| Token
+    Market -->|"reputation promise"| Worker
 ```
 
-The contracts form three clusters:
+## Security Baseline
 
-1. **Worker/Bounty cluster**: WorkerRegistry <-> BountyMarket <->
-   ConsortiumValidator. This is the core task-execution loop.
+- Use function-call access keys for IronClaw automation; do not store
+  full-access keys for routine agent operations.
+- Validate token receiver messages as structured JSON, not delimiter-split
+  strings.
+- Require storage deposits before writes and return unused NEP-141 tokens from
+  `ft_on_transfer`.
+- Make admin actions explicit: owner changes, authorized resolver updates,
+  pause switches, and emergency withdrawals should emit NEP-297 events.
+- Treat promise callbacks as part of the state machine. A payout can succeed
+  while reputation update fails, so callbacks need logs and retry metadata.
+- Do not use on-chain storage for prompts, secrets, private task content, or
+  personally identifying information. Store hashes, CIDs, or short descriptors.
 
-2. **Identity/Reputation cluster**: IdentityRegistry -> ReputationRegistry,
-   ValidationRegistry. The ERC-8004 identity layer.
+## Benchmark Expectations
 
-3. **ISFR oracle cluster**: RoleRegistry -> ISFROracle, ISFRBountyPool.
-   A self-contained oracle subsystem for interest rate feeds.
+Each contract PR should include a `near-workspaces` benchmark or integration
+test that reports:
 
----
+- Method name and scenario.
+- Gas burnt and attached gas.
+- Attached deposit and storage usage delta.
+- Number of receipts created by cross-contract calls.
+- Success and failure cases, including refund/callback behavior.
 
-## NEAR Contract Architecture
-
-```mermaid
-graph TD
-    IR_N[registry.ironclaw.near\nAgentPassport / IdentityRegistry]
-    WR_N[worker.ironclaw.near\nWorkerRegistry]
-    BM_N[bounty.ironclaw.near\nBountyMarket]
-    CV_N[validator.ironclaw.near\nConsortiumValidator]
-    RR_N[reputation.ironclaw.near\nReputationRegistry]
-    IB_N[knowledge.ironclaw.near\nInsightBoard]
-    TK_N[token.ironclaw.near\nNEP-141 FT]
-    AGENT[agent.agents.ironclaw.near]
-
-    AGENT -->|register / heartbeat| IR_N
-    AGENT -->|register + ft_transfer_call bond| WR_N
-    AGENT -->|ft_transfer_call bounty| BM_N
-    AGENT -->|vote| CV_N
-    AGENT -->|submitFeedback| RR_N
-    AGENT -->|post / confirm| IB_N
-
-    TK_N -->|ft_on_transfer callback| WR_N
-    TK_N -->|ft_on_transfer callback| BM_N
-
-    BM_N -->|update_reputation Promise| WR_N
-    CV_N -->|resolve Promise| BM_N
-    RR_N -->|ownerOf| IR_N
-```
-
----
-
-## References
-
-See [references.md](./references.md) for the full citation list.
-
-Quick links to sibling documents in this folder:
-- [Solidity contracts](./solidity-contracts.md)
-- [EVM simulator and chain watcher](./evm-simulator.md)
-- [NEAR contracts and practical examples](./near-contracts.md)
-- [Benchmarks](./benchmarking.md)
-- [IronClaw integration plan](./ironclaw-integration.md)
-- [References](./references.md)
+The initial goal is not to prove a universal cost claim. The goal is to make
+costs reproducible for the exact contract code and network configuration being
+proposed.

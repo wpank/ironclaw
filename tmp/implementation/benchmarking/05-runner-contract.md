@@ -50,7 +50,7 @@ Minimum fields:
   "thread_id": null,
   "turn_id": "turn.fixture.0001",
   "tool_call_id": null,
-  "feature_flag_id": "llm.router.cascade",
+  "feature_flag_id": "flag.cascade_router",
   "feature": "cascade_router",
   "variant": "linucb_shadow",
   "scenario": "cascade_router.simple_lookup",

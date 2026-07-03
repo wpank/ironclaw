@@ -20,7 +20,7 @@ During biological sleep, the brain does not idle — it actively consolidates ex
 - **Concept**: Utility = gain × need for replay selection. Episodes are replayed in order of their utility for future decisions, not recency or reward magnitude. Unifies planning, learning, and consolidation as different consequences of prioritized replay.
 - **Roko adaptation**: Foundational algorithm for selecting which episodes to replay during Delta consolidation. Dream cycle replays episodes ordered by prediction error magnitude.
 - **Crate**: `roko-dreams` (replay module)
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/crates/roko-dreams/README.md`](https://github.com/wpank/roko/blob/main/crates/roko-dreams/README.md) (line 18), [`https://github.com/wpank/roko/blob/main/docs/v2/26-CROSS-CUTS.md`](https://github.com/wpank/roko/blob/main/docs/v2/26-CROSS-CUTS.md) (lines 413, 432, 819)
+- **Roko source**: `crates/roko-dreams/README.md` (line 18), `docs/v2/26-CROSS-CUTS.md` (lines 413, 432, 819)
 - **tmp/ cross-refs**: `02-dream-consolidation.md`, `13-cognitive-architecture.md`
 - **IronClaw relevance**: IronClaw's heartbeat system runs periodic background cycles. Mattar-Daw prioritization would optimize which workspace memories are worth replaying during these cycles.
 
@@ -31,7 +31,7 @@ During biological sleep, the brain does not idle — it actively consolidates ex
 
 - **Concept**: First demonstration that hippocampal place cells reactivate during sleep in the same sequential order experienced during waking behavior. Foundation for computational replay.
 - **Roko adaptation**: Directly implements prioritized experience replay in the Dreams subsystem (NREM phase).
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/01-memory-consolidation.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/01-memory-consolidation.md)
+- **Roko source**: `docs/v1/21-references/01-memory-consolidation.md`
 - **tmp/ cross-refs**: `02-dream-consolidation.md`
 
 ---
@@ -41,7 +41,7 @@ During biological sleep, the brain does not idle — it actively consolidates ex
 
 - **Concept**: Priority proportional to TD error magnitude. Prioritizing important transitions leads to more efficient learning, outperforming uniform replay on 41 out of 49 Atari games.
 - **Roko adaptation**: Surprise-weighted replay candidate selection in the dream consolidation engine.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/01-memory-consolidation.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/01-memory-consolidation.md)
+- **Roko source**: `docs/v1/21-references/01-memory-consolidation.md`
 - **tmp/ cross-refs**: `02-dream-consolidation.md`
 
 ---
@@ -51,7 +51,7 @@ During biological sleep, the brain does not idle — it actively consolidates ex
 
 - **Concept**: Recurrent network model unifying planning and replay under a single computational framework. Hippocampal replay emerges from goal-directed planning computations.
 - **Roko adaptation**: Validates that replay and planning share computational substrate; the dream cycle serves both functions simultaneously.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/10-dreams/02-nrem-replay.md`](https://github.com/wpank/roko/blob/main/docs/v1/10-dreams/02-nrem-replay.md) (line 1059)
+- **Roko source**: `docs/v1/10-dreams/02-nrem-replay.md` (line 1059)
 - **tmp/ cross-refs**: `02-dream-consolidation.md`
 
 ---
@@ -64,7 +64,7 @@ During biological sleep, the brain does not idle — it actively consolidates ex
 - **Concept**: REM sleep depotentiates the emotional charge of memories while preserving their informational content. The phrase "overnight therapy" captures the finding that traumatic memories are processed during sleep without re-traumatization.
 - **Roko adaptation**: Dream cycles reduce arousal on highly charged memories by 0.3-0.5 per cycle to prevent panic lock-in — a REM-phase operation.
 - **Crate**: `roko-dreams`, `roko-daimon`
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2/26-CROSS-CUTS.md`](https://github.com/wpank/roko/blob/main/docs/v2/26-CROSS-CUTS.md) (lines 455, 496), [`https://github.com/wpank/roko/blob/main/docs/v2-depth/07-agent-runtime/18-affect-as-functor.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/07-agent-runtime/18-affect-as-functor.md) (line 954)
+- **Roko source**: `docs/v2/26-CROSS-CUTS.md` (lines 455, 496), `docs/v2-depth/07-agent-runtime/18-affect-as-functor.md` (line 954)
 - **tmp/ cross-refs**: `02-dream-consolidation.md`, `03-affect-engine.md`
 
 ---
@@ -76,7 +76,7 @@ During biological sleep, the brain does not idle — it actively consolidates ex
 - **Concept**: Three creativity modes: exploratory (moving within a conceptual space), combinational (making unfamiliar combinations of familiar ideas), transformational (changing the rules to generate previously impossible structures).
 - **Roko adaptation**: REM phase implements combinational creativity via HDC recombination and transformational creativity via causal model intervention.
 - **Crate**: `roko-dreams` (imagination module)
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/03-dreams-and-offline-learning.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/03-dreams-and-offline-learning.md)
+- **Roko source**: `docs/v1/21-references/03-dreams-and-offline-learning.md`
 - **tmp/ cross-refs**: `02-dream-consolidation.md`
 
 ---
@@ -86,7 +86,7 @@ During biological sleep, the brain does not idle — it actively consolidates ex
 - **Concept**: Structural causal models enable counterfactual reasoning via the do-calculus. The intervention do(X=x) computes the distribution of Y after setting X to x, regardless of its natural causes. Three levels of causal hierarchy: association, intervention, counterfactual.
 - **Roko adaptation**: REM dreaming generates counterfactuals by intervening on causal variables: "what would have happened if I had chosen differently?"
 - **Crate**: `roko-dreams`
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/03-dreams-and-offline-learning.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/03-dreams-and-offline-learning.md), [`https://github.com/wpank/roko/blob/main/docs/v2/26-CROSS-CUTS.md`](https://github.com/wpank/roko/blob/main/docs/v2/26-CROSS-CUTS.md) (line 455)
+- **Roko source**: `docs/v1/21-references/03-dreams-and-offline-learning.md`, `docs/v2/26-CROSS-CUTS.md` (line 455)
 - **tmp/ cross-refs**: `02-dream-consolidation.md`
 
 ---
@@ -98,7 +98,7 @@ During biological sleep, the brain does not idle — it actively consolidates ex
 
 - **Concept**: Dual-agent architecture: a Sleeper Agent precomputes during downtime (answering anticipated questions, updating knowledge summaries), while a Serve Agent handles live interactions with pre-computed answers. Achieves approximately 5x test-time compute reduction on Stateful GSM-Symbolic benchmarks.
 - **Roko adaptation**: Dream cycles are sleep-time compute — agents process experiences during low-activity periods to reduce latency and improve accuracy at inference time.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/03-dreams-and-offline-learning.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/03-dreams-and-offline-learning.md)
+- **Roko source**: `docs/v1/21-references/03-dreams-and-offline-learning.md`
 - **tmp/ cross-refs**: `02-dream-consolidation.md`
 
 ---
@@ -108,7 +108,7 @@ During biological sleep, the brain does not idle — it actively consolidates ex
 
 - **Concept**: A controller trained entirely inside a compressed representation of experience ("dreams") in a recurrent world model achieves competitive performance on RL benchmarks without interacting with the real environment during training.
 - **Roko adaptation**: Dreaming multiplies learning from scarce experience. Idle-time knowledge recombination creates new hypotheses without real execution.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/03-dreams-and-offline-learning.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/03-dreams-and-offline-learning.md)
+- **Roko source**: `docs/v1/21-references/03-dreams-and-offline-learning.md`
 - **tmp/ cross-refs**: `02-dream-consolidation.md`
 
 ---
@@ -118,7 +118,7 @@ During biological sleep, the brain does not idle — it actively consolidates ex
 
 - **Concept**: DreamerV3: agents trained on imagined trajectories from a world model outperform specialized methods across 150+ tasks spanning domains from robotics to games. The first algorithm to collect diamonds in Minecraft from scratch without human data or dense rewards.
 - **Roko adaptation**: REM-phase consolidation generates synthetic scenarios from the causal model, validating the dream-based learning approach at scale.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/10-dreams/03-rem-imagination.md`](https://github.com/wpank/roko/blob/main/docs/v1/10-dreams/03-rem-imagination.md) (line 1123)
+- **Roko source**: `docs/v1/10-dreams/03-rem-imagination.md` (line 1123)
 - **tmp/ cross-refs**: `02-dream-consolidation.md`
 
 ---
@@ -131,7 +131,7 @@ During biological sleep, the brain does not idle — it actively consolidates ex
 - **Concept**: 83% of subjects spending at least 15 seconds in N1 (sleep onset / hypnagogia) discovered hidden mathematical rules versus 30% staying awake — a 2.8x creative advantage. The effect vanishes completely in deeper sleep.
 - **Roko adaptation**: Foundational for the hypnagogia engine, which solves the Alpha Convergence Problem (all agents converging to similar solutions through homogenized training).
 - **Crate**: `roko-dreams` (hypnagogia module)
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/03-dreams-and-offline-learning.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/03-dreams-and-offline-learning.md)
+- **Roko source**: `docs/v1/21-references/03-dreams-and-offline-learning.md`
 - **tmp/ cross-refs**: `02-dream-consolidation.md`
 
 ---
@@ -141,7 +141,7 @@ During biological sleep, the brain does not idle — it actively consolidates ex
 
 - **Concept**: Targeted dream incubation (TDI) at sleep onset — presenting problem-specific stimuli during N1 sleep — enhances post-sleep creative performance specifically on the incubated topics.
 - **Roko adaptation**: Validates the targeted consolidation approach in the hypnagogia engine. High-priority tasks can be "incubated" during Delta transitions.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/10-dreams/07-hypnagogia-engine.md`](https://github.com/wpank/roko/blob/main/docs/v1/10-dreams/07-hypnagogia-engine.md) (line 864)
+- **Roko source**: `docs/v1/10-dreams/07-hypnagogia-engine.md` (line 864)
 - **tmp/ cross-refs**: `02-dream-consolidation.md`
 
 ---
@@ -151,7 +151,7 @@ During biological sleep, the brain does not idle — it actively consolidates ex
 **NeuroDream (2025). SSRN:5377250.**
 
 - **Concept**: Dream-phase consolidation in LLM agents achieves 38% forgetting reduction and 17.6% zero-shot transfer increase compared to agents without consolidation.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/24-additions-2025.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/24-additions-2025.md)
+- **Roko source**: `docs/v1/21-references/24-additions-2025.md`
 - **tmp/ cross-refs**: `02-dream-consolidation.md`
 
 ---
@@ -160,7 +160,7 @@ During biological sleep, the brain does not idle — it actively consolidates ex
 [arXiv:2603.14517](https://arxiv.org/abs/2603.14517)
 
 - **Concept**: Active forgetting via learned curation resolves proactive interference in LLM agents. Validates that strategic forgetting is a feature, not a bug.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/24-additions-2025.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/24-additions-2025.md)
+- **Roko source**: `docs/v1/21-references/24-additions-2025.md`
 - **tmp/ cross-refs**: `02-dream-consolidation.md`
 
 ---
@@ -169,7 +169,7 @@ During biological sleep, the brain does not idle — it actively consolidates ex
 [arXiv:2510.18866](https://arxiv.org/abs/2510.18866)
 
 - **Concept**: Offline consolidation achieving 10.9% accuracy gain with 117x token reduction through selective memory compression.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/24-additions-2025.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/24-additions-2025.md)
+- **Roko source**: `docs/v1/21-references/24-additions-2025.md`
 - **tmp/ cross-refs**: `02-dream-consolidation.md`
 
 ---
@@ -178,7 +178,7 @@ During biological sleep, the brain does not idle — it actively consolidates ex
 [DOI: 10.1126/science.adl3043](https://doi.org/10.1126/science.adl3043)
 
 - **Concept**: Prefrontal cortex synaptic mechanisms directly regulate homeostatic sleep pressure through SIK3-mediated synaptic downscaling.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/10-dreams/04-consolidation-and-staging.md`](https://github.com/wpank/roko/blob/main/docs/v1/10-dreams/04-consolidation-and-staging.md) (line 286)
+- **Roko source**: `docs/v1/10-dreams/04-consolidation-and-staging.md` (line 286)
 
 ---
 
@@ -258,7 +258,7 @@ Hermann Ebbinghaus conducted the first experimental study of human memory in 188
 - **Concept**: The forgetting curve follows negative exponential decay: `R = e^(-t/S)`. Retrieval strengthens the trace and slows subsequent decay. Spaced repetition optimizes retention.
 - **Roko adaptation**: Directly implemented as the `Decay::Ebbinghaus` variant: `weight = exp(-age / (strength * scale_ms))`. Per-type half-lives: Episodes 48h, Insights 7d, Heuristics 14d, Warnings 30d.
 - **Crate**: `roko-core` (`decay.rs`)
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/crates/roko-core/src/decay.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/decay.rs) (line 59), [`https://github.com/wpank/roko/blob/main/docs/v2/01-SIGNAL.md`](https://github.com/wpank/roko/blob/main/docs/v2/01-SIGNAL.md) (line 671)
+- **Roko source**: `crates/roko-core/src/decay.rs` (line 59), `docs/v2/01-SIGNAL.md` (line 671)
 - **tmp/ cross-refs**: `10-universal-engram.md`, `11-mathematical-primitives.md`
 
 ---
@@ -274,8 +274,8 @@ The online learning problem of selecting the best action from multiple alternati
 **Li, L., Chu, W., Langford, J., & Schapire, R.E. (2010). A Contextual-Bandit Approach to Personalized News Article Recommendation. _Proceedings of the 19th International Conference on World Wide Web (WWW)_, pp. 661-670.**
 [DOI: 10.1145/1772690.1772758](https://doi.org/10.1145/1772690.1772758)
 
-- **Concept**: LinUCB contextual bandit: learns linear feature weights mapping context to expected reward per arm. Provides theoretical guarantees on cumulative regret with an 18-dimensional context vector.
-- **Roko adaptation**: Stage 3 of CascadeRouter uses LinUCB with 18-dimensional feature vector built from task complexity, domain familiarity, token budget, model latency, and historical pass rates.
+- **Concept**: LinUCB contextual bandit: learns linear feature weights mapping context to expected reward per arm. Regret bounds depend on the chosen feature representation and observation assumptions, not on a specific dimension count.
+- **IronClaw adaptation**: Stage 3 of CascadeRouter uses a 14-dimensional feature vector built from task complexity, token budget, model latency, recent error rate, and historical pass rates.
 - **Crate**: `roko-learn` (`model_router.rs`)
 - **tmp/ cross-refs**: `07-online-learning.md`
 

@@ -18,7 +18,7 @@ Mechanism design is the branch of economics and game theory concerned with desig
 - **Concept**: Second-price sealed-bid auction. Truthful bidding is a dominant strategy because the winner pays the second-highest price.
 - **Roko adaptation**: Eight bidder subsystems (Task, Code, Episode, Neuro, Safety, Research, Tool, Heuristic) compete for context window tokens. VCG ensures each subsystem bids its true valuation.
 - **Crate**: `roko-compose`
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2-depth/02-block/vcg-attention-auction.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/02-block/vcg-attention-auction.md)
+- **Roko source**: `docs/v2-depth/02-block/vcg-attention-auction.md`
 - **tmp/ cross-refs**: `09-budget-composition.md`, `13-cognitive-architecture.md`
 
 ---
@@ -43,8 +43,8 @@ Mechanism design is the branch of economics and game theory concerned with desig
 **Simon, H.A. (1971). Designing Organizations for an Information-Rich World. In M. Greenberger (Ed.), _Computers, Communications, and the Public Interest_, pp. 37-72. Baltimore: Johns Hopkins Press.**
 
 - **Concept**: "A wealth of information creates a poverty of attention." Attention is the binding constraint in information-rich environments, not information itself.
-- **Roko adaptation**: The context window IS the attention constraint. The VCG auction allocates the scarce attention resource.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2-depth/02-block/vcg-attention-auction.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/02-block/vcg-attention-auction.md) (line 13)
+- **Captured adaptation**: The context window is the attention constraint. Prompt composition allocates that scarce resource with density scoring and optional VCG-style diagnostics.
+- **Roko source**: `docs/v2-depth/02-block/vcg-attention-auction.md` (line 13)
 - **tmp/ cross-refs**: `09-budget-composition.md`
 
 ---
@@ -53,7 +53,7 @@ Mechanism design is the branch of economics and game theory concerned with desig
 [DOI: 10.1016/S0304-3932(03)00029-1](https://doi.org/10.1016/S0304-3932(03)00029-1)
 
 - **Concept**: Finite-capacity agents optimally ignore some information — rational inattention. The channel capacity constraint forces selective processing.
-- **Roko adaptation**: VCG auction motivation: agents must be selectively inattentive because they cannot process all available information within the context window.
+- **Captured adaptation**: Agents must be selectively inattentive because they cannot process all available information within the context window; the allocator should make that tradeoff explicit and measurable.
 - **tmp/ cross-refs**: `09-budget-composition.md`
 
 ---
@@ -71,7 +71,7 @@ Mechanism design is the branch of economics and game theory concerned with desig
 [arXiv:2310.10826](https://arxiv.org/abs/2310.10826)
 
 - **Concept**: Token-by-token mechanism design for multi-LLM output generation. Extends VCG theory to the sequential token generation setting.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2-depth/02-block/vcg-attention-auction.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/02-block/vcg-attention-auction.md) (line 405)
+- **Roko source**: `docs/v2-depth/02-block/vcg-attention-auction.md` (line 405)
 - **tmp/ cross-refs**: `09-budget-composition.md`
 
 ---
@@ -97,7 +97,7 @@ Silvio Gesell, a German-Argentine merchant and self-taught economist, proposed i
 - **Concept**: Demurrage: money that decays over time to encourage circulation and prevent hoarding. The demurrage charge is the cost of storing purchasing power.
 - **Roko adaptation**: Economic metaphor for knowledge decay. KORAI token 1% annual demurrage mirrors knowledge entry decay. `Demurrage` trait: `balance *= (1 - rate)^elapsed_hours`.
 - **Crate**: `roko-core` (`demurrage.rs`), `roko-chain` (`korai_token.rs`)
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/crates/roko-core/src/demurrage.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/demurrage.rs), [`https://github.com/wpank/roko/blob/main/crates/roko-chain/src/korai_token.rs`](https://github.com/wpank/roko/blob/main/crates/roko-chain/src/korai_token.rs)
+- **Roko source**: `crates/roko-core/src/demurrage.rs`, `crates/roko-chain/src/korai_token.rs`
 - **tmp/ cross-refs**: `08-chain-reputation.md`, `10-universal-engram.md`
 
 ---

@@ -7,8 +7,8 @@ This category covers the machinery that takes a task from declaration to verifie
 | Document | Summary | Priority |
 |----------|---------|----------|
 | [DAG Execution Engine](./dag-execution.md) | TOML-defined directed acyclic graph workflows. A Cell is the universal computation unit (LLM call, shell command, gate check, file transform). Conditional edges, budget tracking (tokens + cost + deadline), hot graphs for tick-driven resident execution, and a plan-to-graph conversion pipeline. Replaces linear job chaining with declarative, parallelizable workflows. | HIGH |
-| [Gate Verification Pipeline](./gate-verification.md) | Seven-rung progressive verification: compile → lint → test → symbol check → generated tests → property tests → integration tests. Complexity-driven rung selection, adaptive thresholds via CUSUM/EWMA/BOCPD, gate composition operators (parallel/voting/fallback), a process reward model, forensic causal chain reconstruction, and acceptance contracts. | HIGH |
-| [Conductor Anomaly Detection](./conductor-anomaly.md) | Ensemble of 10 watchers (GhostTurn, ReviewLoop, IterationLoop, TestFailureBudget, CompileFailRepeat, ContextWindowPressure, SpecDrift, CostOverrun, TimeOverrun, StuckPattern) with predictive circuit breaking via Holt exponential smoothing, compound event pattern detection (CEP), Thompson Sampling for adaptive threshold learning, and a four-level federation hierarchy (turn/task/plan/fleet). | MEDIUM |
+| [Gate Verification Pipeline](./gate-verification.md) | Seven-rung progressive verification: compile → lint → test → symbol check → generated tests → property tests → integration tests. First milestone is a thin compile/lint/test/symbol MVP; adaptive thresholds and generated tests stay behind later validation gates. | HIGH |
+| [Conductor Anomaly Detection](./conductor-anomaly.md) | Ensemble of watchers for repeated failures, review loops, test budgets, context pressure, cost/time overruns, and stuck patterns. Start as observability over existing LLM/tool failure signals; predictive control and bandit policies are later phases. | MEDIUM |
 | [Orchestrator and Swarm](./orchestrator-swarm.md) | Pure state machine orchestrator with event sourcing. Unified cross-plan task DAG, wave scheduling for parallel execution, three-level recovery (task retry → subgraph replacement → full replan), file-conflict inference for safe parallelism, BLAKE3 hash-linked audit chain, live DAG mutation, and pheromone-based swarm coordination. | MEDIUM |
 | [Runtime Infrastructure](./runtime-infrastructure.md) | EventBus with replay ring buffer. Hierarchical cancellation tokens with cascading shutdown. FIPA-informed lifecycle state machine with Kubernetes-style probes. Pure state machine + effect driver separation. Process supervision for OS subprocesses. StateHub dashboard projections. | MEDIUM |
 
@@ -28,13 +28,17 @@ graph LR
     ORCH -->|"each task verified by"| GATE
     GATE -->|"gate verdicts feed"| COND
     COND -->|"circuit break signals\nback to"| ORCH
-    COND -->|"Thompson Sampling\nthreshold updates"| GATE
+    COND -->|"shadow metrics\nfuture threshold advice"| GATE
 ```
 
-**Dependency order for implementation:**
+**Implementation order:**
 
-Runtime Infrastructure is the foundation — the EventBus and CancellationToken shape every other component's interface. Build it first or reuse IronClaw's equivalent abstractions. The DAG engine and Orchestrator are co-dependent (the orchestrator schedules DAG tasks); build them together. Gates and the Conductor integrate after the execution layer is stable.
+Start with a thin Gate Verification MVP over existing IronClaw tool/code paths:
+compile, lint, test, and symbol checks with caller-level tests. Reuse existing
+runtime, tool dispatch, DB, and LLM abstractions. DAG execution, orchestrator
+event sourcing, and conductor adaptation are later phases after the gate MVP has
+measured value.
 
 ## Quick Start
 
-Read [Runtime Infrastructure](./runtime-infrastructure.md) first for the foundational primitives. Then read [DAG Execution Engine](./dag-execution.md) to understand how computation is declared and scheduled. [Gate Verification](./gate-verification.md) is the highest-priority standalone piece — rungs 1–4 (compile, lint, test, symbol check) can be grafted onto IronClaw's existing tool builder without the full DAG engine.
+Read [Gate Verification](./gate-verification.md) first if you are implementing soon. Rungs 1-4 can be integrated into existing IronClaw callers without the full DAG engine. Read [Runtime Infrastructure](./runtime-infrastructure.md), [DAG Execution Engine](./dag-execution.md), and [Orchestrator and Swarm](./orchestrator-swarm.md) for later architecture work.

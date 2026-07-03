@@ -2,9 +2,11 @@
 
 **Last updated:** July 3, 2026
 
-This document provides a deep side-by-side analysis of Roko and IronClaw — two
-distinct Rust AI agent platforms that share a common language and async runtime
-but diverge sharply in purpose, architecture, and philosophy.
+This document compares the captured source corpus with the local IronClaw
+workspace. Roko names, paths, and feature descriptions are captured-source
+provenance labels; they are not live public repository facts. Absence phrases
+such as "not identified" mean this reference set does not show a matching
+feature, not that an inaccessible repository could never contain one.
 
 Related reference documents in this directory:
 - [architecture-overview.md](./architecture-overview.md) — Roko full architecture reference
@@ -18,12 +20,12 @@ IronClaw project root: `CLAUDE.md`, `src/agent/CLAUDE.md`, `crates/ironclaw_engi
 ## Table of Contents
 
 1. [System Identity](#1-system-identity)
-2. [Side-by-Side Comparison Table (30+ Dimensions)](#2-side-by-side-comparison-table)
+2. [Side-by-Side Comparison Table](#2-side-by-side-comparison-table)
 3. [Architecture Diagrams](#3-architecture-diagrams)
 4. [What IronClaw Does Better](#4-what-ironclaw-does-better)
 5. [What Roko Does Better](#5-what-roko-does-better)
 6. [Complementary Strengths](#6-complementary-strengths)
-7. [Gap Analysis: What Roko Has That IronClaw Lacks](#7-gap-analysis)
+7. [Gap Analysis: Captured Roko Capabilities Not Matched in IronClaw References](#7-gap-analysis)
 
 ---
 
@@ -35,9 +37,9 @@ IronClaw project root: `CLAUDE.md`, `src/agent/CLAUDE.md`, `crates/ironclaw_engi
 | **Primary user** | Developer-operator running automated agent swarms | Individual user with multi-channel personal assistant access |
 | **Core metaphor** | A system sophisticated enough to improve its own codebase | A secure personal AI assistant with proactive background execution |
 | **Development mode** | Self-hosting: Roko builds Roko by generating PRDs, plans, and code | Human-directed: IronClaw assists humans with tasks across channels |
-| **Scale** | ~727K LOC, 30 crates + 3 app binaries, ~8,300 tests | Significant (unmeasured), ~20+ crates, dual-backend persistence |
+| **Scale** | Large captured corpus with many crates, app binaries, and tests; exact counts are not relied on here | Significant local Rust workspace with extracted crates and dual-backend persistence |
 | **Primary language** | Rust (edition 2024, rustc 1.85+) | Rust (edition 2021, tokio async) |
-| **Repository** | https://github.com/wpank/roko | `/Users/will/dev/near/ironclaw/` (this repo) |
+| **Source set** | captured source corpus | `/Users/will/dev/near/ironclaw/` workspace |
 
 ---
 
@@ -49,7 +51,7 @@ IronClaw project root: `CLAUDE.md`, `src/agent/CLAUDE.md`, `crates/ironclaw_engi
 |-----------|------|----------|
 | **Language** | Rust 2024 edition, rustc 1.85+ | Rust 2021 edition |
 | **Async runtime** | Tokio (all async I/O) | Tokio (all async I/O) |
-| **HTTP framework** | Axum (roko-serve: ~85 routes on :6677) | Axum (web gateway, webhook server) |
+| **HTTP framework** | Axum (`roko-serve` captured HTTP surface) | Axum (web gateway, webhook server) |
 | **TUI framework** | Ratatui (F1-F7 tabbed dashboard in roko-cli) | Ratatui (full TUI in `src/channels/cli/`) |
 | **Error handling** | `thiserror`; `unwrap_used = "deny"` workspace lint | `thiserror`; no `.unwrap()` in production policy |
 | **Shared state** | `Arc<T>`, `parking_lot::RwLock`, `dashmap` | `Arc<T>`, `RwLock` (tokio), custom session locks |
@@ -65,7 +67,7 @@ IronClaw project root: `CLAUDE.md`, `src/agent/CLAUDE.md`, `crates/ironclaw_engi
 | **Core trait set** | 1 noun + 9 verbs: `Store`, `Score`, `Verify`, `Route`, `Compose`, `React`, `Bus`, `ColdStore`, `Observe`/`Connect`/`Trigger` | Named traits: `Channel`, `Tool`, `LlmProvider`, `Database`, `EmbeddingProvider`, `Hook`, `Observer`, `Tunnel`, `SuccessEvaluator` |
 | **Universal loop** | `loop_tick(store, scorer, gate, router, composer, policy, query, budget, ctx)` — same function for all capabilities | `run_agentic_loop()` in `src/agent/agentic_loop.rs` and `ExecutionLoop::run()` in `crates/ironclaw_engine/` |
 | **Layered architecture** | Five strict layers L0-L4 declared in `Cargo.toml`, CI-enforced | Module-based with CLAUDE.md specs per module; pre-commit hooks |
-| **Crate count** | 30 crates + 3 app binaries | ~20+ extracted crates + main `src/` host crate |
+| **Crate shape** | Captured layered crate/app family | Extracted crates plus main `src/` host crate |
 | **Primitives layer** | `roko-primitives` (L0): HDC, manifold, TDA, PAD, tropical geometry, robust stats | No dedicated primitives layer; utility types in `ironclaw_common` |
 
 ### 2.3 LLM Providers and Routing
@@ -89,7 +91,7 @@ IronClaw project root: `CLAUDE.md`, `src/agent/CLAUDE.md`, `crates/ironclaw_engi
 | **Knowledge decay** | First-class: every `Engram` has a `Decay` (None / HalfLife / Exponential); cold store archival on weight drop | Not applicable; no decay; `workspace/` rows retained indefinitely |
 | **Distillation** | `roko-neuro` distiller runs LLM-driven compression of episodic memory into durable insights | `ironclaw_engine` skill extraction mission distills conversation learnings |
 | **Identity files** | Not applicable | `AGENTS.md`, `SOUL.md`, `USER.md`, `IDENTITY.md` injected into system prompt |
-| **Knowledge admission** | Admission control gates novelty and utility before persisting | All memory writes go through (no admission gate) |
+| **Knowledge admission** | Admission control gates novelty and utility before persisting | No admission gate is identified in the referenced workspace-memory path |
 | **Psychographic profiling** | Not applicable | `src/profile.rs`: 9-dimension psychographic analysis of user |
 
 ### 2.5 Tool System
@@ -97,7 +99,7 @@ IronClaw project root: `CLAUDE.md`, `src/agent/CLAUDE.md`, `crates/ironclaw_engi
 | Dimension | Roko | IronClaw |
 |-----------|------|----------|
 | **Tool trait** | `ToolDef`, `ToolHandler`, `ToolRegistry`, `ToolContext` in `roko-core`; `EpsilonGreedyBandit` for relevance-based tool selection | `Tool` trait in `src/tools/tool.rs`; `ToolRegistry` for discovery; `ToolDispatcher::dispatch()` as mandatory call path |
-| **Built-in tools** | 19 in `roko-std`: `apply_patch`, `bash`, `edit_file`, `glob`, `grep`, `ls`, `read_file`, `run_tests`, `sandbox`, `task_agent`, `web_fetch`, `web_search`, `write_file`, `notebook_edit`, `multi_edit`, `exit_plan_mode`, `todo_write`, `isfr` | ~15+ in `src/tools/builtin/`: `echo`, `time`, `json`, `http`, `web_fetch`, `file`, `shell`, `memory`, `message`, `job`, `routine`, `extension_tools`, `skill_tools`, `secrets_tools` |
+| **Built-in tools** | `roko-std` captures tools including `apply_patch`, `bash`, `edit_file`, `glob`, `grep`, `ls`, `read_file`, `run_tests`, `sandbox`, `task_agent`, `web_fetch`, `web_search`, `write_file`, `notebook_edit`, `multi_edit`, `exit_plan_mode`, `todo_write`, `isfr` | `src/tools/builtin/` includes `echo`, `time`, `json`, `http`, `web_fetch`, `file`, `shell`, `memory`, `message`, `job`, `routine`, `extension_tools`, `skill_tools`, `secrets_tools` |
 | **Tool execution path** | `ToolDispatcher` in `roko-agent`: parallel execution, timeout, dedup cache, hook chains, validation, truncation, metric emission, cancellation | `ToolDispatcher::dispatch()` in `src/tools/dispatch.rs` — mandatory for all callers, enforced by pre-commit hook |
 | **WASM tools** | `sandbox` built-in tool (constrained execution) | Full WASM sandbox: `wasmtime`, fuel metering, memory limits, network allowlist, credential injection, per-tool rate limiting (`src/tools/wasm/`) |
 | **WASM channels** | Not applicable | WASM channel runtime (`src/channels/wasm/`) — channels implemented as WASM modules |
@@ -145,7 +147,7 @@ IronClaw project root: `CLAUDE.md`, `src/agent/CLAUDE.md`, `crates/ironclaw_engi
 
 | Dimension | Roko | IronClaw |
 |-----------|------|----------|
-| **Output verification** | Multi-rung gate pipeline (`roko-gate`, 42 source files, 15 gate types): CompileGate, TestGate, GeneratedTestGate, PropertyTestGate, IntegrationGate, ClippyGate, DiffGate, LlmJudgeGate, BenchmarkGate, SecurityScanGate, FormatCheckGate, FactCheckGate, SymbolGate, VerifyChainGate, ShellGate | No equivalent multi-rung gate pipeline; success evaluation in `src/evaluation/` (rule-based + LLM-based) |
+| **Output verification** | Captured multi-rung gate pipeline (`roko-gate`): CompileGate, TestGate, GeneratedTestGate, PropertyTestGate, IntegrationGate, ClippyGate, DiffGate, LlmJudgeGate, BenchmarkGate, SecurityScanGate, FormatCheckGate, FactCheckGate, SymbolGate, VerifyChainGate, ShellGate | No equivalent multi-rung gate pipeline identified; success evaluation in `src/evaluation/` is rule-based + LLM-based |
 | **Adaptive thresholds** | EMA-based threshold adaptation per gate; persisted to `.roko/learn/gate-thresholds.json` | `src/estimation/`: cost/time/value estimation with EMA learning; not applied to verification gates |
 | **Statistical quality control** | SPC (control charts), PELT (changepoint detection), Hotelling T-squared, Ratchet (quality ratchet) | Not applicable |
 | **Prompt injection** | `roko-agent/src/safety/` pre/post execution checks; `QuarantineVault` for suspicious inputs | `crates/ironclaw_safety/`: prompt injection detection, validation, leak detection, policy |
@@ -181,7 +183,7 @@ IronClaw project root: `CLAUDE.md`, `src/agent/CLAUDE.md`, `crates/ironclaw_engi
 
 | Dimension | Roko | IronClaw |
 |-----------|------|----------|
-| **Reactive layer** | `roko-conductor` (L3): 10 specialized watchers monitoring execution in real-time | Not applicable (no equivalent reactive intelligence layer) |
+| **Reactive layer** | `roko-conductor` (L3): watcher layer monitoring execution in real time | No matching reactive intelligence layer identified; `context_monitor.rs` covers memory pressure |
 | **Watchers** | `compile_fail_repeat`, `context_window_pressure`, `cost_overrun`, `ghost_turn`, `iteration_loop`, `review_loop`, `spec_drift`, `stuck_pattern`, `test_failure_budget`, `time_overrun` | Context monitor (`src/agent/context_monitor.rs`) detects memory pressure only |
 | **Circuit breaker** | Pause, Escalate, Replan, Request human intervention, Abort | Not applicable |
 | **Yerkes-Dodson** | Inverted-U arousal modeling to prevent over-escalation | Not applicable |
@@ -223,16 +225,16 @@ IronClaw project root: `CLAUDE.md`, `src/agent/CLAUDE.md`, `crates/ironclaw_engi
 | **Decay / archival** | First-class: weight(t) = score.effective() × decay.apply(t); cold store on drop | Not applicable; rows retained indefinitely |
 | **In-memory index** | `parking_lot::RwLock` JSONL index; HDC-indexed similarity (optional) | In-memory HashMaps as cache; DB is source of truth |
 | **Query interface** | `Store::query(q: &Query, ctx: &Context) -> Vec<Engram>` | SQL queries via database trait; workspace FTS + vector search |
-| **LLM data retention** | All engrams persisted; cold store archives rather than deletes | "LLM data is never deleted" policy; turns/steps/events always in DB |
+| **LLM data retention** | Engrams are persisted; cold store archives rather than deletes | "LLM data is never deleted" policy; turns/steps/events always in DB |
 | **Dual backend** | Not applicable (JSONL only) | PostgreSQL + libSQL parity required for all new features |
 
 ### 2.16 Testing Infrastructure
 
 | Dimension | Roko | IronClaw |
 |-----------|------|----------|
-| **Test count** | ~8,300 tests; 65% unit, 25% integration, 10% property-based (proptest) | Unit + integration (PostgreSQL via `--features integration`); Reborn integration tests; Python/Playwright E2E |
+| **Test shape** | Captured suite includes unit, integration, and property-based tests (`proptest`) | Unit + integration (PostgreSQL via `--features integration`); Reborn integration tests; Python/Playwright E2E |
 | **Test discipline** | Wire-don't-build; existing code first; no duplicate test coverage | Test-first (TDD); consolidate don't proliferate; test through the caller |
-| **Property tests** | `proptest` framework; 10% of test suite | Not used |
+| **Property tests** | `proptest` framework appears in the captured suite | Not identified in this comparison |
 | **E2E tests** | Demo environment (`roko-demo`) with scenario manifests | Python/Playwright suite (`tests/e2e/`) |
 | **Reborn integration tests** | Not applicable | `tests/support/reborn/`: scripted multi-turn conversation scenarios |
 | **Test harness** | `harness/` in `roko-agent` for backend testing; `mock_dispatcher` in `roko-std` | Integration tests via testcontainers for PostgreSQL |
@@ -267,7 +269,7 @@ IronClaw project root: `CLAUDE.md`, `src/agent/CLAUDE.md`, `crates/ironclaw_engi
 
 | Dimension | Roko | IronClaw |
 |-----------|------|----------|
-| **Affect model** | `roko-daimon` (L2): PAD (Pleasure-Arousal-Dominance) vectors; somatic marker hypothesis; k-d tree indexed by task feature vectors; mortality modeling; goal tracking; life review | Not applicable (no agent affect model) |
+| **Affect model** | `roko-daimon` (L2): PAD (Pleasure-Arousal-Dominance) vectors; somatic marker hypothesis; k-d tree indexed by task feature vectors; mortality modeling; goal tracking; life review | No matching agent affect model identified |
 | **User emotion model** | Not applicable | `src/profile.rs`: 9-dimension psychographic profile analysis of the *user* (not the agent) |
 | **Behavioral modulation** | High arousal + low dominance → conservative; high pleasure + high dominance → exploratory; PAD-modulated decisions | Not applicable |
 | **Yerkes-Dodson** | Conductor uses inverted-U curve to prevent over-arousal and over-escalation | Not applicable |
@@ -303,7 +305,7 @@ IronClaw project root: `CLAUDE.md`, `src/agent/CLAUDE.md`, `crates/ironclaw_engi
 | **Compaction strategies** | Not specified as named strategies | Three strategies: `MoveToWorkspace` (80-85%), `Summarize` (85-95%), `Truncate` (>95%) |
 | **Progressive disclosure** | Not applicable | Flag-gated progressive tool disclosure (feature: default off, PR #5149) |
 | **Context composition** | 9-layer `SystemPromptBuilder` in `roko-compose`: Mission, Role policy, Domain, Task brief, Playbook, Research, Episodes, Knowledge, Affect | Injected identity files + skills + tool descriptions; `ironclaw_engine/executor/context.rs` |
-| **VCG auction** | Vickrey-Clarke-Groves auction in `roko-compose` allocates budget slots to context sections | Not applicable |
+| **Prompt budget allocator** | Density allocation with VCG-style displacement diagnostics in `roko-compose` | Skills selection pipeline and context builder |
 | **Token counting** | `tiktoken-rs` and HuggingFace tokenizers in `roko-compose` | Word-count × 1.3 + 4 overhead per message (estimation) |
 
 ### 2.23 Deployment
@@ -324,7 +326,7 @@ IronClaw project root: `CLAUDE.md`, `src/agent/CLAUDE.md`, `crates/ironclaw_engi
 | **Prompt templates** | 9 role templates in `roko-compose/src/templates/`; inline assembly | Prompt files in `crates/ironclaw_engine/prompts/*.md`, loaded via `include_str!()` — multi-line strings must live in files |
 | **Prompt layers** | 9-layer system: L1 Mission, L2 Role policy, L3 Domain, L4 Task brief, L5 Playbook, L6 Research, L7 Episodes, L8 Knowledge, L9 Affect | Skills injected as prompt extension; identity files; CodeAct preamble/postamble |
 | **Prompt experiments** | `ExperimentStore` A/B tests prompt sections | Not applicable |
-| **Prompt assembly** | `SystemPromptBuilder` with VCG auction for budget allocation | Skills selection pipeline → token budget; context builder in `ironclaw_engine` |
+| **Prompt assembly** | `SystemPromptBuilder` with density allocation and diagnostics | Skills selection pipeline → token budget; context builder in `ironclaw_engine` |
 
 ### 2.25 Observability
 
@@ -392,36 +394,36 @@ IronClaw project root: `CLAUDE.md`, `src/agent/CLAUDE.md`, `crates/ironclaw_engi
 ```mermaid
 graph TB
     subgraph L4["L4 — Applications"]
-        CLI["roko-cli\n60+ subcommands\nratatui TUI (F1-F7)"]
-        SERVE["roko-serve\n~85 HTTP routes\nSSE + WebSocket"]
+        CLI["roko-cli\nsubcommands\nratatui TUI"]
+        SERVE["roko-serve\nHTTP routes\nSSE + WebSocket"]
         ACP["roko-acp\nEditor integration\n(VS Code, JetBrains)"]
         AGENT_SRV["roko-agent-server\nPer-agent sidecar\nERC-8004 cards"]
     end
 
     subgraph L3["L3 — Orchestration"]
         ORCH["roko-orchestrator\nDAG executor\nWorktree isolation\nMerge queue"]
-        GATE["roko-gate\n15 gate types\n42 source files\nAdaptive thresholds"]
-        COND["roko-conductor\n10 watchers\nCircuit breaker\nYerkes-Dodson"]
+        GATE["roko-gate\nGate pipeline\nAdaptive thresholds"]
+        COND["roko-conductor\nWatchers\nCircuit breaker\nYerkes-Dodson"]
     end
 
     subgraph L2["L2 — Capabilities"]
         AGENT["roko-agent\n9 LLM backends\nToolDispatcher\nHermes messaging"]
-        COMPOSE["roko-compose\n9-layer prompts\nVCG auction\nToken counting"]
+        COMPOSE["roko-compose\n9-layer prompts\nBudget allocation\nToken counting"]
         LEARN["roko-learn\nCascadeRouter\nEpisode logger\nPlaybooks\nA/B testing"]
         NEURO["roko-neuro\nKnowledge store\nDistillation\nTier progression"]
         DAIMON["roko-daimon\nPAD affect\nSomatic markers\nMortality"]
         DREAMS["roko-dreams\n6 dream phases\nThreat simulation\nExperience replay"]
         FS["roko-fs\nJSONL FileSubstrate\nArchiveColdSubstrate"]
-        STD["roko-std\n19 built-in tools\nNoop defaults"]
+        STD["roko-std\nBuilt-in tools\nNoop defaults"]
         CHAIN["roko-chain\nChainClient\nChainWallet\nmirage-rs EVM"]
         GRAPH["roko-graph\nDAG engine\nCell registry\nHot reload"]
         INDEX["roko-index\nSymbol graph\nPageRank\nHDC fingerprints"]
-        MCP["roko-mcp-*\n5 MCP servers\n(github, slack,\nscripts, code)"]
+        MCP["roko-mcp-*\nMCP servers\n(github, slack,\nscripts, code)"]
         LANG["roko-lang-*\nRust, TS, Go\nlanguage providers"]
     end
 
     subgraph L1["L1 — Kernel + Runtime"]
-        CORE["roko-core\nEngram + 9 traits\n~30K LOC\nForensic replay\nImmune system"]
+        CORE["roko-core\nEngram + core traits\nForensic replay\nImmune system"]
         RUNTIME["roko-runtime\nPulseBus (ephemeral)\nProcessSupervisor\nWorkflowEngine"]
     end
 
@@ -528,7 +530,7 @@ IronClaw's `crates/ironclaw_safety/` (prompt injection, validation, leak detecti
 
 ### 4.2 Multi-Channel Access
 
-IronClaw's `Channel` trait unifies CLI TUI, browser web UI (SSE + WebSocket), Telegram, HTTP webhooks, WASM channels, and REPL behind a single abstraction. `ChannelManager` merges all streams so the agent is channel-agnostic. Roko's primary interface is the CLI and HTTP routes; it has no equivalent channel abstraction and no Telegram or WASM channel support.
+IronClaw's `Channel` trait unifies CLI TUI, browser web UI (SSE + WebSocket), Telegram, HTTP webhooks, WASM channels, and REPL behind a single abstraction. `ChannelManager` merges all streams so the agent is channel-agnostic. The captured Roko materials emphasize CLI and HTTP routes; no matching channel abstraction, Telegram channel, or WASM channel support is identified here.
 
 ### 4.3 WASM Extension Model
 
@@ -540,27 +542,27 @@ IronClaw's PostgreSQL + libSQL/Turso dual-backend (`src/db/`) provides SQL query
 
 ### 4.5 Secrets and Credential Management
 
-AES-256-GCM encrypted secret storage with OS keychain master key management (`src/secrets/`) is a first-class feature in IronClaw. Extension credentials are injected into WASM tools' linear memory safely, never exposed to tool authors. Roko has no equivalent AES secret store; secrets are managed out-of-band.
+AES-256-GCM encrypted secret storage with OS keychain master key management (`src/secrets/`) is a first-class feature in IronClaw. Extension credentials are injected into WASM tools' linear memory safely. No equivalent AES secret store is identified in the captured Roko materials.
 
 ### 4.6 Embedded Scripting (CodeAct / Monty)
 
-IronClaw's Tier 1 execution path (`ironclaw_engine/executor/scripting.rs`) embeds a Python interpreter (Monty), enabling the RLM (Recursive Language Model) pattern: context as variables, recursive `llm_query()` calls, VM suspension for tool execution, and compact output metadata between steps. This allows more complex reasoning patterns than purely sequential tool calls. Roko has no equivalent embedded scripting.
+IronClaw's Tier 1 execution path (`ironclaw_engine/executor/scripting.rs`) embeds a Python interpreter (Monty), enabling the RLM (Recursive Language Model) pattern: context as variables, recursive `llm_query()` calls, VM suspension for tool execution, and compact output metadata between steps. No captured Roko equivalent for embedded scripting is identified.
 
 ### 4.7 Progressive Tool Disclosure
 
-IronClaw implements flag-gated progressive tool disclosure (`crates/ironclaw_engine/`, PR #5149) — the agent's visible tool surface expands as context complexity grows, reducing prompt bloat on simple tasks. Roko exposes all tools uniformly.
+IronClaw implements flag-gated progressive tool disclosure (`crates/ironclaw_engine/`, PR #5149) — the agent's visible tool surface expands as context complexity grows, reducing prompt bloat on simple tasks. The captured Roko tool model does not show the same progressive-disclosure abstraction.
 
 ### 4.8 Extension Registry and Onboarding
 
-IronClaw's 7-step onboarding wizard (`src/setup/`) and extension registry catalog (`src/registry/`) with WASM artifact download, verification, and install creates a complete lifecycle for user-installable extensions. The credential\_name vs extension\_name identity split is a carefully designed onboarding invariant. Roko has no equivalent onboarding or marketplace.
+IronClaw's onboarding wizard (`src/setup/`) and extension registry catalog (`src/registry/`) with WASM artifact download, verification, and install create a lifecycle for user-installable extensions. The credential\_name vs extension\_name identity split is a local onboarding invariant. No equivalent onboarding/registry lifecycle is identified in the captured Roko materials.
 
 ### 4.9 Tunnel Abstraction
 
-IronClaw's `src/tunnel/` provides a `Tunnel` trait with Cloudflare, ngrok, Tailscale, Custom (arbitrary command), and None implementations, making self-hosted deployments accessible from the internet without infrastructure. Roko exposes HTTP routes but has no tunnel abstraction.
+IronClaw's `src/tunnel/` provides a `Tunnel` trait with Cloudflare, ngrok, Tailscale, Custom (arbitrary command), and None implementations, making self-hosted deployments easier to expose. The captured Roko materials show HTTP routes, not a tunnel abstraction.
 
 ### 4.10 Session Undo/Redo
 
-Turn-based undo/redo with checkpoints (`src/agent/undo.rs`, max 20 checkpoints) is a user-facing feature unique to IronClaw. Roko's sessions do not support undo.
+Turn-based undo/redo with checkpoints (`src/agent/undo.rs`) is a user-facing IronClaw feature. No captured Roko session undo path is identified.
 
 ---
 
@@ -568,7 +570,7 @@ Turn-based undo/redo with checkpoints (`src/agent/undo.rs`, max 20 checkpoints) 
 
 ### 5.1 Multi-Rung Gate Pipeline (Mechanical Verification)
 
-Roko's `roko-gate` (42 source files, 15 gate types) is the single most important architectural differentiator. Every agent output passes through compile, test, clippy, diff, LLM judge, property test, benchmark, security scan, format check, fact check, symbol resolution, on-chain verification, and shell gates before being accepted. Thresholds are learned via EMA. Statistical process control (SPC, PELT, Hotelling T-squared) monitors quality trends. A ratchet prevents regressions. IronClaw has no equivalent.
+Roko's captured `roko-gate` design is a major architectural differentiator. Generated artifacts can be routed through compile, test, clippy, diff, LLM judge, property test, benchmark, security scan, format check, fact check, symbol resolution, on-chain verification, and shell gates before acceptance. Thresholds are learned via EMA. Statistical process control (SPC, PELT, Hotelling T-squared) monitors quality trends. A ratchet prevents regressions. No equivalent multi-rung pipeline is identified in IronClaw.
 
 ### 5.2 Adaptive Model Routing (CascadeRouter)
 
@@ -576,7 +578,7 @@ Roko's `CascadeRouter` (in `roko-learn`) is a 3-stage adaptive model selection s
 
 ### 5.3 Affect Engine (Daimon)
 
-`roko-daimon` models agent affect using PAD (Pleasure-Arousal-Dominance) vectors and somatic markers. Past failure experiences are stored in a k-d tree and blended into current behavior modulation. This implements the somatic marker hypothesis in a principled way. IronClaw has a 9-dimension psychographic *user* profile but no equivalent agent affect model.
+`roko-daimon` models agent affect using PAD (Pleasure-Arousal-Dominance) vectors and somatic markers. Past failure experiences are stored in a k-d tree and blended into behavior modulation. IronClaw has a psychographic *user* profile, but no matching agent affect model is identified here.
 
 ### 5.4 Offline Consolidation (Dreams)
 
@@ -584,7 +586,7 @@ Roko's `CascadeRouter` (in `roko-learn`) is a 3-stage adaptive model selection s
 
 ### 5.5 Code Intelligence (Index)
 
-`roko-index` provides multi-language source parsing (Rust via tree-sitter, TypeScript and Go via regex), symbol extraction, PageRank-scored symbol dependency graphs, HDC fingerprinting for code similarity, and SQLite persistence. This is exposed via `roko-mcp-code` as an MCP server agents can use for codebase navigation. IronClaw has no code intelligence system.
+`roko-index` provides multi-language source parsing (Rust via tree-sitter, TypeScript and Go via regex), symbol extraction, PageRank-scored symbol dependency graphs, HDC fingerprinting for code similarity, and SQLite persistence. This is exposed via `roko-mcp-code` as an MCP server agents can use for codebase navigation. No matching IronClaw code-indexing engine is identified here.
 
 ### 5.6 Content-Addressed Immutability and Audit Trail
 
@@ -592,7 +594,7 @@ Every `Engram` is identified by a BLAKE3 hash of its content-bearing fields. Upd
 
 ### 5.7 Reactive Intelligence (Conductor)
 
-`roko-conductor`'s 10 specialized watchers monitor execution in real-time and trigger adaptive interventions: pausing, escalating to a higher model tier, replanning, requesting human intervention, or aborting. The Yerkes-Dodson inverted-U model prevents over-escalation. Threshold learning makes watcher triggers adaptive. IronClaw's `context_monitor.rs` detects memory pressure only — there is no equivalent reactive intelligence layer.
+`roko-conductor` watchers monitor execution in real time and trigger adaptive interventions: pausing, escalating to a higher model tier, replanning, requesting human intervention, or aborting. The Yerkes-Dodson inverted-U model prevents over-escalation. Threshold learning makes watcher triggers adaptive. IronClaw's referenced `context_monitor.rs` path covers memory pressure; no matching reactive intelligence layer is identified here.
 
 ### 5.8 Layered Architecture with CI Enforcement
 
@@ -600,15 +602,15 @@ Roko's L0-L4 layer system is declared in `Cargo.toml` and verified by a CI scrip
 
 ### 5.9 On-Chain Integration
 
-`roko-chain`, `mirage-rs` (in-process EVM simulator with HDC-indexed knowledge and pheromone subsystems), `ChainSubstrate`, `VerifyChainGate`, `roko-chain-watcher`, and ERC-8004 agent card registration form a complete blockchain integration story. This enables agent reputation, on-chain task verification, and decentralized coordination. IronClaw has no on-chain integration.
+`roko-chain`, `mirage-rs` (in-process EVM simulator with HDC-indexed knowledge and pheromone subsystems), `ChainSubstrate`, `VerifyChainGate`, `roko-chain-watcher`, and ERC-8004 agent card registration form the captured blockchain integration set. It targets agent reputation, on-chain task verification, and decentralized coordination. No matching IronClaw on-chain integration is identified in the referenced local docs.
 
 ### 5.10 Structural Learning at Scale
 
-Roko's five learning mechanisms (CascadeRouter, episode logger, playbook extraction, A/B experiments, efficiency tracking) all operate continuously and update persisted JSON/JSONL state. Pattern discovery, HDC clustering, active inference, error pattern learning, and context pack caching compound over time. IronClaw's learning missions are event-driven and qualitative; there is no structural quantitative learning that updates routing or gate thresholds.
+Roko's captured learning mechanisms (CascadeRouter, episode logger, playbook extraction, A/B experiments, efficiency tracking) update persisted JSON/JSONL state. Pattern discovery, HDC clustering, active inference, error pattern learning, and context pack caching are designed to compound over time. IronClaw's learning missions are event-driven; no structural learner that updates routing or gate thresholds is identified here.
 
 ### 5.11 DAG-Based Execution and Parallelism
 
-`roko-graph`'s cell-based DAG engine with TOML graph definitions, topological sort, fan-out/fan-in parallelism, conditional edges, hot reloading, and cell registry is a complete parallel execution framework. `roko-orchestrator` adds Git worktree isolation so parallel tasks do not interfere. IronClaw's scheduler runs parallel jobs but they are not DAG-linked and share the same workspace.
+`roko-graph`'s cell-based DAG engine includes TOML graph definitions, topological sort, fan-out/fan-in parallelism, conditional edges, hot reloading, and a cell registry. `roko-orchestrator` adds Git worktree isolation so parallel tasks do not share one working tree. IronClaw's scheduler runs parallel jobs, but no DAG-linked, worktree-isolated equivalent is identified here.
 
 ### 5.12 Knowledge Decay and Archival
 
@@ -616,17 +618,18 @@ Engram decay (HalfLife / Exponential functions with domain-specific defaults) pl
 
 ### 5.13 Scale and Test Coverage
 
-~727K LOC, ~8,300 tests (with property-based tests via proptest), and 60+ CLI subcommands reflect a codebase operating at a significantly larger scale. The property-based test coverage (10% of the suite) tests invariants that example-based tests miss.
+The captured materials show a broad self-hosting surface: layered crates, app binaries, plan-runner workflows, and property-based tests via `proptest`. Exact LOC, test-count, and CLI-count claims are intentionally not used as evidence here.
 
 ---
 
 ## 6. Complementary Strengths
 
-Where combining Roko and IronClaw creates capabilities neither has alone:
+Where IronClaw could adopt captured Roko patterns without taking a `roko-*`
+dependency:
 
 ### 6.1 Gate-Verified Personal Assistant
 
-IronClaw's multi-channel personal assistant frontend (Telegram, web UI, WASM channels) combined with Roko's multi-rung gate pipeline for code outputs would create the first personal assistant that mechanically verifies every code change before delivering it to the user. A simplified `CompileGate` + `TestGate` wired into `ironclaw_engine`'s `ExecutionLoop` after `ActionCalls` completes would catch 80% of code errors autonomously.
+IronClaw's multi-channel frontend (Telegram, web UI, WASM channels) could adopt a Roko-style multi-rung gate pipeline for code outputs. A first IronClaw-native version would start with compile/lint/test gates around generated artifacts before expanding to security, benchmark, or fact-check gates.
 
 **Integration point:** Wire a `GateRunner` into `crates/ironclaw_engine/src/executor/loop_engine.rs` after tool execution; store gate verdicts as `ThreadEvent` entries.
 
@@ -644,41 +647,41 @@ IronClaw's 9-dimension psychographic user profile (`src/profile.rs`) combined wi
 
 ### 6.4 Code Intelligence for Channel-Based Workflows
 
-Roko's `roko-index` (symbol graph, PageRank, HDC code fingerprints) via `roko-mcp-code` connected to IronClaw's existing MCP client (`src/tools/mcp/`) would give IronClaw's assistant automatic codebase awareness without the user specifying files. A single MCP server configuration entry in `src/config/` makes this work immediately with zero code changes.
+Roko's captured `roko-index` pattern (symbol graph, PageRank, HDC code fingerprints) could be reimplemented as an IronClaw-native MCP server or workspace indexer. This would give IronClaw codebase awareness without requiring the user to name every relevant file.
 
-**Integration point:** Configure `roko-mcp-code` as an MCP server in IronClaw's `src/config/`; zero code changes required (`src/tools/mcp/factory.rs` handles transport dispatch).
+**Integration point:** Add an IronClaw-native code-index MCP server or workspace service; verify config reaches `src/tools/mcp/factory.rs` and all dispatch paths.
 
 ### 6.5 Dual-Backend Persistence for Roko
 
-Roko's `Store` trait is clean and well-defined. IronClaw's dual-backend pattern (PostgreSQL + libSQL with SQL migrations) implemented as a `DbSubstrate` behind the `Store` trait would give Roko production-grade persistence: SQL joins, full-text search, transactional integrity, and standard operational tooling — while Roko's content-addressed engrams and lineage DAGs remain intact as the data model.
+The captured `Store` trait pattern is cleanly separated from storage details. IronClaw's dual-backend pattern (PostgreSQL + libSQL with SQL migrations) could inform an IronClaw-native content-addressed memory store with SQL joins, full-text search, transactional integrity, and standard operational tooling.
 
-**Integration point:** Implement `Store` in a new `roko-db` crate using IronClaw's DB abstraction patterns from `src/db/CLAUDE.md`.
+**Integration point:** Implement an IronClaw-owned store facade using the DB abstraction patterns from `src/db/CLAUDE.md`.
 
 ### 6.6 Dream Consolidation for Personal Memory
 
-Roko's 6-phase dream cycle (hypnagogia → imagination → rehearsal → replay → staging → routing advice) applied to IronClaw's workspace memory would consolidate user conversations into structured learnings, counterfactually explore alternative approaches to past problems, pre-assemble context for recurring task patterns, and refine skill instructions from accumulated evidence. IronClaw's heartbeat system provides the scheduling hook; the dream phases would replace ad-hoc summarization.
+Roko's captured dream-cycle pattern (hypnagogia → imagination → rehearsal → replay → staging → routing advice) could guide IronClaw workspace-memory consolidation. The IronClaw version should be heartbeat-bounded and write derived memories through the existing workspace/memory APIs.
 
-**Integration point:** `roko-dreams` ported as `ironclaw_dreams` crate; scheduled via IronClaw's routine engine (`src/agent/routine_engine.rs`); outputs written as `DocType::Lesson` MemoryDocs in `ironclaw_engine`.
+**Integration point:** Add an IronClaw-owned consolidation crate or module, scheduled via the routine engine (`src/agent/routine_engine.rs`); outputs written as durable workspace memories.
 
 ### 6.7 On-Chain Agent Reputation for IronClaw
 
-Roko's ERC-8004 agent card system combined with IronClaw's extension/credential model would let IronClaw expose its capabilities as a discoverable on-chain agent with verifiable reputation scores derived from gate outcomes. Other agents (Roko swarms, third-party agents) could hire IronClaw's capabilities via the marketplace job protocol. Neither system alone spans the gap between personal assistant and decentralized agent marketplace participant.
+The captured ERC-8004 agent card pattern could be combined with IronClaw's extension/credential model if IronClaw later needs chain-native agent identity. That would require a dedicated security and product review because it changes identity, reputation, and external coordination assumptions.
 
 ### 6.8 Shared Safety Crate
 
-`crates/ironclaw_safety/` (prompt injection detection, validation, leak detection, policy) is already an extracted crate that could be published to crates.io and consumed by Roko's `roko-agent/src/safety/` module. This would give Roko production-grade user-input sanitization that its current safety layer approximates but does not fully implement — and Roko's `QuarantineVault` / `ImmuneSystem` could be published back for IronClaw to consume.
+`crates/ironclaw_safety/` (prompt injection detection, validation, leak detection, policy) is already an extracted crate. The captured Roko `QuarantineVault` / `ImmuneSystem` concepts are useful design inputs, but any sharing should happen through explicit crate boundaries and compatibility tests.
 
 ---
 
-## 7. Gap Analysis: What Roko Has That IronClaw Lacks
+## 7. Gap Analysis: Captured Roko Capabilities Not Matched in IronClaw References
 
-This section lists capabilities present in Roko with no equivalent in IronClaw. These are candidates for IronClaw adoption (filtered from the comparison above for clarity).
+This section lists captured Roko capabilities with no matching IronClaw feature identified in the local references above. Treat them as adoption candidates, not as proof about any live external source.
 
 ### 7.1 Multi-Rung Gate Pipeline
 
 **Roko:** `roko-gate` with 15 gate types, adaptive EMA thresholds, SPC/PELT/Hotelling statistical quality control, ratchet, process reward model.
 
-**IronClaw gap:** No mechanical output verification. Agent outputs are presented to users without automated quality gates. Code changes, factual claims, and security-relevant outputs all bypass verification.
+**IronClaw gap:** No matching mechanical output verification pipeline is identified. Code changes, factual claims, and security-relevant outputs do not appear to pass through automated multi-rung gates.
 
 **Severity:** High. This is the most significant missing capability for any agent system that produces code or makes verifiable claims.
 
@@ -686,7 +689,7 @@ This section lists capabilities present in Roko with no equivalent in IronClaw. 
 
 **Roko:** `CascadeRouter` with 3-stage learning: confidence threshold → UCB → LinUCB contextual bandit. Updated from gate outcomes. Persisted to `.roko/learn/cascade-router.json`.
 
-**IronClaw gap:** Static LLM configuration. `smart_routing.rs` stub exists but is unimplemented. No learning from task outcomes to model selection.
+**IronClaw gap:** Static LLM configuration. `smart_routing.rs` stub exists but is not identified as a learned router. No outcome-based model-selection loop is identified.
 
 **Severity:** Medium. The cost/quality impact grows as task volume increases; at low volume, static routing is acceptable.
 
@@ -694,7 +697,7 @@ This section lists capabilities present in Roko with no equivalent in IronClaw. 
 
 **Roko:** `roko-daimon` PAD model, somatic markers, k-d tree indexed by task features, mortality modeling, goal tracking.
 
-**IronClaw gap:** No agent affect model. Agent behavior is stateless across tasks; past failures do not modulate future risk tolerance.
+**IronClaw gap:** No agent affect model is identified. Past failure-derived risk modulation is not shown in the referenced paths.
 
 **Severity:** Medium. Affects long-running workflows where behavioral adaptation prevents frustration spirals.
 
@@ -702,7 +705,7 @@ This section lists capabilities present in Roko with no equivalent in IronClaw. 
 
 **Roko:** `roko-dreams` 6-phase dream cycle with hypnagogia, imagination, rehearsal, replay, staging, routing advice; threat simulation.
 
-**IronClaw gap:** Heartbeat system runs periodic execution but is not a multi-phase consolidation pipeline. No counterfactual exploration, no experience replay, no pre-task rehearsal.
+**IronClaw gap:** Heartbeat system runs periodic execution but is not identified as a multi-phase consolidation pipeline. Counterfactual exploration, experience replay, and pre-task rehearsal are not shown in the referenced paths.
 
 **Severity:** Medium. Most impactful for long-running personal assistant deployments where accumulated experience should compound.
 
@@ -710,7 +713,7 @@ This section lists capabilities present in Roko with no equivalent in IronClaw. 
 
 **Roko:** `roko-index` multi-language parser, symbol graph, PageRank, HDC fingerprints, SQLite index; exposed via `roko-mcp-code`.
 
-**IronClaw gap:** No code indexing. Agent must either receive explicit file paths from the user or search files manually via shell/file tools. No automatic "which files are most relevant to this task?" reasoning.
+**IronClaw gap:** No code-indexing engine is identified. The agent can search files manually via shell/file tools, but this comparison does not identify automatic symbol-level relevance ranking.
 
 **Severity:** Medium-High for developer use cases. IronClaw's `web_fetch` and `shell` tools partially compensate but do not provide symbol-level precision.
 
@@ -718,7 +721,7 @@ This section lists capabilities present in Roko with no equivalent in IronClaw. 
 
 **Roko:** `roko-graph` cell-based DAG engine + `roko-orchestrator` worktree isolation + merge queue.
 
-**IronClaw gap:** Jobs are independent, not DAG-linked. Parallel tasks share the same workspace without isolation. No dependency-aware scheduling.
+**IronClaw gap:** Jobs are not identified as DAG-linked. No dependency-aware scheduling plus per-task worktree isolation is shown in the referenced paths.
 
 **Severity:** Medium. Primarily relevant for long multi-step agentic workflows, less relevant for conversational use cases.
 
@@ -726,7 +729,7 @@ This section lists capabilities present in Roko with no equivalent in IronClaw. 
 
 **Roko:** `roko-conductor` with 10 adaptive watchers, circuit breaker, Yerkes-Dodson arousal modeling, federation.
 
-**IronClaw gap:** `context_monitor.rs` handles memory pressure only. No detection of: repeated compilation failure, cost overrun, ghost turns, infinite loops, spec drift, test failure budgets, time overrun.
+**IronClaw gap:** `context_monitor.rs` handles memory pressure. This comparison does not identify watchers for repeated compilation failure, cost overrun, ghost turns, infinite loops, spec drift, test failure budgets, or time overrun.
 
 **Severity:** High for long-running autonomous jobs. Without these watchers, stuck or runaway jobs consume budget without user awareness until the next check-in.
 
@@ -734,15 +737,15 @@ This section lists capabilities present in Roko with no equivalent in IronClaw. 
 
 **Roko:** `roko-chain`, `mirage-rs` EVM simulator, `ChainSubstrate`, `VerifyChainGate`, `roko-chain-watcher`, ERC-8004 agent cards, Ed25519 attestations, secp256k1 signing.
 
-**IronClaw gap:** No blockchain integration. Agent identity is OAuth-based; no on-chain reputation or verifiable provenance.
+**IronClaw gap:** No chain-native integration is identified in the referenced docs. Agent identity is OAuth/credential oriented rather than on-chain reputation oriented.
 
 **Severity:** Low for current IronClaw use cases. High if IronClaw intends to participate in decentralized agent economies.
 
 ### 7.9 Property-Based Testing
 
-**Roko:** 10% of ~8,300 tests use `proptest` for invariant testing across input spaces.
+**Roko:** Captured test materials include `proptest` for invariant testing across input spaces.
 
-**IronClaw gap:** No property-based tests. All tests are example-based (unit and integration).
+**IronClaw gap:** No property-based tests are identified in this comparison; most referenced tests are example-based unit, integration, or E2E tests.
 
 **Severity:** Low for user-facing features; Medium for cryptographic, encoding, and protocol code where edge cases matter.
 
@@ -760,7 +763,7 @@ This section lists capabilities present in Roko with no equivalent in IronClaw. 
 
 **IronClaw gap:** No systematic A/B testing of prompt variants. Skills system allows manual prompt extension but no controlled experiments.
 
-**Severity:** Low at current scale; High as IronClaw serves more users or operates autonomous workflows at volume.
+**Severity:** Low at small scale; higher as IronClaw serves more users or operates autonomous workflows at volume.
 
 ### 7.12 Knowledge Decay and Cold Store Archival
 

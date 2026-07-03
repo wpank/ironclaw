@@ -1,10 +1,10 @@
 # Budget-Constrained Prompt Composition
 
-**Source provenance**: `roko-compose` crate (`https://github.com/wpank/roko/blob/main/crates/roko-compose/src/`)
+**Source provenance**: `roko-compose` crate (``crates/roko-compose/src/``)
 **Priority**: MEDIUM — enhances system prompt building and context management
 **Key modules**: `prompt.rs`, `auction.rs`, `scorer.rs`, `budget.rs`, `system_prompt_builder.rs`, `attention.rs`, `foraging.rs`, `strategy.rs`, `context_provider.rs`, `budget_predictor.rs`, `cost_attribution.rs`
 
-> **Boundary with code intelligence**: [Code Intelligence](code-intelligence.md) (section 11) produces `AssembledContext` — a ranked, token-estimated list of code slices selected from the symbol index. That is a *pre-budget* operation. This document describes the downstream step: the VCG auction that arbitrates between `AssembledContext` and other bidders (memory Engrams, skills, history, tools) for space in the final prompt.
+> **Boundary with code intelligence**: [Code Intelligence](code-intelligence.md) (section 11) produces `AssembledContext` — a ranked, token-estimated list of code slices selected from the symbol index. That is a *pre-budget* operation. This document describes the downstream step: greedy density allocation plus VCG-style diagnostics that arbitrate between `AssembledContext` and other bidders (memory Engrams, skills, history, tools) for space in the final prompt.
 
 ---
 
@@ -52,7 +52,7 @@ When the total token cost of all these components exceeds the model's context wi
 
 **Budget-constrained prompt composition** treats prompt assembly as a formal resource-allocation problem. Rather than ad hoc concatenation, it applies:
 
-- **Mechanism design from economics** (VCG auctions) to allocate token budget across competing content sources
+- **Mechanism-design diagnostics from economics** (VCG-style displacement payments) to analyze token budget allocation across competing content sources
 - **Online learning from statistics** (Thompson Sampling) to learn which content contributes to task success
 - **Ecological foraging theory from biology** (Marginal Value Theorem) to decide when to stop retrieving context from each source
 - **Active inference from computational neuroscience** (Expected Free Energy) to balance goal-directed inclusion with uncertainty-reducing exploration
@@ -76,7 +76,7 @@ This is not a minor effect. The degradation can be severe enough that a model sh
 The `PositionAttentionModel` struct models this U-shaped curve explicitly:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/attention.rs (lines 14-26)
+// `crates/roko-compose/src/attention.rs` (lines 14-26)
 
 /// Attention multiplier based on position within a context window.
 ///
@@ -145,7 +145,7 @@ The curve shows the primacy peak at the start (0.715), the trough at middle (0.4
 Three placement zones exploit the U-shaped curve:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/prompt.rs (lines 63-78)
+// `crates/roko-compose/src/prompt.rs` (lines 63-78)
 
 /// Where in the final prompt the section should be placed.
 pub enum Placement {
@@ -161,7 +161,7 @@ pub enum Placement {
 Placement affects effective scores with constant multipliers:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/attention.rs (lines 84-92)
+// `crates/roko-compose/src/attention.rs` (lines 84-92)
 
 pub const fn placement_adjusted_score(base_score: f64, placement: Placement) -> f64 {
     match placement {
@@ -181,7 +181,7 @@ The `dynamic_placement()` function automatically reassigns non-critical sections
 The `ModelAttentionCurves` struct stores per-model fitted parameters:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/attention.rs (lines 58-64)
+// `crates/roko-compose/src/attention.rs` (lines 58-64)
 
 pub struct ModelAttentionCurves {
     /// Model id to fitted curve mapping.
@@ -202,7 +202,7 @@ This allows the system to use Claude-specific attention parameters when calling 
 The `SystemPromptBuilder` assembles system prompts from 9 distinct layers, each targeting a different stability tier for LLM prefix-cache optimization. It uses a fluent API:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/system_prompt_builder.rs
+// `crates/roko-compose/src/system_prompt_builder.rs`
 
 let prompt = SystemPromptBuilder::new("You are an implementer...")
     .with_conventions("Use snake_case, thiserror for errors")
@@ -231,7 +231,7 @@ let prompt = SystemPromptBuilder::new("You are an implementer...")
 ### 3.3 Cache Layer Tiers
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/prompt.rs (lines 45-61)
+// `crates/roko-compose/src/prompt.rs` (lines 45-61)
 
 pub enum CacheLayer {
     /// System prompt, role instructions, tool definitions.
@@ -248,7 +248,7 @@ pub enum CacheLayer {
 Sections are emitted in cache-layer order (Role first, Volatile last), with cache alignment markers (`<!-- cache:TIER -->`) placed between stability tiers. This enables downstream API callers to set `cache_control` breakpoints so the LLM provider reuses the longest possible KV-cache prefix across related turns.
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/budget.rs (lines 128-133)
+// `crates/roko-compose/src/budget.rs` (lines 128-133)
 
 // Cache break hints: insert breaks after stable layers so the LLM
 // prefix cache can reuse the system/session prefix across turns.
@@ -270,7 +270,7 @@ pub fn cache_marker(layer_name: &str) -> String {
 Every piece of content that could appear in a prompt is represented as a `PromptSection`:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/prompt.rs (lines 104-119)
+// `crates/roko-compose/src/prompt.rs` (lines 104-119)
 
 pub struct PromptSection {
     /// Stable section identifier. Defaults to `prompt:<normalized name>`.
@@ -300,7 +300,7 @@ pub struct PromptSection {
 ### 4.1 Priority Levels
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/prompt.rs (lines 31-43)
+// `crates/roko-compose/src/prompt.rs` (lines 31-43)
 
 pub enum SectionPriority {
     /// Drop first under pressure (fluff, historical context).
@@ -319,7 +319,7 @@ pub enum SectionPriority {
 ### 4.2 Token Estimation
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/prompt.rs (lines 23-26)
+// `crates/roko-compose/src/prompt.rs` (lines 23-26)
 
 pub const fn estimate_tokens(text: &str) -> usize {
     text.len().div_ceil(4)
@@ -335,7 +335,7 @@ This approximation (4 bytes per token) is adequate for budget accounting. For pr
 Each prompt section belongs to a cognitive subsystem that "bids" for its inclusion:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/prompt.rs (lines 80-101)
+// `crates/roko-compose/src/prompt.rs` (lines 80-101)
 
 pub enum AttentionBidder {
     /// Durable knowledge retrieved from Neuro.
@@ -383,27 +383,21 @@ pub enum AttentionBidder {
 
 ---
 
-## 6. The VCG Auction Mechanism {#6-vcg-auction}
+## 6. VCG-Inspired Allocation {#6-vcg-auction}
 
 ### 6.1 Background: Why an Auction?
 
-When total content exceeds the token budget, the system must decide which sections to include. This is a classic resource-allocation problem with competing demands. The Vickrey-Clarke-Groves (VCG) auction provides a mathematically proven property: **truthful bidding is the dominant strategy**.
-
-In a VCG auction, each bidder's payment equals the **externality** they impose on other bidders — the total value others lost because this bidder was included. This means:
-
-- No bidder can increase its allocation by inflating its bid (inflating forces higher payments without additional allocation).
-- Each bidder's optimal strategy is to report its true value.
-- The mechanism maximizes total social welfare (the sum of all included sections' values).
+When total content exceeds the token budget, the system must decide which sections to include. Roko borrows the VCG idea of pricing the **externality** a selected section imposes on excluded sections, but the implementation shown below is a greedy, density-based approximation. Treat the payment as a useful diagnostic and learning signal, not as a proof that bidders are incentive-compatible.
 
 > **Citations**:
 > - Vickrey, W. (1961). Counterspeculation, Auctions, and Competitive Sealed Tenders. *The Journal of Finance*, 16(1), 8-37. [Wiley](https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1540-6261.1961.tb02789.x)
 > - Clarke, E. H. (1971). Multipart Pricing of Public Goods. *Public Choice*, 11, 17-33.
 > - Groves, T. (1973). Incentives in Teams. *Econometrica*, 41(4), 617-631.
 
-### 6.2 The VCG Allocation Algorithm (Full Implementation)
+### 6.2 Greedy Allocation With VCG-Style Payments
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/auction.rs (lines 380-501)
+// `crates/roko-compose/src/auction.rs` (lines 380-501)
 
 /// Allocate context window tokens using a greedy VCG-style mechanism.
 ///
@@ -524,7 +518,7 @@ p_i = max{v_j : j in E, t_j <= t_i}
 **Pareto optimality check**: An allocation is Pareto-optimal if no swap of an included section for an excluded section can improve total welfare:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/auction.rs (lines 226-244)
+// `crates/roko-compose/src/auction.rs` (lines 226-244)
 
 pub fn is_pareto_optimal(
     included: &[SectionAllocation],
@@ -571,12 +565,12 @@ Suppose the token budget is 800 tokens and three subsystems submit bids:
 - Payment for **task** (300 tokens): max excluded bid where tokens <= 300. Research has 400 tokens > 300, so no eligible excluded bid. Payment = 0.
 - Payment for **knowledge** (500 tokens): max excluded bid where tokens <= 500. Research has 400 <= 500, bid = 0.4. Payment = 0.4.
 
-**Interpretation**: Knowledge's VCG payment of 0.4 means it displaced research (which had value 0.4). If knowledge's true value were below 0.4, it would not be worth including — it would "pay more than it's worth." This incentivizes truthful value reporting.
+**Interpretation**: Knowledge's displacement payment of 0.4 means it displaced research with value 0.4. That diagnostic can train future bid calibration, but it does not by itself prove incentive compatibility because allocation is still greedy.
 
 ### 6.6 Affect Modulation (Full Implementation)
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/auction.rs (lines 292-336)
+// `crates/roko-compose/src/auction.rs` (lines 292-336)
 
 pub struct AffectModulation {
     /// Arousal-derived urgency multiplier (default 1.0, range [0.5, 2.0]).
@@ -611,7 +605,7 @@ When struggling, the system naturally up-weights warnings and down-weights optim
 ### 6.7 Auction Diagnostics
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/auction.rs (lines 173-189)
+// `crates/roko-compose/src/auction.rs` (lines 173-189)
 
 pub struct AuctionDiagnostics {
     pub total_welfare: f64,
@@ -639,7 +633,7 @@ Static bidding is suboptimal because the value of a section depends on the task.
 ### 7.2 The LearningBidder (Full Implementation)
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/auction.rs (lines 31-170)
+// `crates/roko-compose/src/auction.rs` (lines 31-170)
 
 pub struct LearningBidder {
     /// Subsystem this bidder represents.
@@ -777,7 +771,7 @@ flowchart TD
     E --> F["Gate pipeline runs\n(verification)"]
     F -->|"PASS"| G["bidder.update(\n  section, included=true,\n  gate_passed=true\n)\nalpha += 1.0"]
     F -->|"FAIL"| H["bidder.update(\n  section, included=true,\n  gate_passed=false\n)\nbeta += 1.0"]
-    G --> I["Persist posterior\n~/.ironclaw/learn/\nbidder-posteriors.json"]
+    G --> I["Persist posterior\nDB/workspace-backed\nlearning state"]
     H --> I
     I --> A
 ```
@@ -789,7 +783,7 @@ flowchart TD
 ### 8.1 Three Strategies
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/strategy.rs (lines 13-26)
+// `crates/roko-compose/src/strategy.rs` (lines 13-26)
 
 pub enum CompositionStrategy {
     /// Select Vcg once learned bidder observations are warm;
@@ -807,7 +801,7 @@ pub enum CompositionStrategy {
 ### 8.2 Auto Strategy Resolution
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/strategy.rs (lines 48-58)
+// `crates/roko-compose/src/strategy.rs` (lines 48-58)
 
 pub const DEFAULT_VCG_WARMUP_OBSERVATIONS: u32 = 10;
 
@@ -824,7 +818,7 @@ pub fn auto_select(
 }
 ```
 
-**Rationale**: VCG payments and affect modulation are only meaningful when the learning bidders have enough history to produce informed bids. During cold-start (first 10 observations per bidder), the deterministic density-greedy path is more stable. Once all bidders have warmed up, VCG provides better allocation through its truthful-bidding guarantees.
+**Rationale**: Displacement payments and affect modulation are only meaningful when the learning bidders have enough history to produce informed bids. During cold-start (first 10 observations per bidder), the deterministic density-greedy path is more stable. Once all bidders have warmed up, the VCG-inspired path can use payment diagnostics to improve calibration.
 
 ---
 
@@ -833,7 +827,7 @@ pub fn auto_select(
 ### 9.1 Three Tiers
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/context_provider.rs (lines 38-75)
+// `crates/roko-compose/src/context_provider.rs` (lines 38-75)
 
 pub enum ContextTier {
     Surgical,  // ~4,000 tokens  — local models, mechanical tasks
@@ -887,7 +881,7 @@ flowchart TD
 ### 9.3 Complexity-Adaptive Budget Scaling
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/budget.rs (lines 84-142)
+// `crates/roko-compose/src/budget.rs` (lines 84-142)
 
 pub enum Complexity {
     /// Single-file, trivial change. Drop PRD, research, decomposition sections.
@@ -947,7 +941,7 @@ bid_density = bid_value / estimated_tokens
 ### 10.4 Diversity Boost and Diminishing Returns (Full Implementation)
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/prompt.rs
+// `crates/roko-compose/src/prompt.rs`
 
 fn effective_candidate_bid(
     candidate: &AuctionCandidate<'_>,
@@ -997,7 +991,7 @@ This manifest enables downstream learning systems to correlate section inclusion
 The basic `SectionScorer` ranks sections by four dimensions:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/scorer.rs (lines 22-91)
+// `crates/roko-compose/src/scorer.rs` (lines 22-91)
 
 // Scoring weights
 const CONFIDENCE_WEIGHT: f64 = 0.40;
@@ -1016,7 +1010,7 @@ const REPUTATION_WEIGHT: f64 = 0.15;
 ### 11.2 The GoalDirectedHeuristicScorer (Full Implementation)
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/scorer.rs (lines 127-258)
+// `crates/roko-compose/src/scorer.rs` (lines 127-258)
 
 pub struct GoalDirectedHeuristicScorer {
     /// Goal embedding (HDC hash-based, 32-dim).
@@ -1077,7 +1071,7 @@ impl GoalDirectedHeuristicScorer {
 ### 11.3 HDC Embedding (Full Implementation)
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/scorer.rs (lines 297-310)
+// `crates/roko-compose/src/scorer.rs` (lines 297-310)
 
 fn embed_text(text: &str, dimensions: usize) -> Vec<f32> {
     let mut vector = vec![0.0_f32; dimensions.max(1)];
@@ -1175,7 +1169,7 @@ The MVT states that an optimal forager should leave a patch (context source) whe
 ### 13.3 The MultiPatchForager (Full Implementation)
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/foraging.rs (lines 24-112)
+// `crates/roko-compose/src/foraging.rs` (lines 24-112)
 
 pub struct SourceForagingProfile {
     /// Source this profile describes.
@@ -1288,7 +1282,7 @@ The forager retrieves 6-7 entries from the knowledge store before switching to t
 ### 13.5 Stopping and Sufficiency
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/foraging.rs
+// `crates/roko-compose/src/foraging.rs`
 
 pub fn should_stop_searching(mvt_ratio: f64, sufficiency: f64, threshold: f64) -> bool {
     mvt_ratio <= 1.0 || sufficiency >= threshold
@@ -1309,7 +1303,7 @@ pub fn calibration_to_foraging_factor(recent_accuracy: f64, confidence: f64) -> 
 The `social_foraging_boost()` function applies a capped relevance boost to context entries used by peer agents for similar tasks:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/foraging.rs (lines 132-162)
+// `crates/roko-compose/src/foraging.rs` (lines 132-162)
 
 /// Apply pheromone-like boost to context entries used successfully by peers.
 pub fn social_foraging_boost(
@@ -1342,7 +1336,7 @@ pub fn social_foraging_boost(
 ### 14.1 Budget Predictor (Full Implementation)
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/budget_predictor.rs (lines 88-222)
+// `crates/roko-compose/src/budget_predictor.rs` (lines 88-222)
 
 pub struct BudgetPredictor {
     /// Per-feature-key EMA of actual token usage.
@@ -1395,7 +1389,7 @@ With `alpha = 0.3`, recent observations have roughly 3x the weight of older ones
 ### 14.2 Section Influence (Leave-One-Out Analysis)
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/budget_predictor.rs (lines 276-375)
+// `crates/roko-compose/src/budget_predictor.rs` (lines 276-375)
 
 pub struct SectionInfluenceRecord {
     pub section_id: String,
@@ -1443,7 +1437,7 @@ impl SectionInfluenceRecord {
 ## 15. Per-Section Cost Attribution {#15-cost-attribution}
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/cost_attribution.rs (lines 9-108)
+// `crates/roko-compose/src/cost_attribution.rs` (lines 9-108)
 
 pub struct CostAttribution {
     pub turn_id: String,
@@ -1529,7 +1523,7 @@ The `compaction.rs` module handles conversation-history compaction under budget 
 - **Gate results and tool outcomes** are carried forward as structured JSON
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-compose/src/compaction.rs
+// `crates/roko-compose/src/compaction.rs`
 
 pub struct CompactionPolicy {
     /// Maximum messages to retain verbatim.
@@ -1575,7 +1569,7 @@ Expected properties:
 - Below ~3K tokens: insufficient context, even critical sections cannot all fit.
 - 4-8K tokens: steep improvement as core sections are included.
 - Above 10K tokens: diminishing returns; additional tokens rarely improve quality.
-- The VCG auction shifts the quality curve left (same pass rate at lower token count).
+- Density allocation should shift the quality curve left (same pass rate at lower token count).
 
 ### 17.2 Auction Convergence Speed
 
@@ -1602,9 +1596,9 @@ Expected A/B comparison between placement-unaware and placement-aware assembly:
 
 The placement multipliers (1.0x Start, 0.95x End, 0.70x Middle) are designed to match these empirically observed deltas.
 
-### 17.4 A/B Comparison: VCG vs Naive Truncation
+### 17.4 A/B Comparison: Density Allocation vs Naive Truncation
 
-| Metric | Naive truncation (tail-drop) | Density-greedy | VCG auction |
+| Metric | Naive truncation (tail-drop) | Density-greedy | Density + VCG-style diagnostics |
 |--------|------------------------------|----------------|-------------|
 | Gate pass rate | Baseline | +5-15% | +10-20% |
 | Budget utilization | 100% (waste) | 85-95% | 90-99% |
@@ -1812,7 +1806,7 @@ The prefix cached by the provider after `<!-- cache:conventions -->` contains th
     Retrieved 4 file sections. Sufficiency: 0.88 >= 0.85 → STOP
 
   Total retrieved: 7 + 5 + 4 = 16 chunks
-  → VCG auction selects top subset within 11,650-token budget
+  → density allocator selects top subset within 11,650-token budget
 ```
 
 ---
@@ -1968,6 +1962,8 @@ use super::prompt_section::{CacheLayer, IronClawBidder, IronClawSection, Placeme
 
 /// Budget-constrained prompt composer.
 pub struct IronClawPromptComposer {
+    /// Total prompt token budget.
+    pub total_budget: usize,
     /// Token budget for optional sections (total minus critical).
     pub optional_budget: usize,
     /// Per-bidder win counts for diversity enforcement.
@@ -2022,9 +2018,10 @@ pub struct CompositionResult {
 }
 
 impl IronClawPromptComposer {
-    pub fn new(optional_budget: usize) -> Self {
+    pub fn new(total_budget: usize) -> Self {
         Self {
-            optional_budget,
+            total_budget,
+            optional_budget: total_budget,
             bidder_wins: HashMap::new(),
             learning_state: None,
         }
@@ -2044,24 +2041,21 @@ impl IronClawPromptComposer {
 
         // Step 2: Budget check
         let critical_tokens: usize = critical.iter().map(|s| s.estimated_tokens()).sum();
-        if critical_tokens > self.optional_budget + critical_tokens {
+        if critical_tokens > self.total_budget {
             return Err(format!(
-                "Critical sections require {critical_tokens} tokens but budget is exhausted"
+                "Critical sections require {critical_tokens} tokens but budget is only {}",
+                self.total_budget
             ));
         }
 
         // Step 3: Score optional sections by effective density
-        let mut remaining = self.optional_budget;
+        let mut remaining = self.total_budget - critical_tokens;
         let mut scored: Vec<(f64, IronClawSection)> = optional
             .into_iter()
             .map(|section| {
                 let base_density = self.compute_density(&section);
                 let diversity = self.diversity_multiplier(section.bidder);
                 let effective = base_density * diversity;
-                self.bidder_wins
-                    .entry(section.bidder)
-                    .and_modify(|n| *n += 1)
-                    .or_insert(1);
                 (effective, section)
             })
             .collect();
@@ -2078,6 +2072,10 @@ impl IronClawPromptComposer {
             let tokens = section.estimated_tokens();
             if tokens <= remaining {
                 remaining -= tokens;
+                self.bidder_wins
+                    .entry(section.bidder)
+                    .and_modify(|n| *n += 1)
+                    .or_insert(1);
                 included.push(section);
             } else {
                 excluded.push(section.id.clone());
@@ -2564,34 +2562,24 @@ fn build_system_blocks_with_caching(
 
 ### 19.7 Phase 6: Learning State Persistence
 
-**Create `~/.ironclaw/learn/` directory structure**:
+Persist learning state through IronClaw-owned storage, not ad hoc files in the
+user's home directory. The implementation should add typed DB/workspace methods
+with PostgreSQL and libSQL parity, then expose a small repository facade to the
+prompt composer.
 
-| File | Content | Update Frequency |
+| Logical record | Content | Update Frequency |
 |------|---------|-----------------|
-| `bidder-posteriors.json` | `LearningState { posteriors, bidder_observations }` | After each thread completion |
-| `section-influence.json` | `SectionInfluenceRecord` per section_id | After each thread completion |
-| `budget-predictor.json` | `BudgetObservation` per feature key | After each thread completion |
+| `prompt_bidder_posteriors` | `LearningState { posteriors, bidder_observations }` | After each thread completion |
+| `prompt_section_influence` | `SectionInfluenceRecord` per section_id | After each thread completion |
+| `prompt_budget_observations` | `BudgetObservation` per feature key | After each thread completion |
 
 ```rust
-// In src/agent/ or crates/ironclaw_engine/src/
+// In the DB trait/facade layer, with PostgreSQL and libSQL implementations.
 
-const LEARNING_STATE_PATH: &str = ".ironclaw/learn/bidder-posteriors.json";
-
-pub async fn load_learning_state() -> Option<LearningState> {
-    let home = dirs::home_dir()?;
-    let path = home.join(LEARNING_STATE_PATH);
-    let content = tokio::fs::read_to_string(path).await.ok()?;
-    serde_json::from_str(&content).ok()
-}
-
-pub async fn save_learning_state(state: &LearningState) -> Result<(), std::io::Error> {
-    let home = dirs::home_dir()
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no home dir"))?;
-    let dir = home.join(".ironclaw/learn");
-    tokio::fs::create_dir_all(&dir).await?;
-    let path = dir.join("bidder-posteriors.json");
-    let content = serde_json::to_string_pretty(state)?;
-    tokio::fs::write(path, content).await
+#[async_trait::async_trait]
+pub trait PromptLearningStore {
+    async fn load_bidder_state(&self, workspace_id: &str) -> anyhow::Result<Option<LearningState>>;
+    async fn save_bidder_state(&self, workspace_id: &str, state: &LearningState) -> anyhow::Result<()>;
 }
 ```
 
@@ -2638,41 +2626,41 @@ pub async fn save_learning_state(state: &LearningState) -> Result<(), std::io::E
 5. Phase 5: Skills budget integration
 6. Phase 6: Anthropic cache_control headers
 7. Phase 7: Learning state persistence + Thompson Sampling warmup
-8. Phase 8: VCG auction (automatically activated after 10 observations per bidder)
+8. Phase 8: VCG-style displacement diagnostics (activated after 10 observations per bidder)
 
-**Cold-start behavior**: During phases 1-6, the system uses deterministic density-greedy allocation. Phase 7 begins accumulating posterior observations. Phase 8 activates VCG after the warmup threshold (10 observations per bidder, approximately 10 thread completions). The system degrades gracefully: if learning state is missing, `posterior_mean` returns 0.5 (uniform prior) and composition falls back to priority-only density scoring.
+**Cold-start behavior**: During phases 1-6, the system uses deterministic density-greedy allocation. Phase 7 begins accumulating posterior observations. Phase 8 records VCG-style displacement diagnostics after the warmup threshold (10 observations per bidder, approximately 10 thread completions). The system degrades gracefully: if learning state is missing, `posterior_mean` returns 0.5 (uniform prior) and composition falls back to priority-only density scoring.
 
 ---
 
 ## 21. Captured Source Identifier Reference {#21-source-reference}
 
-All source references below are GitHub links to the roko codebase:
+All source references below are captured-source identifiers, not links to an accessible external checkout:
 
-| Module | GitHub URL | What It Contains |
+| Module | Captured identifier | What It Contains |
 |--------|-----------|-----------------|
-| `prompt.rs` | [github.com/wpank/roko/blob/main/crates/roko-compose/src/prompt.rs](https://github.com/wpank/roko/blob/main/crates/roko-compose/src/prompt.rs) | `PromptSection`, `PromptComposer`, `CacheLayer`, `Placement`, `AttentionBidder`, `CompositionManifest` |
-| `auction.rs` | [github.com/wpank/roko/blob/main/crates/roko-compose/src/auction.rs](https://github.com/wpank/roko/blob/main/crates/roko-compose/src/auction.rs) | `LearningBidder`, `VcgBid`, `VcgAllocation`, `vcg_allocate()`, `AffectModulation`, `is_pareto_optimal()` |
-| `scorer.rs` | [github.com/wpank/roko/blob/main/crates/roko-compose/src/scorer.rs](https://github.com/wpank/roko/blob/main/crates/roko-compose/src/scorer.rs) | `SectionScorer`, `GoalDirectedHeuristicScorer`, HDC embedding |
-| `budget.rs` | [github.com/wpank/roko/blob/main/crates/roko-compose/src/budget.rs](https://github.com/wpank/roko/blob/main/crates/roko-compose/src/budget.rs) | `AdjustedBudget`, `Complexity`, `adjusted_budget_for()`, cache break hints |
-| `system_prompt_builder.rs` | [github.com/wpank/roko/blob/main/crates/roko-compose/src/system_prompt_builder.rs](https://github.com/wpank/roko/blob/main/crates/roko-compose/src/system_prompt_builder.rs) | `SystemPromptBuilder` (9-layer builder with cache markers and section effectiveness) |
-| `attention.rs` | [github.com/wpank/roko/blob/main/crates/roko-compose/src/attention.rs](https://github.com/wpank/roko/blob/main/crates/roko-compose/src/attention.rs) | `PositionAttentionModel`, `ModelAttentionCurves`, `dynamic_placement()`, `placement_adjusted_score()` |
-| `foraging.rs` | [github.com/wpank/roko/blob/main/crates/roko-compose/src/foraging.rs](https://github.com/wpank/roko/blob/main/crates/roko-compose/src/foraging.rs) | `MultiPatchForager`, `SourceForagingProfile`, `social_foraging_boost()`, `should_stop_searching()` |
-| `strategy.rs` | [github.com/wpank/roko/blob/main/crates/roko-compose/src/strategy.rs](https://github.com/wpank/roko/blob/main/crates/roko-compose/src/strategy.rs) | `CompositionStrategy`, `DEFAULT_VCG_WARMUP_OBSERVATIONS` |
-| `context_provider.rs` | [github.com/wpank/roko/blob/main/crates/roko-compose/src/context_provider.rs](https://github.com/wpank/roko/blob/main/crates/roko-compose/src/context_provider.rs) | `ContextTier`, `ContextSection`, `ContextBidder`, `LearningContextBidder` |
-| `budget_predictor.rs` | [github.com/wpank/roko/blob/main/crates/roko-compose/src/budget_predictor.rs](https://github.com/wpank/roko/blob/main/crates/roko-compose/src/budget_predictor.rs) | `BudgetPredictor`, `SectionInfluence`, `TaskFeatures` |
-| `cost_attribution.rs` | [github.com/wpank/roko/blob/main/crates/roko-compose/src/cost_attribution.rs](https://github.com/wpank/roko/blob/main/crates/roko-compose/src/cost_attribution.rs) | `CostAttribution`, `SectionCost` |
-| `compaction.rs` | [github.com/wpank/roko/blob/main/crates/roko-compose/src/compaction.rs](https://github.com/wpank/roko/blob/main/crates/roko-compose/src/compaction.rs) | `compact_history()`, `CompactionPolicy`, `ChatMessage` |
-| `token_counter.rs` | [github.com/wpank/roko/blob/main/crates/roko-compose/src/token_counter.rs](https://github.com/wpank/roko/blob/main/crates/roko-compose/src/token_counter.rs) | `TokenCounter` (tiktoken, HuggingFace, heuristic) |
+| `prompt.rs` | `crates/roko-compose/src/prompt.rs` | `PromptSection`, `PromptComposer`, `CacheLayer`, `Placement`, `AttentionBidder`, `CompositionManifest` |
+| `auction.rs` | `crates/roko-compose/src/auction.rs` | `LearningBidder`, `VcgBid`, `VcgAllocation`, `vcg_allocate()`, `AffectModulation`, `is_pareto_optimal()` |
+| `scorer.rs` | `crates/roko-compose/src/scorer.rs` | `SectionScorer`, `GoalDirectedHeuristicScorer`, HDC embedding |
+| `budget.rs` | `crates/roko-compose/src/budget.rs` | `AdjustedBudget`, `Complexity`, `adjusted_budget_for()`, cache break hints |
+| `system_prompt_builder.rs` | `crates/roko-compose/src/system_prompt_builder.rs` | `SystemPromptBuilder` (9-layer builder with cache markers and section effectiveness) |
+| `attention.rs` | `crates/roko-compose/src/attention.rs` | `PositionAttentionModel`, `ModelAttentionCurves`, `dynamic_placement()`, `placement_adjusted_score()` |
+| `foraging.rs` | `crates/roko-compose/src/foraging.rs` | `MultiPatchForager`, `SourceForagingProfile`, `social_foraging_boost()`, `should_stop_searching()` |
+| `strategy.rs` | `crates/roko-compose/src/strategy.rs` | `CompositionStrategy`, `DEFAULT_VCG_WARMUP_OBSERVATIONS` |
+| `context_provider.rs` | `crates/roko-compose/src/context_provider.rs` | `ContextTier`, `ContextSection`, `ContextBidder`, `LearningContextBidder` |
+| `budget_predictor.rs` | `crates/roko-compose/src/budget_predictor.rs` | `BudgetPredictor`, `SectionInfluence`, `TaskFeatures` |
+| `cost_attribution.rs` | `crates/roko-compose/src/cost_attribution.rs` | `CostAttribution`, `SectionCost` |
+| `compaction.rs` | `crates/roko-compose/src/compaction.rs` | `compact_history()`, `CompactionPolicy`, `ChatMessage` |
+| `token_counter.rs` | `crates/roko-compose/src/token_counter.rs` | `TokenCounter` (tiktoken, HuggingFace, heuristic) |
 
 ---
 
 ## 22. Academic Citations {#22-citations}
 
-### VCG Auction Mechanism
+### Mechanism-Design References
 
 1. **Vickrey, W.** (1961). Counterspeculation, Auctions, and Competitive Sealed Tenders. *The Journal of Finance*, 16(1), 8-37. [Wiley](https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1540-6261.1961.tb02789.x)
 
-   *The original Vickrey auction paper. Proves that second-price sealed-bid auctions incentivize truthful bidding.*
+   *The original Vickrey auction paper. Useful background for displacement-payment diagnostics; the prompt allocator here does not inherit its truthfulness proof.*
 
 2. **Clarke, E. H.** (1971). Multipart Pricing of Public Goods. *Public Choice*, 11, 17-33.
 

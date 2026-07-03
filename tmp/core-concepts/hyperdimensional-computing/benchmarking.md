@@ -192,7 +192,7 @@ P(single FP) <= alpha / N
 | **100,000** | **1%** | **5.20** | **0.526** |
 | 1,000,000 | 1% | 5.61 | 0.528 |
 
-The recommended production threshold of **0.526** guarantees <1% overall false positive rate when scanning 100K entries.
+Use **0.526** as the initial threshold candidate for a 100K-entry scan. It should produce <1% random-pair false positives under the independence assumptions above, but production rollout must validate it against IronClaw's real corpus, encoders, and retrieval workload.
 
 ### False Positive Rate Measurement Code
 

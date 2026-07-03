@@ -1,658 +1,252 @@
-# IronClaw Smart Contract Integration
+# IronClaw NEAR Integration Plan
 
-> How to integrate smart contract capabilities into IronClaw: contract
-> deployment as a tool, simulation-before-execution safety pattern, wallet
-> integration, NEAR RPC client setup, transaction signing, source file
-> mapping, feature flag strategy, and rollout plan.
+Status: proposed integration. This document names concrete IronClaw extension
+points, but the NEAR chain tool and contracts are not implemented in this
+folder.
 
-Navigation: [README](./README.md) | [Solidity Contracts](./solidity-contracts.md) | [EVM Simulator](./evm-simulator.md) | [NEAR Contracts](./near-contracts.md) | [Benchmarks](./benchmarking.md) | **IronClaw Integration** | [References](./references.md)
+Navigation: [README](./README.md) |
+[NEAR Contracts](./near-contracts.md) | **IronClaw Integration** |
+[References](./references.md)
 
----
+## Goal
 
-## What IronClaw Needs from On-Chain Infrastructure
+Expose a small NEAR contract surface to IronClaw through normal tool dispatch:
+agent registration, heartbeat, reputation lookup, token-funded bounties, and
+optional knowledge posts. Chain operations should be auditable, rate-limited,
+and simulated before broadcast when they mutate state.
 
-IronClaw is a NEAR ecosystem project -- a secure personal AI assistant with
-multi-channel access, self-expanding tools, and proactive background execution.
-Integrating on-chain agent infrastructure gives IronClaw agents verifiable
-identities, economic coordination, and trustless reputation.
+## Existing IronClaw Touchpoints
 
-IronClaw's current architecture provides:
-- Agent identity via local configuration and workspace memory
-- Tool dispatch through `ToolDispatcher` (`src/tools/dispatch.rs`) -- all
-  actions go through tools
-- Multi-channel access (CLI, web, Telegram, HTTP webhooks)
-- Background execution via heartbeat system (`src/workspace/`)
-- Skill system with trust-based attenuation (`src/skills/`)
+These paths exist in the repository and are the natural integration points:
 
-On-chain infrastructure adds:
-- **Verifiable agent identity**: Other agents can verify an IronClaw agent's
-  capabilities and track record without trusting a central server.
-- **Cross-instance coordination**: Multiple IronClaw instances can delegate
-  tasks, share knowledge, and settle payments via the bounty market.
-- **Reputation portability**: An agent's reputation lives on-chain and is
-  readable by any party, not locked to a single deployment.
-- **Economic primitives**: Agents earn and spend tokens for work, knowledge
-  contributions, and validation services.
+| Path | Role |
+|------|------|
+| `src/tools/dispatch.rs` | Routes agent tool calls through `ToolDispatcher` |
+| `src/tools/registry.rs` | Registers built-in and extension tools |
+| `src/tools/tool.rs` | Defines the `Tool` trait and tool metadata |
+| `src/tools/rate_limiter.rs` | Applies tool call rate limits |
+| `src/tools/builtin/mod.rs` | Exposes built-in tools |
+| `src/secrets/` | Provides encrypted secret storage via the secrets subsystem |
+| `src/config/` | Holds typed runtime configuration |
+| `src/db/` | Provides dual-backend persistence abstractions |
+| `src/workspace/` | Owns workspace memory and background behavior |
+| `src/setup/` | Owns onboarding/setup flows |
 
----
+Do not describe new files as existing. The first implementation would add a
+chain-specific built-in tool module and a config type, then wire them through
+the existing registry and app composition paths.
 
-## IronClaw Source File Mapping
+## Proposed Files
 
-The integration touches these IronClaw source files and modules:
+| File | Status | Purpose |
+|------|--------|---------|
+| `src/tools/builtin/near_chain.rs` | New | NEAR RPC client wrapper and chain tools |
+| `src/config/chain.rs` | New | Network, contract account, and safety config |
+| `src/db/*` changes | New | Optional transaction/audit metadata, added through shared DB traits first |
+| `src/setup/*` changes | New | Optional setup step for account, network, and key import |
 
-```mermaid
-graph TD
-    subgraph "New Files"
-        CHAIN_TOOL["src/tools/builtin/chain.rs\n(NEW) NEAR RPC tool"]
-        CHAIN_CONFIG["src/config/chain.rs\n(NEW) Chain configuration"]
-        CHAIN_ERROR["src/error.rs\n(MODIFY) Add ChainError variant"]
-    end
+Any persistence change must support both PostgreSQL and libSQL. Any setup
+change should update `src/setup/README.md` in the same branch.
 
-    subgraph "Modified Files"
-        TOOLS_MOD["src/tools/builtin/mod.rs\n(MODIFY) Register chain tools"]
-        CONFIG_MOD["src/config/mod.rs\n(MODIFY) Add ChainConfig"]
-        APP["src/app.rs\n(MODIFY) Wire chain config"]
-        SECRETS["src/secrets/\n(MODIFY) Store NEAR signing key"]
-        HEARTBEAT["src/workspace/\n(MODIFY) Add chain heartbeat task"]
-        SKILLS["src/skills/\n(MODIFY) Reputation-gated attenuation"]
-    end
+## Tool Surface
 
-    subgraph "Existing Infrastructure"
-        DISPATCH["src/tools/dispatch.rs\nToolDispatcher::dispatch()"]
-        REGISTRY["src/tools/registry.rs\nToolRegistry"]
-        DB["src/db/\nDual-backend persistence"]
-        WS["src/workspace/\nPersistent memory system"]
-    end
+| Tool | Phase | Mutates chain | Parameters |
+|------|-------|---------------|------------|
+| `chain_register_agent` | 1 | yes | `capabilities_json`, `descriptor_uri`, `passport_hash` |
+| `chain_heartbeat` | 1 | yes | none |
+| `chain_agent_status` | 1 | no | `account_id` |
+| `chain_reputation_query` | 2 | no | `account_id`, optional `domain` |
+| `chain_bounty_post` | 2 | yes | `spec_hash`, `amount`, `deadline_ns`, `min_tier` |
+| `chain_bounty_claim` | 2 | yes | `job_id` |
+| `chain_bounty_submit` | 2 | yes | `job_id`, `result_hash` |
+| `chain_knowledge_post` | 3 | yes | `uri`, `content_hash`, `reward` |
 
-    CHAIN_TOOL --> DISPATCH
-    CHAIN_TOOL --> SECRETS
-    CHAIN_CONFIG --> CONFIG_MOD
-    HEARTBEAT --> CHAIN_TOOL
-    SKILLS --> CHAIN_TOOL
-```
+Default to read-only tools first. Enable mutating tools only when an account,
+function-call access key, contract allowlist, and simulation policy are
+configured.
 
-### Existing Modules That Enable the Integration
-
-| Module | Role in Chain Integration |
-|--------|-------------------------|
-| `src/tools/dispatch.rs` | All chain interactions flow through `ToolDispatcher::dispatch()` |
-| `src/tools/registry.rs` | Registers the new `chain_*` tools for LLM discovery |
-| `src/tools/tool.rs` | `Tool` trait that `ChainTool` implements |
-| `src/secrets/` | AES-256-GCM encrypted storage for NEAR signing key |
-| `src/config/` | Environment variable configuration for chain settings |
-| `src/workspace/` | Heartbeat system that drives periodic on-chain heartbeats |
-| `src/skills/` | Trust-based tool attenuation, gated by on-chain reputation |
-| `src/db/` | Stores chain transaction history and credential metadata |
-| `src/error.rs` | Error types via `thiserror` |
-
----
-
-## Simulation-Before-Execution Safety Pattern
-
-IronClaw follows a "simulate before execute" pattern for all state-mutating
-operations, mirroring the mirage-rs pipeline described in
-[evm-simulator.md](./evm-simulator.md). For NEAR, this uses
-`near-workspaces` sandbox simulation rather than revm.
+## Safety Pipeline
 
 ```mermaid
 flowchart TD
-    AGENT[Agent requests\nchain operation] --> DISPATCH[ToolDispatcher\nreceives chain_* call]
-    DISPATCH --> VALIDATE[Validate parameters\nCheck safety pipeline]
-    VALIDATE --> SIM{Simulation\nenabled?}
+    Request["Agent requests chain tool"]
+    Validate["Validate schema, contract allowlist, limits"]
+    ReadOnly{"Read-only call?"}
+    SimPolicy{"Simulation required?"}
+    Sandbox["Run near-workspaces or dry-run simulation"]
+    Approval["Apply approval and spend policy"]
+    Broadcast["Sign and broadcast transaction"]
+    Record["Record tx hash, receipt IDs, logs, cost"]
+    Reject["Return structured rejection"]
 
-    SIM -->|Yes| SANDBOX[Run in near-workspaces\nsandbox]
-    SANDBOX --> SIM_RESULT{Simulation\nsucceeded?}
-    SIM_RESULT -->|No| REJECT[Reject operation\nReturn error to agent]
-    SIM_RESULT -->|Yes| COST_CHECK{Gas cost\nwithin budget?}
-    COST_CHECK -->|No| REJECT
-    COST_CHECK -->|Yes| EXECUTE[Execute on NEAR\nmainnet/testnet]
-
-    SIM -->|No| EXECUTE
-    EXECUTE --> RECORD[Record ActionRecord\nin audit trail]
-    RECORD --> RESPONSE[Return result\nto agent]
+    Request --> Validate
+    Validate --> ReadOnly
+    ReadOnly -->|"yes"| Record
+    ReadOnly -->|"no"| SimPolicy
+    SimPolicy -->|"yes"| Sandbox
+    SimPolicy -->|"no, explicit config"| Approval
+    Sandbox -->|"pass"| Approval
+    Sandbox -->|"fail"| Reject
+    Approval --> Broadcast
+    Broadcast --> Record
 ```
 
-### Implementation
+Recommended default: state-mutating tools require simulation. If sandbox or
+dry-run support is unavailable, block the mutation unless the user explicitly
+configures a narrower testnet-only bypass.
+
+## Configuration
+
+Example shape, not final API:
 
 ```rust
-// src/tools/builtin/chain.rs
-
-use near_jsonrpc_client::{JsonRpcClient, methods};
-use near_primitives::types::{AccountId, Gas};
-use near_crypto::{InMemorySigner, SecretKey};
-use crate::tools::tool::{Tool, ToolOutput, ToolError};
-use crate::secrets::SecretStore;
-
-/// Maximum gas budget per transaction (default: 100 TGas).
-const DEFAULT_GAS_BUDGET: Gas = Gas::from_tgas(100);
-
-/// Chain tool for NEAR blockchain interactions.
-pub struct ChainTool {
-    rpc_client: JsonRpcClient,
-    signer: Option<InMemorySigner>,
-    network: NearNetwork,
-    simulate_first: bool,
-    gas_budget: Gas,
-}
-
-#[derive(Clone)]
-pub enum NearNetwork {
-    Mainnet,
-    Testnet,
-}
-
-impl NearNetwork {
-    pub fn rpc_url(&self) -> &str {
-        match self {
-            NearNetwork::Mainnet => "https://rpc.mainnet.near.org",
-            NearNetwork::Testnet => "https://rpc.testnet.near.org",
-        }
-    }
-}
-
-impl ChainTool {
-    /// Create a new ChainTool from configuration.
-    pub async fn from_config(
-        config: &ChainConfig,
-        secrets: &SecretStore,
-    ) -> Result<Self, ChainError> {
-        let network = match config.near_network.as_str() {
-            "mainnet" => NearNetwork::Mainnet,
-            "testnet" => NearNetwork::Testnet,
-            other => return Err(ChainError::InvalidNetwork(other.to_string())),
-        };
-
-        let rpc_client = JsonRpcClient::connect(network.rpc_url());
-
-        // Load signing key from secrets store
-        let signer = if let Some(key_json) = secrets.get("near_signing_key").await? {
-            let account_id: AccountId = config.near_account_id.parse()
-                .map_err(|e| ChainError::Config(format!("invalid account ID: {e}")))?;
-            let secret_key: SecretKey = key_json.parse()
-                .map_err(|e| ChainError::Config(format!("invalid secret key: {e}")))?;
-            Some(InMemorySigner::from_secret_key(account_id, secret_key))
-        } else {
-            None
-        };
-
-        Ok(Self {
-            rpc_client,
-            signer,
-            network,
-            simulate_first: config.simulate_before_execute,
-            gas_budget: Gas::from_tgas(config.gas_budget_tgas.unwrap_or(100)),
-        })
-    }
-}
-```
-
----
-
-## Chain Tool Definitions
-
-Following IronClaw's "Everything Goes Through Tools" principle, all chain
-interactions are exposed as tools that the LLM can invoke via
-`ToolDispatcher::dispatch()`.
-
-### Tool Registry
-
-```rust
-// Addition to src/tools/builtin/mod.rs
-
-pub fn register_chain_tools(registry: &mut ToolRegistry, config: &ChainConfig) {
-    if !config.enabled {
-        return; // chain feature disabled
-    }
-
-    registry.register(ChainHeartbeat::new());
-    registry.register(ChainRegister::new());
-    registry.register(ChainBountyPost::new());
-    registry.register(ChainBountyClaim::new());
-    registry.register(ChainBountySubmit::new());
-    registry.register(ChainReputationQuery::new());
-    registry.register(ChainKnowledgePost::new());
-    registry.register(ChainKnowledgeSearch::new());
-}
-```
-
-### Tool Definitions
-
-| Tool Name | Parameters | Returns | Phase |
-|-----------|-----------|---------|-------|
-| `chain_register` | `capabilities: string`, `passport_hash: string` | `{account_id, tx_hash}` | 1 |
-| `chain_heartbeat` | (none) | `{block_height, tx_hash}` | 1 |
-| `chain_reputation_query` | `account_id: string` | `{reputation, tier, job_count}` | 2 |
-| `chain_bounty_post` | `spec_hash: string`, `bounty: u128`, `deadline_ns: u64` | `{job_id, tx_hash}` | 2 |
-| `chain_bounty_claim` | `job_id: u64` | `{tx_hash}` | 2 |
-| `chain_bounty_submit` | `job_id: u64`, `result_hash: string` | `{tx_hash}` | 2 |
-| `chain_knowledge_post` | `uri: string`, `reward: u128` | `{insight_id, tx_hash}` | 3 |
-| `chain_knowledge_search` | `query: string`, `limit: u32` | `[{id, similarity, content}]` | 3 |
-
-### Example Tool Implementation
-
-```rust
-pub struct ChainHeartbeat {
-    chain_tool: Arc<ChainTool>,
-}
-
-#[async_trait]
-impl Tool for ChainHeartbeat {
-    fn name(&self) -> &str {
-        "chain_heartbeat"
-    }
-
-    fn description(&self) -> &str {
-        "Send a heartbeat to the on-chain agent registry to maintain liveness proof"
-    }
-
-    fn parameters(&self) -> serde_json::Value {
-        serde_json::json!({
-            "type": "object",
-            "properties": {},
-            "required": []
-        })
-    }
-
-    async fn execute(
-        &self,
-        _params: serde_json::Value,
-        _context: &ToolContext,
-    ) -> Result<ToolOutput, ToolError> {
-        let signer = self.chain_tool.signer.as_ref()
-            .ok_or_else(|| ToolError::Config("NEAR signing key not configured".into()))?;
-
-        let registry_id: AccountId = "registry.ironclaw.near".parse()
-            .map_err(|e| ToolError::Config(format!("{e}")))?;
-
-        // Build the function call transaction
-        let tx = methods::broadcast_tx_commit::RpcBroadcastTxCommitRequest {
-            signed_transaction: create_function_call_tx(
-                signer,
-                &registry_id,
-                "heartbeat",
-                b"{}".to_vec(),
-                Gas::from_tgas(5),
-                NearToken::from_yoctonear(0),
-            ).await?,
-        };
-
-        let result = self.chain_tool.rpc_client.call(tx).await
-            .map_err(|e| ToolError::External(format!("NEAR RPC error: {e}")))?;
-
-        Ok(ToolOutput::text(serde_json::json!({
-            "status": "ok",
-            "block_height": result.transaction_outcome.block_hash,
-            "tx_hash": result.transaction.hash.to_string(),
-        }).to_string()))
-    }
-}
-```
-
----
-
-## Wallet Integration and Transaction Signing
-
-### Key Storage
-
-The NEAR signing key is stored in IronClaw's secrets system
-(`src/secrets/`), encrypted with AES-256-GCM and the OS keychain master key.
-
-```rust
-// Key storage flow
-pub async fn store_near_key(
-    secrets: &SecretStore,
-    account_id: &str,
-    secret_key: &str,
-) -> Result<(), SecretError> {
-    // Validate the key format before storing
-    let _: SecretKey = secret_key.parse()
-        .map_err(|e| SecretError::InvalidKey(format!("{e}")))?;
-    let _: AccountId = account_id.parse()
-        .map_err(|e| SecretError::InvalidKey(format!("{e}")))?;
-
-    secrets.set("near_account_id", account_id).await?;
-    secrets.set("near_signing_key", secret_key).await?;
-    Ok(())
-}
-```
-
-### Transaction Construction
-
-```rust
-use near_primitives::transaction::{Action, FunctionCallAction, Transaction};
-use near_primitives::hash::CryptoHash;
-
-async fn create_function_call_tx(
-    signer: &InMemorySigner,
-    receiver_id: &AccountId,
-    method_name: &str,
-    args: Vec<u8>,
-    gas: Gas,
-    deposit: NearToken,
-) -> Result<near_primitives::transaction::SignedTransaction, ChainError> {
-    // Get the current nonce and block hash
-    let access_key = rpc_client
-        .call(methods::query::RpcQueryRequest {
-            block_reference: Finality::Final.into(),
-            request: near_primitives::views::QueryRequest::ViewAccessKey {
-                account_id: signer.account_id.clone(),
-                public_key: signer.public_key(),
-            },
-        })
-        .await
-        .map_err(|e| ChainError::Rpc(e.to_string()))?;
-
-    let nonce = access_key.nonce + 1;
-    let block_hash = access_key.block_hash;
-
-    let transaction = Transaction {
-        signer_id: signer.account_id.clone(),
-        public_key: signer.public_key(),
-        nonce,
-        receiver_id: receiver_id.clone(),
-        block_hash,
-        actions: vec![Action::FunctionCall(Box::new(FunctionCallAction {
-            method_name: method_name.to_string(),
-            args,
-            gas: gas.as_gas(),
-            deposit: deposit.as_yoctonear(),
-        }))],
-    };
-
-    let signed = transaction.sign(&signer);
-    Ok(signed)
-}
-```
-
----
-
-## NEAR RPC Client Setup
-
-### Configuration
-
-```rust
-// src/config/chain.rs
-
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct ChainConfig {
-    /// Enable chain integration (default: false).
     #[serde(default)]
     pub enabled: bool,
-
-    /// NEAR network: "mainnet" or "testnet".
     #[serde(default = "default_network")]
     pub near_network: String,
-
-    /// NEAR account ID for this agent.
-    pub near_account_id: String,
-
-    /// Path to NEAR key file (alternative to secrets store).
-    pub near_key_path: Option<String>,
-
-    /// Enable simulation before execution (default: true).
-    #[serde(default = "default_true")]
+    pub near_account_id: Option<String>,
+    #[serde(default)]
     pub simulate_before_execute: bool,
-
-    /// Gas budget per transaction in TGas (default: 100).
     pub gas_budget_tgas: Option<u64>,
-
-    /// Registry contract account.
-    #[serde(default = "default_registry")]
-    pub registry_contract: String,
-
-    /// Bounty market contract account.
-    #[serde(default = "default_bounty")]
-    pub bounty_contract: String,
-
-    /// Worker registry contract account.
-    #[serde(default = "default_worker")]
-    pub worker_contract: String,
-
-    /// Knowledge board contract account.
-    #[serde(default = "default_knowledge")]
-    pub knowledge_contract: String,
+    pub contract_allowlist: Vec<String>,
+    pub registry_contract: Option<String>,
+    pub worker_contract: Option<String>,
+    pub bounty_contract: Option<String>,
+    pub knowledge_contract: Option<String>,
 }
 
-fn default_network() -> String { "testnet".to_string() }
-fn default_true() -> bool { true }
-fn default_registry() -> String { "registry.ironclaw.near".to_string() }
-fn default_bounty() -> String { "bounty.ironclaw.near".to_string() }
-fn default_worker() -> String { "worker.ironclaw.near".to_string() }
-fn default_knowledge() -> String { "knowledge.ironclaw.near".to_string() }
+fn default_network() -> String {
+    "testnet".to_string()
+}
 ```
 
-### Environment Variables
+Example environment variables:
 
 ```bash
-# .env additions for chain integration
 CHAIN_ENABLED=true
 NEAR_NETWORK=testnet
 NEAR_ACCOUNT_ID=myagent.testnet
-NEAR_KEY_PATH=~/.ironclaw/near-key.json
-CHAIN_SIMULATE_FIRST=true
+CHAIN_SIMULATE_BEFORE_EXECUTE=true
 CHAIN_GAS_BUDGET_TGAS=100
-IRONCLAW_REGISTRY=registry.ironclaw.testnet
-IRONCLAW_BOUNTY_MARKET=bounty.ironclaw.testnet
-IRONCLAW_WORKER_REGISTRY=worker.ironclaw.testnet
-IRONCLAW_KNOWLEDGE_BOARD=knowledge.ironclaw.testnet
+IRONCLAW_REGISTRY_CONTRACT=registry.ironclaw.testnet
+IRONCLAW_WORKER_CONTRACT=worker.ironclaw.testnet
+IRONCLAW_BOUNTY_CONTRACT=bounty.ironclaw.testnet
 ```
 
----
+Keep secret material out of config. Store private keys or delegated
+function-call keys through the existing secrets subsystem.
 
-## Feature Flag Strategy
+## Signing and Key Management
 
-The chain integration uses Cargo feature flags for conditional compilation,
-following IronClaw's existing pattern for optional features.
+Use NEAR function-call access keys for routine automation. Restrict each key to
+the contract account and methods needed by the enabled tools. Avoid full-access
+keys in long-running agent processes.
 
-```toml
-# Cargo.toml additions
+Minimum key-handling requirements:
 
-[features]
-default = []
-chain = [
-    "dep:near-jsonrpc-client",
-    "dep:near-jsonrpc-primitives",
-    "dep:near-primitives",
-    "dep:near-crypto",
-]
+- Validate account ID, public key, and secret key format before storage.
+- Do not put plaintext keys in tool arguments, logs, `ActionRecord`, or error
+  text.
+- Load key material only for signing and drop it after the broadcast attempt.
+- Support key rotation and revocation in setup docs before mainnet use.
+- Fail closed when a mutating tool has no signer or uses an unallowlisted
+  contract.
 
-[dependencies]
-near-jsonrpc-client = { version = "0.10", optional = true }
-near-jsonrpc-primitives = { version = "0.26", optional = true }
-near-primitives = { version = "0.26", optional = true }
-near-crypto = { version = "0.26", optional = true }
-```
+## Transaction Construction
 
-### Conditional Compilation
+The chain tool should hide RPC version details behind a narrow wrapper:
 
-```rust
-// src/tools/builtin/mod.rs
+| Operation | Wrapper responsibility |
+|-----------|------------------------|
+| `view_call` | Query contract state without signing |
+| `function_call` | Build, sign, and broadcast one allowed method call |
+| `simulate_call` | Run sandbox/dry-run path and return gas/log estimates |
+| `tx_status` | Poll transaction/receipt result and normalize errors |
 
-#[cfg(feature = "chain")]
-pub mod chain;
+Avoid leaking `near-jsonrpc-client` request types throughout the codebase.
+That keeps future RPC method changes contained in `near_chain.rs`.
 
-pub fn register_all_tools(registry: &mut ToolRegistry, config: &Config) {
-    // ... existing tool registration ...
+## Audit Record
 
-    #[cfg(feature = "chain")]
-    if config.chain.enabled {
-        chain::register_chain_tools(registry, &config.chain);
-    }
+Every mutating tool should return and persist enough metadata to debug later:
+
+```json
+{
+  "network": "testnet",
+  "signer_id": "myagent.testnet",
+  "receiver_id": "registry.ironclaw.testnet",
+  "method_name": "heartbeat",
+  "tx_hash": "...",
+  "gas_burnt_tgas": "...",
+  "tokens_burnt": "...",
+  "receipt_ids": ["..."],
+  "logs": ["EVENT_JSON:..."],
+  "simulation": {
+    "required": true,
+    "passed": true
+  }
 }
 ```
 
-### Build Commands
-
-```bash
-# Standard build (no chain support)
-cargo build
-
-# Build with chain integration
-cargo build --features chain
-
-# Run tests including chain integration tests
-cargo test --features chain,integration
-
-# Run with chain support and logging
-RUST_LOG=ironclaw=debug cargo run --features chain
-```
-
----
+Do not persist private keys, raw prompt text, private task content, or
+unredacted receiver messages if they may contain user data.
 
 ## Rollout Plan
 
-### Phase 1: Agent Identity on NEAR (4-6 weeks)
+### Phase 1: Identity and Heartbeat
 
-**Goal**: Each IronClaw agent gets a NEAR-based passport with heartbeat
-liveness.
+Status: first useful milestone.
 
-```mermaid
-gantt
-    title Phase 1: Agent Identity
-    dateFormat  YYYY-MM-DD
-    section Infrastructure
-    ChainConfig + feature flag     :a1, 2026-07-07, 5d
-    NEAR RPC client setup          :a2, after a1, 3d
-    Key storage in secrets         :a3, after a1, 3d
-    section Tools
-    chain_register tool            :b1, after a2, 5d
-    chain_heartbeat tool           :b2, after b1, 3d
-    Heartbeat integration          :b3, after b2, 5d
-    section Testing
-    Sandbox simulation tests       :c1, after b2, 5d
-    Testnet deployment             :c2, after c1, 3d
-    section Onboarding
-    Setup wizard NEAR step         :d1, after b3, 5d
-```
+Deliverables:
 
-**Deliverables**:
-- `src/tools/builtin/chain.rs` with `chain_register` and `chain_heartbeat`
-- `src/config/chain.rs` with `ChainConfig`
-- NEAR key storage in `src/secrets/`
-- Heartbeat integration in `src/workspace/`
-- Setup wizard NEAR account step in `src/setup/`
-- Integration tests with `near-workspaces` sandbox
+- `AgentRegistry` testnet contract with `register`, `heartbeat`, and view
+  methods.
+- `chain_agent_status`, `chain_register_agent`, and `chain_heartbeat` tools.
+- Simulation and gas-budget checks for register and heartbeat.
+- Setup documentation for account ID and function-call key import.
+- Caller-level tests that drive the actual tool execution path.
 
-### Phase 2: Reputation and Work Coordination (6-8 weeks)
+### Phase 2: Work and Reputation
 
-**Goal**: IronClaw agents can post and claim bounties, build on-chain
-reputation, and gate tool access behind reputation tiers.
+Status: start after Phase 1 costs and failure modes are measured.
 
-**Deliverables**:
-- `chain_bounty_post`, `chain_bounty_claim`, `chain_bounty_submit` tools
-- `chain_reputation_query` tool
-- Reputation-gated tool attenuation in `src/skills/attenuate_tools`
-- Worker registration with token bonding
-- Integration with `ConsortiumValidator` for bounty resolution
+Deliverables:
 
-### Phase 3: Knowledge Layer (4-6 weeks)
+- `WorkerRegistry` and `BountyMarket` testnet contracts.
+- NEP-141 receiver-message tests for bonds and bounties.
+- `chain_reputation_query`, `chain_bounty_post`, `chain_bounty_claim`, and
+  `chain_bounty_submit` tools.
+- Callback failure tests and repair workflow.
+- Dual-backend persistence if transaction metadata is stored.
 
-**Goal**: IronClaw's workspace memory is backed by on-chain knowledge.
+### Phase 3: Knowledge Layer
 
-**Deliverables**:
-- `chain_knowledge_post` and `chain_knowledge_search` tools
-- Memory-to-insight bridge: `memory_write` optionally posts to InsightBoard
-- `memory_search` queries both local workspace and on-chain knowledge
-- Pheromone awareness in heartbeat system
+Status: optional.
 
----
+Deliverables:
 
-## Integration Architecture
+- `InsightBoard` only if the product needs public content hashes or rewards.
+- Clear policy for what may be posted on-chain.
+- Search/indexer path that does not replace local workspace memory semantics.
 
-```mermaid
-graph TD
-    IA[IronClaw Agent]
-    CT["src/tools/builtin/chain.rs (NEW)"]
-    TD[ToolDispatcher::dispatch]
-    SC[src/secrets/ - NEAR signing key]
-    HB[src/workspace/ - heartbeat]
-    SK[src/skills/ - attenuation]
-    LLM[crates/ironclaw_llm/ - LLM reasoning]
+## Security Review Checklist
 
-    IA --> TD
-    TD --> CT
-    CT --> SC
-    CT --> NEAR_RPC[NEAR JSON-RPC]
-
-    HB -->|periodic| CT
-    SK -->|reputation gate| CT
-
-    NEAR_RPC --> REG[registry.ironclaw.near]
-    NEAR_RPC --> WRK[worker.ironclaw.near]
-    NEAR_RPC --> BNT[bounty.ironclaw.near]
-    NEAR_RPC --> KNL[knowledge.ironclaw.near]
-
-    LLM -->|tool calls| TD
-```
-
----
-
-## Security Considerations
-
-### Key Security
-
-1. **NEAR signing key**: Stored in IronClaw's AES-256-GCM encrypted secrets
-   store with OS keychain master key. Never transmitted over the network.
-   The key never leaves the local machine.
-
-2. **Transaction signing**: All transactions are signed locally. The private
-   key is loaded into memory only for the signing operation and is not
-   cached in memory between tool calls.
-
-3. **Access key permissions**: Use NEAR function-call access keys (not
-   full-access keys) restricted to the specific contract methods the agent
-   needs. This limits blast radius if the key is compromised.
-
-### On-Chain Safety
-
-4. **Simulation-before-execution**: All state-mutating calls run through a
-   sandbox simulation first. The agent cannot broadcast a transaction that
-   reverts in simulation.
-
-5. **Gas budget**: A configurable maximum gas budget prevents runaway
-   transactions. The default 100 TGas limit is sufficient for all single
-   contract calls but prevents accidental multi-call chains.
-
-6. **Rate limiting**: Chain tools use IronClaw's existing rate limiter
-   (`src/tools/rate_limiter.rs`) to prevent the agent from flooding the
-   chain with transactions.
-
-### Reputation System Safety
-
-7. **Reputation oracle**: The agent's on-chain reputation is read-only from
-   the agent's perspective. Reputation updates are triggered by the bounty
-   market and consortium validator contracts, not by the agent directly.
-
-8. **Tier-gated tools**: High-privilege tools are gated behind on-chain
-   reputation tiers. An agent with `Probation` tier cannot access tools
-   that require `Expert` or `Elite` status.
-
-9. **Prompt hash timelock**: The 24-hour prompt hash update delay
-   (ventriloquist defense) prevents an attacker who compromises the agent's
-   key from silently changing the system prompt. Other agents observing
-   the registry will see the pending change.
-
-### Cross-Contract Promise Safety
-
-10. **Partial failure handling**: NEAR's async promise model means a
-    token transfer can succeed while a reputation update fails. All
-    promise chains include `#[private]` callbacks that check
-    `PromiseResult` and log warnings for manual retry.
-
-11. **Storage deposit management**: Contracts require attached NEAR for
-    storage deposits. The chain tool calculates required deposits before
-    signing to avoid failed transactions from insufficient deposits.
-
----
+- Contract allowlist is enforced before signing.
+- Gas, deposit, and token amount limits are configurable and tested.
+- Mutating tools require an explicit signer and fail closed without one.
+- Function-call keys are preferred and documented.
+- Receiver messages are structured JSON and bounded by byte length.
+- Simulation result data is not treated as private.
+- Cross-contract callbacks expose partial failure and repair state.
+- Admin/resolver account changes emit events and are covered by tests.
+- Any new DB operations are added to the shared DB trait and implemented for
+  both backends.
 
 ## Related Documents
 
-- [Solidity Contracts](./solidity-contracts.md) -- the EVM contracts being
-  ported to NEAR
-- [EVM Simulator](./evm-simulator.md) -- the simulation pipeline that
-  inspired the simulate-before-execute pattern
-- [NEAR Contracts](./near-contracts.md) -- the NEAR contract implementations
-  that IronClaw interacts with
-- [Benchmarks](./benchmarking.md) -- cost analysis that justifies NEAR
-  over EVM for production deployment
-- [References](./references.md) -- citations for NEAR SDK and RPC client
+- [NEAR contracts](./near-contracts.md) -- contract surfaces, examples, and
+  benchmarks.
+- [References](./references.md) -- NEAR SDK, RPC, token standards, and
+  testing references.

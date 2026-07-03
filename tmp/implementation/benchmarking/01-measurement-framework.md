@@ -143,10 +143,14 @@ Acceptance examples:
 
 | Algorithm | Target |
 |---|---|
-| HDC similarity | scan 100k vectors in under 10ms on developer laptop, under 2ms optimized |
+| HDC similarity | scan 100k vectors in under 10ms on a recorded developer-laptop baseline; report hardware and vector count |
 | RRF fusion | merge 3 lists of 1000 results in under 2ms |
 | LinUCB score | score 8 arms x 18 dims in under 1ms |
 | Gate condition eval | evaluate 10k JSON path predicates in under 50ms |
+
+These are engineering budgets for initial implementations, not general
+performance claims. Record CPU, build profile, corpus size, and fixture seed in
+the benchmark artifact.
 
 ## Scenario Benchmark Pattern
 

@@ -39,10 +39,14 @@ trait first -> postgres implementation -> libSQL implementation -> shared contra
 
 ## 2. Metric Events Table
 
+Table name is `metric_events` everywhere. Do not introduce a second
+`experimental_metric_events` stream; use `feature`, `variant`, and `stage`
+fields to distinguish experimental data.
+
 PostgreSQL:
 
 ```sql
-CREATE TABLE experimental_metric_events (
+CREATE TABLE metric_events (
     event_id TEXT PRIMARY KEY,
     schema_version SMALLINT NOT NULL,
     run_id TEXT NOT NULL,
@@ -69,14 +73,14 @@ CREATE TABLE experimental_metric_events (
     payload JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
-CREATE INDEX idx_experimental_metric_events_feature_time
-    ON experimental_metric_events(feature, timestamp_ms DESC);
+CREATE INDEX idx_metric_events_feature_time
+    ON metric_events(feature, timestamp_ms DESC);
 ```
 
 libSQL:
 
 ```sql
-CREATE TABLE experimental_metric_events (
+CREATE TABLE metric_events (
     event_id TEXT PRIMARY KEY,
     schema_version INTEGER NOT NULL,
     run_id TEXT NOT NULL,
@@ -103,8 +107,8 @@ CREATE TABLE experimental_metric_events (
     payload TEXT NOT NULL DEFAULT '{}'
 );
 
-CREATE INDEX idx_experimental_metric_events_feature_time
-    ON experimental_metric_events(feature, timestamp_ms DESC);
+CREATE INDEX idx_metric_events_feature_time
+    ON metric_events(feature, timestamp_ms DESC);
 ```
 
 ## 3. Gate Verdicts Table
@@ -182,3 +186,10 @@ where
 ```
 
 The same contract test should run against PostgreSQL and libSQL test fixtures.
+
+Current repository locations:
+
+- PostgreSQL: versioned SQL files under `migrations/`.
+- libSQL: append incremental entries in `src/db/libsql_migrations.rs`.
+- Trait changes: add methods to `src/db/mod.rs` first, then implement both
+  backends in the same PR.

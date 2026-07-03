@@ -1,14 +1,14 @@
 [← Back to HDC Overview](./README.md)
 
-# Implementation — Full Source Code
+# Implementation — Captured Source And Adaptation Notes
 
-This document contains the complete roko source code for all HDC types and operations, with GitHub links to the canonical source. All code is derived from `roko-primitives` and `roko-neuro`.
+This document captures the HDC implementation shape from the source corpus. Treat the code blocks as implementation references and adaptation sketches unless a block is explicitly marked as IronClaw-ready.
 
 ---
 
 ## 1. Core Data Structure: HdcVector
 
-The foundation of the entire HDC system is the `HdcVector` type, defined in [`crates/roko-primitives/src/hdc.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/hdc.rs). This is a 10,240-bit binary vector stored as a fixed-size array of 160 u64 words.
+The foundation of the entire HDC system is the `HdcVector` type, defined in `crates/roko-primitives/src/hdc.rs`. This is a 10,240-bit binary vector stored as a fixed-size array of 160 u64 words.
 
 ### 1.1 Type Definition
 
@@ -91,7 +91,7 @@ fn splitmix64(state: &mut u64) -> u64 {
 }
 ```
 
-*Source: [`crates/roko-primitives/src/hdc.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/hdc.rs)*
+*Source: `crates/roko-primitives/src/hdc.rs`*
 
 The PRNG chain is `FNV-1a hash -> splitmix64 expansion`. The key property: `from_seed(b"rust")` **always produces the same vector**, across runs, across machines, across architectures.
 
@@ -127,7 +127,7 @@ pub fn from_bytes(bytes: &[u8; 1280]) -> Self {
 }
 ```
 
-*Source: [`crates/roko-primitives/src/hdc.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/hdc.rs)*
+*Source: `crates/roko-primitives/src/hdc.rs`*
 
 ### 1.4 Convenience Fingerprinting Functions
 
@@ -144,7 +144,7 @@ pub fn text_fingerprint(text: &str) -> HdcVector {
 }
 ```
 
-*Source: [`crates/roko-primitives/src/hdc.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/hdc.rs)*
+*Source: `crates/roko-primitives/src/hdc.rs`*
 
 ---
 
@@ -163,7 +163,7 @@ pub fn bind(&self, other: &Self) -> Self {
 }
 ```
 
-*Source: [`crates/roko-primitives/src/hdc.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/hdc.rs)*
+*Source: `crates/roko-primitives/src/hdc.rs`*
 
 ### 2.2 Bundle (Majority Vote)
 
@@ -192,7 +192,7 @@ pub fn bundle(vectors: &[&Self]) -> Self {
 }
 ```
 
-*Source: [`crates/roko-primitives/src/hdc.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/hdc.rs)*
+*Source: `crates/roko-primitives/src/hdc.rs`*
 
 ### 2.3 Permute (Cyclic Shift)
 
@@ -220,7 +220,7 @@ pub fn permute(&self, n: usize) -> Self {
 }
 ```
 
-*Source: [`crates/roko-primitives/src/hdc.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/hdc.rs)*
+*Source: `crates/roko-primitives/src/hdc.rs`*
 
 ### 2.4 Similarity (Hamming Distance)
 
@@ -236,7 +236,7 @@ pub fn similarity(&self, other: &Self) -> f32 {
 }
 ```
 
-*Source: [`crates/roko-primitives/src/hdc.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/hdc.rs)*
+*Source: `crates/roko-primitives/src/hdc.rs`*
 
 **Zero-copy similarity** (for memory-mapped archives):
 
@@ -259,7 +259,7 @@ On little-endian platforms, the archived representation of `[u64; 160]` is ident
 
 ## 3. Codebooks and Symbol Allocation
 
-A codebook maps symbolic names to deterministic HDC vectors. Source: [`crates/roko-primitives/src/codebook.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/codebook.rs).
+A codebook maps symbolic names to deterministic HDC vectors. Source: `crates/roko-primitives/src/codebook.rs`.
 
 ### 3.1 Codebook Type
 
@@ -412,7 +412,7 @@ impl PatternStore {
 }
 ```
 
-*Source: [`crates/roko-primitives/src/codebook.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/codebook.rs)*
+*Source: `crates/roko-primitives/src/codebook.rs`*
 
 ### 3.5 Cross-Domain Resonance Detection
 
@@ -461,13 +461,13 @@ pub fn detect_cross_domain_resonance(
 }
 ```
 
-*Source: [`crates/roko-primitives/src/codebook.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/codebook.rs)*
+*Source: `crates/roko-primitives/src/codebook.rs`*
 
 ---
 
 ## 4. Accumulators: Incremental and Decaying Bundling
 
-Because majority-vote bundling is **not associative**, the system provides two accumulator types that maintain per-bit vote counts. Source: [`crates/roko-primitives/src/hdc.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/hdc.rs).
+Because majority-vote bundling is **not associative**, the system provides two accumulator types that maintain per-bit vote counts. Source: `crates/roko-primitives/src/hdc.rs`.
 
 ### 4.1 BundleAccumulator
 
@@ -626,7 +626,7 @@ impl DecayingBundleAccumulator {
 }
 ```
 
-*Source: [`crates/roko-primitives/src/hdc.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/hdc.rs)*
+*Source: `crates/roko-primitives/src/hdc.rs`*
 
 **Memory**: 10,240 × 4 bytes = 40 KB (f32 votes instead of i32).
 
@@ -636,7 +636,7 @@ impl DecayingBundleAccumulator {
 
 ## 5. ItemMemory: Named Concept Lookup
 
-`ItemMemory` is a codebook with brute-force nearest-neighbor lookup. Source: [`crates/roko-primitives/src/hdc.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/hdc.rs).
+`ItemMemory` is a codebook with brute-force nearest-neighbor lookup. Source: `crates/roko-primitives/src/hdc.rs`.
 
 ```rust
 /// Named HDC codebook with brute-force nearest-neighbor lookup.
@@ -703,7 +703,7 @@ impl ItemMemory {
 
 ## 6. Code Fingerprinting Types (roko-index)
 
-The `roko-index` crate defines its own `HdcFingerprint` type — structurally identical to `HdcVector` but independent for minimal dependencies. Source: [`crates/roko-index/src/hdc.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/hdc.rs).
+The `roko-index` crate defines its own `HdcFingerprint` type — structurally identical to `HdcVector` but independent for minimal dependencies. Source: `crates/roko-index/src/hdc.rs`.
 
 ```rust
 const WORDS: usize = 160;

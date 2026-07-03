@@ -6,7 +6,7 @@ readiness criteria for IronClaw-style automation.
 ## 1. Plan Validation Command
 
 ```text
-ironclaw-plan validate tmp/benchmarking/scenarios/*.yaml
+ironclaw-plan validate tmp/implementation/benchmarking/scenarios/*.yaml
 ironclaw-plan validate captured-plan tasks.toml
 ```
 
@@ -62,4 +62,3 @@ plan-run/
 The captured plan catalog is a strong source of implementation patterns, but it
 should be treated as `cataloged` until an IronClaw-native runner validates and
 dry-runs a plan.
-

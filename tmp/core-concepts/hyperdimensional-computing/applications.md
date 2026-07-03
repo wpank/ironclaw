@@ -10,7 +10,7 @@ This document covers the six application areas implemented in the roko codebase,
 
 The `KnowledgeHdcEncoder` encodes knowledge entries (Engrams) as HDC vectors. Every knowledge entry gets a 10,240-bit fingerprint at ingestion time, enabling content-addressed similarity search without any external embedding model.
 
-*Source: [`crates/roko-neuro/src/hdc.rs`](https://github.com/wpank/roko/blob/main/crates/roko-neuro/src/hdc.rs)*
+*Source: `crates/roko-neuro/src/hdc.rs`*
 
 ### Memory Fingerprinting Flow
 
@@ -169,7 +169,7 @@ fn ensure_hdc_vector(mut entry: KnowledgeEntry) -> KnowledgeEntry {
 }
 ```
 
-*Source: [`crates/roko-neuro/src/knowledge_store.rs`](https://github.com/wpank/roko/blob/main/crates/roko-neuro/src/knowledge_store.rs)*
+*Source: `crates/roko-neuro/src/knowledge_store.rs`*
 
 ---
 
@@ -177,7 +177,7 @@ fn ensure_hdc_vector(mut entry: KnowledgeEntry) -> KnowledgeEntry {
 
 The `RoleFillerEncoder` provides higher-level encoding where each attribute of a knowledge entry is explicitly bound to a named role. This enables structured queries: "find all entries where domain = coding."
 
-*Source: [`crates/roko-neuro/src/hdc.rs`](https://github.com/wpank/roko/blob/main/crates/roko-neuro/src/hdc.rs)*
+*Source: `crates/roko-neuro/src/hdc.rs`*
 
 ```rust
 /// Structured role-filler HDC encoding.
@@ -385,9 +385,9 @@ impl ResonanceDetector {
 }
 ```
 
-*Source: [`crates/roko-neuro/src/hdc.rs`](https://github.com/wpank/roko/blob/main/crates/roko-neuro/src/hdc.rs)*
+*Source: `crates/roko-neuro/src/hdc.rs`*
 
-The algorithm is O(n^2) pairwise comparison. At ~13 ns per comparison, scanning 10,000 entries (50 million pairs) takes approximately 650 ms.
+The algorithm is O(n^2) pairwise comparison. The captured implementation reports a very small fixed-width comparison cost; IronClaw should measure the full scan path with realistic corpus sizes before committing to latency targets.
 
 ---
 
@@ -395,7 +395,7 @@ The algorithm is O(n^2) pairwise comparison. At ~13 ns per comparison, scanning 
 
 The `roko-index` crate provides specialized HDC encoding for source code symbols (functions, structs, traits, enums, modules). This enables finding similar code patterns regardless of naming, using structural similarity rather than text matching.
 
-*Source: [`crates/roko-index/src/hdc.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/hdc.rs)*
+*Source: `crates/roko-index/src/hdc.rs`*
 
 ### Symbol Fingerprinting: The Encoding Formula
 
@@ -501,7 +501,7 @@ impl CodeIndex {
 }
 ```
 
-*Source: [`crates/roko-index/src/workspace.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/workspace.rs)*
+*Source: `crates/roko-index/src/workspace.rs`*
 
 ---
 
@@ -509,7 +509,7 @@ impl CodeIndex {
 
 The knowledge store uses HDC similarity for admission control and conflict detection. Feature-gated behind `#[cfg(feature = "hdc")]`.
 
-*Source: [`crates/roko-neuro/src/knowledge_store.rs`](https://github.com/wpank/roko/blob/main/crates/roko-neuro/src/knowledge_store.rs)*
+*Source: `crates/roko-neuro/src/knowledge_store.rs`*
 
 ### Thresholds
 
@@ -574,7 +574,7 @@ impl ContextAssemblyWeights {
 }
 ```
 
-*Source: [`crates/roko-neuro/src/knowledge_store.rs`](https://github.com/wpank/roko/blob/main/crates/roko-neuro/src/knowledge_store.rs)*
+*Source: `crates/roko-neuro/src/knowledge_store.rs`*
 
 HDC similarity gets the plurality weight (40%) because it captures structural semantic similarity that keyword matching misses. Cross-domain entries get a 15% bonus to encourage diverse context assembly.
 
@@ -621,10 +621,12 @@ fn deduplicate_before_write(
 }
 ```
 
-**Expected similarities**:
-- "Rust's borrow checker prevents data races" vs "The borrow checker in Rust ensures memory safety without data races" → sim ≈ 0.73 (same concept, different wording)
-- "Cargo is Rust's package manager" vs "Cargo manages Rust packages and dependencies" → sim ≈ 0.68
-- "Rust's borrow checker prevents data races" vs "Python uses reference counting for memory management" → sim ≈ 0.51 (noise band, unrelated)
+**Validation targets with curated encoders**:
+- "Rust's borrow checker prevents data races" vs "The borrow checker in Rust ensures memory safety without data races" should score above the resonance threshold only if the encoder normalizes shared roles such as `rust`, `borrow_checker`, `memory_safety`, and `data_race`.
+- "Cargo is Rust's package manager" vs "Cargo manages Rust packages and dependencies" requires a synonym/tag codebook that links `package_manager`, `packages`, and `dependencies`.
+- Unrelated memory pairs should remain in the noise band after the same normalization.
+
+Plain `from_seed()` text hashing does not infer paraphrases by itself; semantic behavior comes from the role/tag/codebook layer wrapped around HDC.
 
 ### Skill Matching for Tool Selection
 
@@ -649,11 +651,9 @@ impl SkillIndex {
 }
 ```
 
-**Expected results for "how do I fix a lifetime error in my Rust code?"**:
-- rust-lifetimes skill → sim ≈ 0.61
-- borrow-checker skill → sim ≈ 0.57
-- rust-generics skill → sim ≈ 0.54
-- python-debugging skill → sim ≈ 0.50 (filtered out as noise)
+**Expected behavior for "how do I fix a lifetime error in my Rust code?"**:
+- Rust lifetime and borrow-checker skills should outrank generic Rust or Python debugging skills when skill profiles include curated tags such as `rust`, `lifetime`, `borrow_checker`, and `compiler_error`.
+- Absolute similarity values are benchmark outputs, not design constants. Store them in the evaluation fixture results, not in the selection rule.
 
 ### Novelty Detection for Incoming Messages
 

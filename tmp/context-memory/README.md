@@ -6,10 +6,10 @@ This category covers how an agent assembles, searches, and persists its knowledg
 
 | Document | Summary | Priority |
 |----------|---------|----------|
-| [Budget-Constrained Composition](budget-composition.md) | VCG auction-based prompt assembly where subsystems (skills, memory, tools, history) bid for context window space. Nine-layer cache-aware prompt builder with strategic U-shaped placement. Thompson Sampling learning bidders, three context tiers (surgical/focused/full), and active inference foraging via the Free Energy Principle. | MEDIUM |
+| [Budget-Constrained Composition](budget-composition.md) | Prompt assembly that ranks memory, code, tools, skills, and history under a token budget. Uses density scoring, optional VCG-inspired displacement diagnostics, position-aware placement, and measured learning signals. | MEDIUM |
 | [Code Intelligence](code-intelligence.md) | Four-mode hybrid code indexing: symbol index, graph index (PageRank-ranked dependency graph), HDC structural fingerprints, and FTS5 full-text search. Results merged via Reciprocal Rank Fusion (RRF). Outputs `AssembledContext` — a ranked, budget-fitted list of code slices that feeds into the prompt auction. Language traits (`LanguageProvider`, `BuildSystem`) are defined in full in [Language Support](language-support.md); code-intelligence references them. | MEDIUM |
 | [Language Support](language-support.md) | **Canonical home for `LanguageProvider` and `BuildSystem` traits.** Structural code analysis for Rust, TypeScript, and Go. Dual-mode Rust parser (heuristic regex vs. tree-sitter), TypeScript tsconfig resolution, Go module graph parsing, polyglot project detection, and typed dependency edge classification. | MEDIUM |
-| [Persistence and Storage](persistence-storage.md) | Complete analysis of Roko's append-only JSONL storage layer: crash safety by construction, human-readable audit trail, no WAL complexity. Content-addressing (BLAKE3) for deduplication, Ebbinghaus decay semantics, and a comparison with IronClaw's dual-backend (PostgreSQL + libSQL) approach. Decay semantics are summarized here; see [Universal Engram](../core-concepts/universal-engram.md) for the full four-variant decay model. | MEDIUM |
+| [Persistence and Storage](persistence-storage.md) | Append-only JSONL tradeoffs, content-addressing, decay-aware memory ranking, and how those ideas map onto IronClaw's PostgreSQL/libSQL persistence. | MEDIUM |
 
 ## Boundaries: What Each Document Owns
 
@@ -21,7 +21,7 @@ This category covers how an agent assembles, searches, and persists its knowledg
 | Polyglot detection | [Language Support](language-support.md) |
 | Symbol graph, PageRank, HDC, FTS, RRF | [Code Intelligence](code-intelligence.md) |
 | `AssembledContext` / `CodeSlice` output | [Code Intelligence](code-intelligence.md) |
-| VCG token-budget auction | [Budget Composition](budget-composition.md) |
+| Prompt token-budget allocation | [Budget Composition](budget-composition.md) |
 | U-shaped placement, Thompson Sampling | [Budget Composition](budget-composition.md) |
 | Engram storage, JSONL, BLAKE3 | [Persistence and Storage](persistence-storage.md) |
 | Engram struct, decay variants, scoring | [core-concepts/universal-engram.md](../core-concepts/universal-engram.md) |
@@ -34,7 +34,7 @@ graph TD
     ENGRAM["Universal Engram\n(core-concepts)\ndecay variants\n7-axis scoring"]
     LANG["Language Support\nLanguageProvider / BuildSystem\nRust / TS / Go parsing"]
     CODE["Code Intelligence\nsymbol + graph +\nHDC + FTS → RRF\n→ AssembledContext"]
-    COMPOSE["Budget Composition\nVCG auction\nU-shape placement\n→ final prompt"]
+    COMPOSE["Budget Composition\ndensity allocation\nposition-aware placement\n→ final prompt"]
 
     PERSIST -->|"stores Engrams;\nsee decay semantics in"| ENGRAM
     LANG -->|"symbols and edges\nfed into"| CODE
@@ -48,7 +48,7 @@ graph TD
 - **Persistence** is the substrate — it stores everything and defines the durability contract. Decay semantics (Ebbinghaus, HalfLife, TTL) are introduced here and defined fully in [Universal Engram](../core-concepts/universal-engram.md).
 - **Language Support** provides the parsing primitives. It defines `LanguageProvider` and `BuildSystem` once; everything downstream imports from there.
 - **Code Intelligence** is the read path for code-centric tasks — it imports `LanguageProvider` from Language Support, runs the four-mode index, and emits `AssembledContext`.
-- **Budget Composition** is the final assembly step — it runs the VCG token auction across all content sources (memory Engrams, code slices, skills, history) and places sections strategically to exploit the U-shaped attention curve.
+- **Budget Composition** is the final assembly step: it ranks all content sources under a token budget and places high-value sections where the model is most likely to use them.
 
 ## Quick Start
 
@@ -58,7 +58,7 @@ graph TD
 
 3. Read [Code Intelligence](code-intelligence.md) next to see how those traits feed the four-mode index and produce `AssembledContext`.
 
-4. Read [Budget Composition](budget-composition.md) last — the VCG auction and U-shaped placement operate on the assembled code context plus all other prompt sections.
+4. Read [Budget Composition](budget-composition.md) last — token allocation and position-aware placement operate on assembled code context plus all other prompt sections.
 
 ## Cross-Folder Links
 

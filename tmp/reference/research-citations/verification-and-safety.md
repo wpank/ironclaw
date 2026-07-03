@@ -18,7 +18,7 @@ Statistical Process Control (SPC) provides methods for monitoring processes over
 - **Concept**: CUSUM (Cumulative Sum) control chart. Detects small, sustained changes in the mean of a process by accumulating deviations from target. More sensitive than individual sample tests for detecting gradual drift.
 - **Roko adaptation**: CUSUM detects sustained pass rate changes per gate rung. Parameters: k=0.25 (reference value), h=4.0 (decision interval).
 - **Crate**: `roko-gate` (`spc.rs`)
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2/ARCHITECTURE-GUIDE.md`](https://github.com/wpank/roko/blob/main/docs/v2/ARCHITECTURE-GUIDE.md) (lines 1380-1425), [`https://github.com/wpank/roko/blob/main/docs/v2-depth/02-block/verdicts-as-signals.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/02-block/verdicts-as-signals.md) (line 298)
+- **Roko source**: `docs/v2/ARCHITECTURE-GUIDE.md` (lines 1380-1425), `docs/v2-depth/02-block/verdicts-as-signals.md` (line 298)
 - **tmp/ cross-refs**: `05-gate-verification.md`
 
 ---
@@ -39,7 +39,7 @@ Statistical Process Control (SPC) provides methods for monitoring processes over
 - **Concept**: BOCPD maintains a posterior distribution over run lengths (time since last change point). When P(run_length=0) spikes above threshold, a structural change has occurred. Provides probabilities rather than binary alarms.
 - **Roko adaptation**: Detects fundamental behavioral shifts (model updates, major refactors). Parameters: hazard_rate = 1/200, max_run_length = 300, changepoint_threshold = 0.5.
 - **Crate**: `roko-gate` (`spc.rs`)
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2-depth/02-block/ratcheting-and-adaptive-thresholds.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/02-block/ratcheting-and-adaptive-thresholds.md) (line 325)
+- **Roko source**: `docs/v2-depth/02-block/ratcheting-and-adaptive-thresholds.md` (line 325)
 - **tmp/ cross-refs**: `05-gate-verification.md`
 
 ---
@@ -74,7 +74,7 @@ Outcome-only evaluation has a fundamental limitation: a correct final answer may
 
 - **Concept**: Generation-Verification Gap: self-improvement works only when verification ability exceeds generation ability. When the verifier is no better than the generator, self-critique degrades performance.
 - **Roko adaptation**: Foundational result validating the separation of agent (generator) and Gate (verifier). The Gate must use a different, higher-quality model or verifier.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2-depth/02-block/eval-lifecycle-and-generation.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/02-block/eval-lifecycle-and-generation.md) (line 172)
+- **Roko source**: `docs/v2-depth/02-block/eval-lifecycle-and-generation.md` (line 172)
 - **tmp/ cross-refs**: `05-gate-verification.md`
 
 ---
@@ -118,7 +118,7 @@ Security in AI agent systems requires principled models for controlling what inf
 [DOI: 10.1145/360051.360056](https://doi.org/10.1145/360051.360056)
 
 - **Concept**: Information flow control modeled as a lattice. Security levels form a partial order; flows are permitted only from lower to higher levels. Prevents unauthorized downward flows.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2/01-SIGNAL.md`](https://github.com/wpank/roko/blob/main/docs/v2/01-SIGNAL.md) (line 1490)
+- **Roko source**: `docs/v2/01-SIGNAL.md` (line 1490)
 
 ---
 
@@ -143,7 +143,7 @@ Security in AI agent systems requires principled models for controlling what inf
 
 - **Concept**: CaMeL: Capability-tagged information flow control that separates control flow from data flow. Achieves 67% of tasks with provable security on AgentDojo benchmark.
 - **Roko adaptation**: CaMeL IFC applied to Extensions. Every data flow through an Extension is tagged with its capability provenance.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2/16-SECURITY.md`](https://github.com/wpank/roko/blob/main/docs/v2/16-SECURITY.md) (line 232)
+- **Roko source**: `docs/v2/16-SECURITY.md` (line 232)
 
 ---
 
@@ -160,7 +160,7 @@ A calibrated model's confidence should match its accuracy. Modern neural network
 
 - **Concept**: Modern neural networks are poorly calibrated — they are overconfident. Temperature scaling (dividing logits by a learnable scalar T) is a simple and effective post-hoc calibration fix.
 - **Roko adaptation**: CalibrationTracker bias correction for model routing confidence.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2/01-SIGNAL.md`](https://github.com/wpank/roko/blob/main/docs/v2/01-SIGNAL.md) (line 1487)
+- **Roko source**: `docs/v2/01-SIGNAL.md` (line 1487)
 - **tmp/ cross-refs**: `07-online-learning.md`
 
 ---
@@ -169,7 +169,7 @@ A calibrated model's confidence should match its accuracy. Modern neural network
 
 - **Concept**: Expected Calibration Error (ECE): binned accuracy-confidence gaps as a calibration metric.
 - **Roko adaptation**: CalibrationTracker uses ECE for measuring and correcting model confidence over time.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2/01-SIGNAL.md`](https://github.com/wpank/roko/blob/main/docs/v2/01-SIGNAL.md) (line 1488)
+- **Roko source**: `docs/v2/01-SIGNAL.md` (line 1488)
 - **tmp/ cross-refs**: `07-online-learning.md`
 
 ---

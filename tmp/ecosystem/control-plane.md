@@ -1,8 +1,8 @@
 # Control Plane & API Server Architecture
 
-> How roko separates the control plane from the agent runtime, exposes 100+ HTTP API routes, aggregates data from a fleet of per-agent sidecars, streams events over WebSocket and SSE, and bridges agents to a relay bus. A reference for IronClaw adoption.
+> How the captured control-plane design separates operator APIs from agent execution, aggregates agent/process state, streams events over WebSocket and SSE, and bridges agents to a relay bus. A reference for selective IronClaw adoption.
 
-> **Self-contained implementation note**: Roko path-like references are captured-source identifiers for provenance. All roko source links point to `https://github.com/wpank/roko/blob/main/`. Use the companion artifacts below for IronClaw-native build plans.
+> **Self-contained implementation note**: Roko path-like references are captured-source identifiers for provenance. They are not external repository links or required checkout paths. Use the companion artifacts below for IronClaw-native build plans.
 
 > **Companion artifacts**: See [reference/examples/operator-debugging-runbooks.md](../reference/examples/operator-debugging-runbooks.md) for operational workflows, [implementation/schemas/04-canonical-event-and-persistence-contract.md](../implementation/schemas/04-canonical-event-and-persistence-contract.md) for streamed event contracts, and [implementation/rollout/04-feature-threat-models.md](../implementation/rollout/04-feature-threat-models.md) for gateway and control-plane risks.
 
@@ -64,7 +64,7 @@ graph TB
     end
 
     subgraph CP["roko-serve (port 6677)"]
-        R[REST 100+ Routes]
+        R[REST Operator Routes]
         SSE[SSE /api/events]
         WS[WebSocket /ws]
         EB[EventBus<ServerEvent>]
@@ -93,19 +93,19 @@ graph TB
     CP -->|model calls| LLM
 ```
 
-**Source identifiers** (all link to `https://github.com/wpank/roko/blob/main/`):
+**Source identifiers**:
 
-| Component | GitHub path |
+| Component | Captured identifier |
 |-----------|-------------|
-| Control plane crate | [`crates/roko-serve/`](https://github.com/wpank/roko/blob/main/crates/roko-serve/) |
-| Per-agent sidecar crate | [`crates/roko-agent-server/`](https://github.com/wpank/roko/blob/main/crates/roko-agent-server/) |
-| Control plane entry point | [`crates/roko-serve/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-serve/src/lib.rs) |
-| Route definitions | [`crates/roko-serve/src/routes/mod.rs`](https://github.com/wpank/roko/blob/main/crates/roko-serve/src/routes/mod.rs) |
-| AppState (shared state) | [`crates/roko-serve/src/state.rs`](https://github.com/wpank/roko/blob/main/crates/roko-serve/src/state.rs) |
-| Event types | [`crates/roko-serve/src/events.rs`](https://github.com/wpank/roko/blob/main/crates/roko-serve/src/events.rs) |
-| Event bus | [`crates/roko-serve/src/event_bus.rs`](https://github.com/wpank/roko/blob/main/crates/roko-serve/src/event_bus.rs) |
-| Agent sidecar entry | [`crates/roko-agent-server/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-agent-server/src/lib.rs) |
-| Agent registration | [`crates/roko-agent-server/src/registration.rs`](https://github.com/wpank/roko/blob/main/crates/roko-agent-server/src/registration.rs) |
+| Control plane crate | `crates/roko-serve` |
+| Per-agent sidecar crate | `crates/roko-agent-server` |
+| Control plane entry point | `crates/roko-serve/src/lib.rs` |
+| Route definitions | `crates/roko-serve/src/routes/mod.rs` |
+| AppState (shared state) | `crates/roko-serve/src/state.rs` |
+| Event types | `crates/roko-serve/src/events.rs` |
+| Event bus | `crates/roko-serve/src/event_bus.rs` |
+| Agent sidecar entry | `crates/roko-agent-server/src/lib.rs` |
+| Agent registration | `crates/roko-agent-server/src/registration.rs` |
 
 ---
 
@@ -113,7 +113,7 @@ graph TB
 
 ### 3.1 AppState — The Shared Kernel
 
-Every axum handler receives `State<Arc<AppState>>`. Key design choices in [`crates/roko-serve/src/state.rs`](https://github.com/wpank/roko/blob/main/crates/roko-serve/src/state.rs):
+Every axum handler receives `State<Arc<AppState>>`. Key design choices in `crates/roko-serve/src/state.rs`:
 
 - **`ArcSwap<RokoConfig>`** — hot-reloadable configuration without restarts; readers never block writers [6].
 - **`EventBus<ServerEvent>`** — `tokio::sync::broadcast` with a replay ring buffer for reconnection (see §3.3).
@@ -121,12 +121,12 @@ Every axum handler receives `State<Arc<AppState>>`. Key design choices in [`crat
 - **`Arc<ProcessSupervisor>`** — spawns and manages agent processes.
 - **`RwLock<HashMap<...>>`** — concurrent access to mutable collections. Lock acquisition order is documented to prevent deadlocks (see §10.4).
 - **`RwLock<VecDeque<HeartbeatPayload>>`** — bounded ring buffer with `HEARTBEAT_RING_CAPACITY` eviction.
-- **`CancelToken`** — coordinated graceful shutdown; `GET /ready` returns 503 once triggered.
+- **`CancelToken`** — coordinated graceful shutdown; a readiness probe returns 503 once triggered.
 - **`Arc<LogScrubber>`** — response-side secret redaction across all API routes.
 
 ### 3.2 Event Types — The ServerEvent Enum
 
-All events flow through a single tagged union in [`crates/roko-serve/src/events.rs`](https://github.com/wpank/roko/blob/main/crates/roko-serve/src/events.rs). **60+ variants** cover:
+All events flow through a single tagged union in `crates/roko-serve/src/events.rs`. **60+ variants** cover:
 
 | Category | Representative variants |
 |----------|------------------------|
@@ -145,7 +145,7 @@ Serialization uses `#[serde(tag = "type", rename_all = "snake_case")]` so every 
 
 ### 3.3 EventBus
 
-The `EventBus<E>` in [`crates/roko-serve/src/event_bus.rs`](https://github.com/wpank/roko/blob/main/crates/roko-serve/src/event_bus.rs) wraps `roko_runtime::event_bus::EventBus<E>`:
+The `EventBus<E>` in `crates/roko-serve/src/event_bus.rs` wraps `roko_runtime::event_bus::EventBus<E>`:
 
 ```rust
 pub struct EventBus<E: Clone + Send + Sync + 'static> {
@@ -180,13 +180,13 @@ This eliminates polling: instead of fetching `/api/jobs` every 5 seconds, the da
 
 ## 4. HTTP API Routes
 
-The route tree is assembled in [`crates/roko-serve/src/routes/mod.rs`](https://github.com/wpank/roko/blob/main/crates/roko-serve/src/routes/mod.rs). All `/api/*` routes sit behind auth and secret-scrubbing middleware. A global rate limiter (governor, 100 req/s) and 4 MiB request body cap apply to all routes.
+The route tree is assembled in `crates/roko-serve/src/routes/mod.rs`. All `/api/*` routes sit behind auth and secret-scrubbing middleware. A global rate limiter (governor, 100 req/s) and 4 MiB request body cap apply to all routes.
 
 ### 4.1 Route Categories
 
 | Category | Count | Key endpoints |
 |----------|-------|---------------|
-| Health & status | 9 | `GET /health`, `GET /ready`, `GET /metrics`, `GET /api/health`, `GET /api/statehub/snapshot` |
+| Health & status | 9 | liveness, readiness, metrics, API health, StateHub snapshot |
 | Metrics | 12 | `GET /api/metrics{/summary,/success_rate,/model_efficiency,/gate_rate,...}` |
 | Plans | 16 | CRUD + `execute`, `pause`, `resume`, `gates`, `costs`, `generate`, `estimate`, `chat` |
 | Agent management | 14 | CRUD + `start`, `stop`, `restart`, `episodes`, `logs`, `message`, `token` |
@@ -208,14 +208,14 @@ The route tree is assembled in [`crates/roko-serve/src/routes/mod.rs`](https://g
 | SSE | 2 | `GET /api/events`, `GET /api/sse` |
 | WebSocket | 2 | `GET /ws`, `GET /roko-ws` |
 | Relay proxy | 4 | HTTP catch-all + 2 WS proxies + root |
-| Other | ~20 | Templates, PRDs, SWE-bench, Vision Loop, Teams, Workspaces, Providers, ISFR, Dreams |
+| Other | ~20 | Templates, PRDs, SWE-bench, Vision Loop, Teams, Workspaces, Providers, Dreams |
 
 ### 4.2 Public Routes (No Auth)
 
 ```
-GET  /health       # Liveness probe
-GET  /ready        # Readiness probe (503 during shutdown)
-GET  /metrics      # Prometheus scraping
+health endpoint       # Liveness probe
+readiness endpoint    # Readiness probe (503 during shutdown)
+metrics endpoint      # Prometheus scraping
 ```
 
 WebSocket routes carry the API key in the upgrade request headers; auth is enforced before the upgrade completes.
@@ -252,7 +252,7 @@ flowchart LR
 
 ### 5.1 Server-Sent Events (SSE)
 
-`GET /api/events` and `GET /api/sse` in [`crates/roko-serve/src/routes/sse.rs`](https://github.com/wpank/roko/blob/main/crates/roko-serve/src/routes/sse.rs):
+`GET /api/events` and `GET /api/sse` in `crates/roko-serve/src/routes/sse.rs`:
 
 - **Replay on reconnect**: `Last-Event-ID` header triggers replay from the ring buffer (capped at 256 events).
 - **Monotonic event IDs**: each SSE frame carries a sequence number from the event bus.
@@ -263,7 +263,7 @@ Lag is handled explicitly: `RecvError::Lagged(n)` is logged with skip count and 
 
 ### 5.2 WebSocket Streaming
 
-`GET /ws` and `GET /roko-ws` in [`crates/roko-serve/src/routes/ws.rs`](https://github.com/wpank/roko/blob/main/crates/roko-serve/src/routes/ws.rs) with message size limits (1 MiB max message, 256 KiB max frame).
+`GET /ws` and `GET /roko-ws` in `crates/roko-serve/src/routes/ws.rs` with message size limits (1 MiB max message, 256 KiB max frame).
 
 Client control protocol:
 
@@ -281,7 +281,7 @@ Client control protocol:
 
 ### 5.3 Projection Streaming (CQRS Delta Delivery)
 
-[`crates/roko-serve/src/routes/projections.rs`](https://github.com/wpank/roko/blob/main/crates/roko-serve/src/routes/projections.rs) provides three endpoints:
+`crates/roko-serve/src/routes/projections.rs` provides three endpoints:
 
 ```
 GET /api/projections/catalog         # List named projections
@@ -319,7 +319,7 @@ sequenceDiagram
     end
 ```
 
-The aggregator module ([`crates/roko-serve/src/routes/aggregator.rs`](https://github.com/wpank/roko/blob/main/crates/roko-serve/src/routes/aggregator.rs)) fans out to all discovered agent sidecars and merges responses. TTL constants reflect each data type's rate of change:
+The aggregator module (`crates/roko-serve/src/routes/aggregator.rs`) fans out to all discovered agent sidecars and merges responses. TTL constants reflect each data type's rate of change:
 
 | Data type | TTL | Rationale |
 |-----------|-----|-----------|
@@ -402,7 +402,7 @@ Reserved capability names (`messaging`, `predictions`, `research`, `tasks`) are 
 
 ### 7.5 Agent Registration (ERC-8004)
 
-On startup, each sidecar can register an `AgentCard` with the control plane or relay (source: [`crates/roko-agent-server/src/registration.rs`](https://github.com/wpank/roko/blob/main/crates/roko-agent-server/src/registration.rs)):
+On startup, each sidecar can register an `AgentCard` with the control plane or relay (source: `crates/roko-agent-server/src/registration.rs`):
 
 ```rust
 pub struct AgentCard {
@@ -435,7 +435,7 @@ sequenceDiagram
     end
 ```
 
-Implementation in [`crates/roko-serve/src/routes/heartbeats.rs`](https://github.com/wpank/roko/blob/main/crates/roko-serve/src/routes/heartbeats.rs):
+Implementation in `crates/roko-serve/src/routes/heartbeats.rs`:
 
 - Returns **202 ACCEPTED** (not 200), signaling asynchronous processing.
 - Uses a **`VecDeque` ring buffer** (not a `HashMap`), preserving time-series history.
@@ -462,7 +462,7 @@ The agent-relay (a separate service) provides presence, card hosting, pub/sub me
 | Client → Relay | `RegisterFeed { ... }` | Register a data feed |
 | Relay → Client | `FeedTick { ... }` | Deliver a feed tick |
 
-The control plane proxies relay endpoints in [`crates/roko-serve/src/routes/relay_proxy.rs`](https://github.com/wpank/roko/blob/main/crates/roko-serve/src/routes/relay_proxy.rs) so external consumers do not need the relay's address:
+The control plane proxies relay endpoints in `crates/roko-serve/src/routes/relay_proxy.rs` so external consumers do not need the relay's address:
 
 ```
 GET /relay/agents/ws      # WebSocket: relay agent events
@@ -471,7 +471,7 @@ GET /relay/{*path}        # HTTP catch-all proxy
 GET /relay                # Relay root proxy
 ```
 
-WebSocket proxying in [`crates/roko-serve/src/routes/proxy_ws.rs`](https://github.com/wpank/roko/blob/main/crates/roko-serve/src/routes/proxy_ws.rs) uses a bidirectional `tokio::select!` bridge that forwards Text, Binary, and Ping frames in both directions and closes cleanly when either side disconnects.
+WebSocket proxying in `crates/roko-serve/src/routes/proxy_ws.rs` uses a bidirectional `tokio::select!` bridge that forwards Text, Binary, and Ping frames in both directions and closes cleanly when either side disconnects.
 
 ---
 
@@ -496,7 +496,7 @@ flowchart TD
 
 ### 10.1 Auth Layers
 
-Defined in [`crates/roko-serve/src/routes/middleware.rs`](https://github.com/wpank/roko/blob/main/crates/roko-serve/src/routes/middleware.rs):
+Defined in `crates/roko-serve/src/routes/middleware.rs`:
 
 - **API Key** via `X-Api-Key` header (SHA-256 hash match)
 - **Bearer token** via `Authorization: Bearer <token>` (opaque or JWT)
@@ -533,7 +533,7 @@ gateway_model_counters → batch_progress → active_bench_runs → active_matri
 
 ## 11. Webhook Dispatch Loop
 
-The dispatch system in [`crates/roko-serve/src/dispatch.rs`](https://github.com/wpank/roko/blob/main/crates/roko-serve/src/dispatch.rs) routes inbound webhooks to agent templates:
+The dispatch system in `crates/roko-serve/src/dispatch.rs` routes inbound webhooks to agent templates:
 
 1. Webhook arrives → handler verifies signature → converts to `Engram` → persists → publishes `WebhookReceived` on the event bus.
 2. Background dispatch loop receives the event.
@@ -574,7 +574,7 @@ Filter example:
 
 ## 12. Inference Gateway (Zero-Key Agents)
 
-Agents never hold API keys. All LLM access goes through [`crates/roko-serve/src/routes/gateway.rs`](https://github.com/wpank/roko/blob/main/crates/roko-serve/src/routes/gateway.rs):
+Agents never hold API keys. All LLM access goes through `crates/roko-serve/src/routes/gateway.rs`:
 
 ```
 POST /api/inference/complete      # Proxy LLM call with cost tracking
@@ -596,7 +596,7 @@ Benefits:
 
 ### 13.1 What IronClaw Has Today
 
-IronClaw's web gateway (`src/channels/web/`) provides ~198 route registrations organized with a `platform/features` separation enforced by `scripts/check_gateway_boundaries.py`.
+IronClaw's web gateway (`src/channels/web/`) provides a broad route surface organized with a `platform/features` separation enforced by `scripts/check_gateway_boundaries.py`. Avoid hard-coding route counts in design docs unless generated from source in the same change.
 
 **Core capabilities:**
 - **Chat API**: `src/channels/web/features/chat/mod.rs` — `/api/chat/send`, `/api/chat/events` (SSE), `/api/chat/ws` (WebSocket), `/api/chat/history`, `/api/chat/threads`, `/api/chat/gate/resolve`
@@ -604,7 +604,7 @@ IronClaw's web gateway (`src/channels/web/`) provides ~198 route registrations o
 - **Jobs API**: `src/channels/web/features/jobs/mod.rs` — 9 sandbox job routes
 - **Skills, Extensions, Routines, Settings**: `src/channels/web/features/` — 6-8 routes each
 - **User management**: `src/channels/web/handlers/users.rs` — 12 admin user routes
-- **SSE streaming**: `src/channels/web/types.rs` (`SseEvent` enum) — 21 event types, scoped by `user_id` via `ScopedEvent`, with `boot_id` for cross-session dedup
+- **SSE streaming**: gateway event types scoped by `user_id` via `ScopedEvent`, with `boot_id` for cross-session dedup
 - **WebSocket**: `src/channels/web/platform/ws.rs` — bidirectional with ping/pong, client messages for chat and approval
 - **OpenAI compatibility**: `src/channels/web/openai_compat.rs` — `/v1/chat/completions`, `/v1/models`, `/v1/responses`
 
@@ -625,7 +625,7 @@ IronClaw's gateway is **session-oriented** (multi-user, single-agent per user), 
 | Webhook dispatch + subscriptions | `src/channels/web/handlers/webhooks.rs` + WASM channels | IronClaw has inbound webhook handling. The subscription/filter/dispatch pattern would add structured routing with concurrency limits and cooldown. |
 | Secret scrubbing (output-side) | `ironclaw_safety` (input-side) | IronClaw has input validation. Roko adds a response middleware that redacts API keys from JSON bodies. |
 | Global rate limiter | Per-user chat limiter (30 req/60s) | IronClaw rate-limits chat only (`platform/state.rs`). Roko's global 100 req/s governor covers all routes. |
-| Graceful shutdown (`/ready` + `CancelToken`) | No equivalent | Readiness probe pattern enables drain-before-stop in Kubernetes. |
+| Graceful shutdown (readiness probe + `CancelToken`) | No equivalent | Readiness probe pattern enables drain-before-stop in Kubernetes. |
 | WS message size limits | Not set in `platform/ws.rs` | No max message/frame size. A misbehaving client could exhaust memory. |
 | Lag visibility | Silent drop (`BroadcastStream`) | Roko's `unfold` loop logs `RecvError::Lagged(n)` with skip count; IronClaw's `BroadcastStream` silently drops. |
 
@@ -684,7 +684,7 @@ impl SseManager {
 }
 ```
 
-The SSE handler in `src/channels/web/features/chat/mod.rs` would read `Last-Event-ID` (already accepted as `last_event_id` query param), check that the `boot_id` prefix matches the current boot, call `replay_from(seq, user_id)`, and chain the replay before the live stream. This eliminates the browser's need to re-fetch `/api/chat/history` on reconnect.
+The SSE handler in `src/channels/web/features/chat/mod.rs` already accepts a cursor-style reconnect hint, but there is no server-side catch-up buffer today. A replay ring would validate the `boot_id`, call `replay_from(seq, user_id)`, and chain replayed events before the live stream. Until that ring exists, reconnect remains best-effort and clients may still need to re-fetch history.
 
 ### 13.4 Integration Sketch: Output-Side Secret Scrubbing
 
@@ -706,7 +706,9 @@ pub async fn scrub_secrets_middleware(request: Request<Body>, next: Next) -> Res
     if !content_type.contains("application/json") { return response; }
     let (parts, body) = response.into_parts();
     let Ok(bytes) = axum::body::to_bytes(body, 1024 * 1024).await else {
-        return Response::from_parts(parts, Body::empty());
+        // Fail closed; do not silently drop or pass through a response that may
+        // contain secrets after the body has been consumed.
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
     let Ok(text) = std::str::from_utf8(&bytes) else {
         return Response::from_parts(parts, Body::from(bytes));
@@ -723,7 +725,7 @@ pub async fn scrub_secrets_middleware(request: Request<Body>, next: Next) -> Res
 // In src/channels/web/platform/static_files.rs or dedicated handler
 pub static SHUTTING_DOWN: AtomicBool = AtomicBool::new(false);
 
-/// GET /ready — register as a public route alongside /api/health
+/// GET /readyz — register as a public route alongside /api/health
 pub async fn readiness_probe() -> StatusCode {
     if SHUTTING_DOWN.load(Ordering::Relaxed) {
         StatusCode::SERVICE_UNAVAILABLE
@@ -836,7 +838,7 @@ impl AgentServer {
 |----------|------------|--------|-------|----------------|
 | 1 | Replay ring buffer for SSE | Low (1-2 days) | High — eliminates history re-fetch on reconnect | `src/channels/web/platform/sse.rs` |
 | 2 | Output-side secret scrubbing | Low (1 day) | High — closes output side of security perimeter | `src/channels/web/platform/` (new file) |
-| 3 | Readiness probe (`GET /ready`) | Very low (hours) | Medium — enables zero-downtime deployments | `src/channels/web/platform/static_files.rs` |
+| 3 | Readiness probe (`GET /readyz`) | Very low (hours) | Medium — enables zero-downtime deployments | `src/channels/web/platform/static_files.rs` |
 | 4 | WS message size limits | Very low (hours) | Medium — prevents OOM from misbehaving clients | `src/channels/web/platform/ws.rs` |
 | 5 | Projection streaming | Medium (1 week) | High — eliminates polling for dashboard widgets | `src/channels/web/platform/` (new module) |
 | 6 | Global rate limiter (governor) | Low (1 day) | Medium — protects non-chat API surface | `src/channels/web/platform/router.rs` |
@@ -877,8 +879,8 @@ Before enabling any route, SSE, WebSocket, sidecar, projection, or gateway featu
 
 | Dimension | roko-serve | IronClaw web gateway |
 |---|---|---|
-| Route count | 100+ | ~198 |
-| SSE event types | 60+ ServerEvent variants | 21 SseEvent variants |
+| Route surface | Broad operator API | Broad gateway API |
+| SSE event model | Typed server events | Scoped gateway events |
 | Auth layers | 4 (API key, bearer, JWT, agent token) | 3 (bearer, DB-token, OIDC) + query-string for SSE/WS |
 | Rate limiting | Global 100 req/s | Per-user 30 req/60s (chat only) |
 | Body cap | 4 MiB | 14 MiB (supports attachment uploads) |
@@ -894,13 +896,13 @@ Before enabling any route, SSE, WebSocket, sidecar, projection, or gateway featu
 
 Roko's control plane architecture demonstrates a mature pattern for AI agent systems:
 
-1. **Central control plane** with 100+ HTTP routes organized into 40+ modules — plan execution, cost tracking, benchmarks, and beyond — behind layered auth and response-side secret scrubbing.
+1. **Central control plane** with route groups for plan execution, cost tracking, benchmarks, and operator workflows behind layered auth and response-side secret scrubbing.
 
 2. **Per-agent sidecars** with feature-gated routes registered at startup (not handler level), independent bearer auth, accurate capability manifests, and optional relay connectivity.
 
 3. **Fleet aggregation** via fan-out-fan-in HTTP proxying with per-route TTL caching and a multiplexed WebSocket that merges events from all agents into a single stream.
 
-4. **Event-driven architecture** with a typed `ServerEvent` enum (60+ variants), broadcast bus with replay ring and sequence numbers, SSE/WebSocket streaming with cursor-based reconnection, and CQRS projection streaming.
+4. **Event-driven architecture** with typed server events, a broadcast bus with replay ring and sequence numbers, SSE/WebSocket streaming with cursor-based reconnection, and CQRS projection streaming.
 
 5. **Relay bridge** connecting agents via persistent WebSocket with pub/sub messaging, ERC-8004 card hosting, and feed distribution — proxied through the control plane for a single external entry point.
 
@@ -908,7 +910,7 @@ Roko's control plane architecture demonstrates a mature pattern for AI agent sys
 
 7. **Security layers**: centralized inference gateway (zero-key agents), response-side secret scrubbing, layered auth, global rate limiting (100 req/s), and 4 MiB body caps.
 
-**For IronClaw**, the highest-value adoptions in order: (1) SSE replay ring buffer, (2) output-side secret scrubbing middleware, (3) readiness probe `GET /ready`, (4) WebSocket message size limits, (5) projection streaming for dashboard widgets. IronClaw's existing `platform/features` gateway architecture — with 198+ route registrations, 21 SSE event types, and per-connection sequence numbers in `src/channels/web/platform/sse.rs` — provides a strong foundation for adopting these patterns without a full rewrite.
+**For IronClaw**, the highest-value adoptions in order: (1) SSE replay ring buffer, (2) output-side secret scrubbing middleware, (3) readiness probe `GET /readyz`, (4) WebSocket message size limits, (5) projection streaming for dashboard widgets. IronClaw's existing `platform/features` gateway architecture and per-connection sequence numbers in `src/channels/web/platform/sse.rs` provide a foundation for adopting these patterns without a full rewrite.
 
 ---
 

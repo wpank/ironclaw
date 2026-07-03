@@ -1,7 +1,7 @@
 # Affect Engine: Complete Reference
 
 **Source provenance**: This document derives from the Roko Daimon codebase.
-All source-code references point to GitHub: `https://github.com/wpank/roko/blob/main/`.
+All source-code references point to GitHub: ```.`
 
 **Priority**: MEDIUM — valuable for user modeling and agent self-regulation, requires
 careful threshold calibration before deployment.
@@ -158,7 +158,7 @@ self-reinforcing feedback loop. The Daimon addresses this with 15% contrarian bl
 
 ### 3.1 Full PadVector Implementation
 
-Source: [`crates/roko-primitives/src/pad.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/pad.rs)
+Source: `crates/roko-primitives/src/pad.rs`
 
 All dimensions are `f64` in `[-1.0, 1.0]`. f64 avoids precision loss in chained arithmetic
 (decay, EMA, cosine similarity) that would accumulate across cognitive ticks with f32.
@@ -241,7 +241,7 @@ triggers exploitation.
 
 ### 3.3 The 8 Octant States
 
-Source: [`crates/roko-daimon/src/phase2_stubs.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/phase2_stubs.rs)
+Source: `crates/roko-daimon/src/phase2_stubs.rs`
 
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -295,7 +295,7 @@ fn decay_factor(delta_hours: f64, half_life_hours: f64) -> f64 {
 self.confidence = (0.5 + (self.confidence - 0.5) * factor).clamp(0.0, 1.0);
 ```
 
-Source: [`crates/roko-daimon/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/lib.rs)
+Source: `crates/roko-daimon/src/lib.rs`
 
 | Elapsed | Affect Intensity |
 |---|---|
@@ -307,7 +307,7 @@ Source: [`crates/roko-daimon/src/lib.rs`](https://github.com/wpank/roko/blob/mai
 
 ## 4. Three Temporal Layers (ALMA Model)
 
-Source: [`crates/roko-daimon/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/lib.rs)
+Source: `crates/roko-daimon/src/lib.rs`
 
 ```rust
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -381,7 +381,7 @@ how effective affect values feed into routing weight updates.
 
 ### 5.1 AffectEvent Enum
 
-Source: [`crates/roko-daimon/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/lib.rs)
+Source: `crates/roko-daimon/src/lib.rs`
 
 Every event variant carries a concrete metric. No event is abstract or ungrounded.
 
@@ -405,7 +405,7 @@ pub enum AffectEvent {
 
 ### 5.2 OCC Structured Appraisal
 
-Source: [`crates/roko-daimon/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/lib.rs)
+Source: `crates/roko-daimon/src/lib.rs`
 
 ```rust
 pub struct AppraisalResult {
@@ -463,7 +463,7 @@ For Yerkes-Dodson pressure dynamics between arousal and performance, see
 
 ### 5.4 Novelty Filter
 
-Source: [`crates/roko-daimon/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/lib.rs)
+Source: `crates/roko-daimon/src/lib.rs`
 
 ```rust
 pub struct NoveltyFilter {
@@ -491,7 +491,7 @@ ranges faster than half-life decay can stabilize.
 
 ### 6.1 AffectState
 
-Source: [`crates/roko-daimon/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/lib.rs)
+Source: `crates/roko-daimon/src/lib.rs`
 
 ```rust
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -529,7 +529,7 @@ dominance in an unfamiliar domain.
 
 ### 6.2 DaimonState
 
-Source: [`crates/roko-daimon/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/lib.rs)
+Source: `crates/roko-daimon/src/lib.rs`
 
 ```rust
 pub struct DaimonState {
@@ -574,7 +574,7 @@ elapsed time since `updated_at`, and rebuilds the k-d tree index. An agent shut 
 
 ### 7.1 State Definitions and Classification
 
-Source: [`crates/roko-core/src/affect.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/affect.rs)
+Source: `crates/roko-core/src/affect.rs`
 
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -618,7 +618,7 @@ dominance_threshold  = 0.00 - (2.0 × 0.15) ≈ -0.25 (accounting for ALMA 50% b
 
 ### 7.3 Hysteresis and BehavioralStateTracker
 
-Source: [`crates/roko-daimon/src/phase2_stubs.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/phase2_stubs.rs)
+Source: `crates/roko-daimon/src/phase2_stubs.rs`
 
 Entry and exit thresholds differ by 10 points, creating a dead zone that eliminates rapid
 oscillation. `min_dwell_ticks = 10` prevents changes faster than once per ~10 task cycles.
@@ -664,7 +664,7 @@ Every state is reachable from every other through intermediate PAD changes.
 
 ### 8.1 DispatchStrategy and DispatchParams
 
-Source: [`crates/roko-daimon/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/lib.rs)
+Source: `crates/roko-daimon/src/lib.rs`
 
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -735,7 +735,7 @@ Each promotion approximately doubles cost; each demotion approximately halves co
 
 ### 8.3 Tier Bias Table
 
-Source: [`crates/roko-daimon/src/phase2_stubs.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/phase2_stubs.rs)
+Source: `crates/roko-daimon/src/phase2_stubs.rs`
 
 `adjusted_thresholds()` modulates the tier router's prediction-error threshold:
 
@@ -752,7 +752,7 @@ Source: [`crates/roko-daimon/src/phase2_stubs.rs`](https://github.com/wpank/roko
 
 ## 9. 8-Dimensional Somatic Marker Space
 
-Source: [`crates/roko-daimon/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/lib.rs)
+Source: `crates/roko-daimon/src/lib.rs`
 
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -804,7 +804,7 @@ enabling cross-domain knowledge transfer without retraining.
 
 ### 10.1 SomaticMarker and SomaticLandscape
 
-Source: [`crates/roko-daimon/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/lib.rs)
+Source: `crates/roko-daimon/src/lib.rs`
 
 ```rust
 pub struct SomaticMarker {
@@ -897,7 +897,7 @@ pub fn apply_dream_depotentiation(&mut self) -> (usize, f64) {
 }
 ```
 
-Source: [`crates/roko-daimon/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/lib.rs)
+Source: `crates/roko-daimon/src/lib.rs`
 
 ---
 
@@ -916,7 +916,7 @@ This is computationally equivalent to a local minimum in optimization.
 
 ### 11.2 The Solution: Forced Opposite-Valence Injection
 
-Source: [`crates/roko-daimon/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/lib.rs)
+Source: `crates/roko-daimon/src/lib.rs`
 
 ```rust
 const CONTRARIAN_FRACTION: f64 = 0.15;
@@ -935,7 +935,7 @@ systematic error that degrades somatic signal accuracy. 15% is the minimum effec
 
 ### 11.3 ContrarianTracker (Rolling Window)
 
-Source: [`crates/roko-daimon/src/phase2_stubs.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/phase2_stubs.rs)
+Source: `crates/roko-daimon/src/phase2_stubs.rs`
 
 ```rust
 pub struct ContrarianTracker {
@@ -960,7 +960,7 @@ returns `true`, enabling adaptive adjustment by the query caller.
 
 ## 12. Four-Factor Retrieval Scoring Model
 
-Source: [`crates/roko-daimon/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/lib.rs)
+Source: `crates/roko-daimon/src/lib.rs`
 
 ```rust
 pub struct RetrievalWeights {
@@ -1001,7 +1001,7 @@ For how these weights are updated in the broader learning pipeline, see
 
 ## 13. Nietzsche Vitality Phases
 
-Source: [`crates/roko-daimon/src/mortality.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/mortality.rs)
+Source: `crates/roko-daimon/src/mortality.rs`
 
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -1054,7 +1054,7 @@ pub struct AnnotatedLearning {
 
 ## 14. Life Review Pipeline
 
-Source: [`crates/roko-daimon/src/life_review.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/life_review.rs)
+Source: `crates/roko-daimon/src/life_review.rs`
 
 Adapts Butler (1963): select high-arousal memories (min arousal 0.3, top 20), detect
 turning points (PAD Euclidean distance > 0.5 between consecutive memories), classify
@@ -1089,7 +1089,7 @@ The narrative arc is included in the `EmotionalDeathTestament` for successor age
 
 ## 15. Emergent Goal Structures
 
-Source: [`crates/roko-daimon/src/goals.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/goals.rs)
+Source: `crates/roko-daimon/src/goals.rs`
 
 Goals emerge from recurring behavioral patterns rather than being explicitly programmed:
 
@@ -1123,7 +1123,7 @@ decay, and pruning of low-priority goals.
 
 ## 16. Somatic TA Integration
 
-Source: [`crates/roko-daimon/src/somatic_ta.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/somatic_ta.rs)
+Source: `crates/roko-daimon/src/somatic_ta.rs`
 
 ### 16.1 IIT Phi Metric
 
@@ -1365,17 +1365,18 @@ pub enum AffectEvent {
 
 All other types (`PadVector`, `AlmaLayers`, `BehavioralState`, `AffectState`,
 `AppraisalResult`, `BehavioralStateTracker`, `DispatchStrategy`, `DispatchModulator`)
-are direct ports of the Roko implementations shown in Sections 3-8, with only import
-paths changed (`crate::error::IronclawError` instead of `anyhow`).
+are adaptation sketches from the captured implementations, not direct ports.
+Before implementation, trace the current session, gateway, prompt, and tool-dispatch
+owners and wire through those APIs rather than changing imports only.
 
 ### 19.2 Phase 1: User Engagement Modeling
 
-**Effort**: ~400 lines | **Files**: `src/affect/`, `src/channels/web/server.rs`
+**Effort**: ~400 lines | **Files**: `src/affect/`, current `src/channels/web/` ingress handlers
 
 1. Create `src/affect/` module with all four files above
 2. Add `UserEngagementState` field to per-session state in `src/context/`
 3. Wire `AffectEvent::UserUrgency`, `UserPositiveFeedback`, `UserNegativeFeedback` events
-   from message parsing in `src/channels/web/server.rs`
+   from the current web gateway message parsing path under `src/channels/web/`
 4. Inject `UserEngagementHint::prompt_injection()` into the system prompt in
    `crates/ironclaw_engine/prompts/`
 5. Optional: expose `/api/affect/user` endpoint for dashboard monitoring
@@ -1400,7 +1401,7 @@ See `src/agent/CLAUDE.md` for agent loop entry points.
 **Effort**: ~900 lines | **Files**: `src/affect/somatic.rs`, `src/tools/registry.rs`
 
 1. Create `src/affect/somatic.rs` with a simplified 3D `ToolMarker` (complexity, novelty,
-   urgency — reduced from 8D, appropriate for tool selection)
+   urgency) as the Phase 3 MVP. Treat the full 8D/k-d tree landscape as Phase 4+ only.
 2. Record tool outcomes in `src/tools/dispatch.rs` post-dispatch
 3. Persist markers to workspace (JSON file or new DB table, see `src/workspace/README.md`)
 4. Query markers before tool selection to bias confidence in registry scoring
@@ -1415,7 +1416,7 @@ See `src/agent/CLAUDE.md` for agent loop entry points.
 2. Add the tier bias table (Section 8.3): read `params.effort` and adjust T0/T1/T2 thresholds
 3. Port `BehavioralStateTracker` with hysteresis to replace simple classification
 4. Add `AgentLoopMetrics` logging for benchmarking
-5. Add full 8D somatic landscape (`kiddo` crate, k-d tree)
+5. Add full 8D somatic landscape (`kiddo` crate, k-d tree) only after the 3D MVP proves useful in shadow metrics.
 6. Wire `GateResult` events from engine v2's gate verification system
 
 See `crates/ironclaw_engine/CLAUDE.md` for engine v2 integration points.
@@ -1483,14 +1484,14 @@ the demotion logic is working. If `Struggling + opus` has better cost/success th
 
 | Component | Source |
 |---|---|
-| `PadVector` | [`crates/roko-primitives/src/pad.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/pad.rs) |
-| `BehavioralState`, `classify()` | [`crates/roko-core/src/affect.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/affect.rs) |
-| `AlmaLayers`, `AffectState`, `DaimonState`, appraisal | [`crates/roko-daimon/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/lib.rs) |
-| `AffectOctant`, `BehavioralStateTracker`, `ContrarianTracker` | [`crates/roko-daimon/src/phase2_stubs.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/phase2_stubs.rs) |
-| `VitalityPhase`, `MortalityEmotion`, `EmotionalDeathTestament` | [`crates/roko-daimon/src/mortality.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/mortality.rs) |
-| `LifeReview`, `NarrativeArc` | [`crates/roko-daimon/src/life_review.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/life_review.rs) |
-| `GoalSeed`, `GoalNode`, `GoalTree` | [`crates/roko-daimon/src/goals.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/goals.rs) |
-| `SomaticOracleContext`, `IitPhiMetric`, `somatic_confidence_bias()` | [`crates/roko-daimon/src/somatic_ta.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/somatic_ta.rs) |
+| `PadVector` | `crates/roko-primitives/src/pad.rs` |
+| `BehavioralState`, `classify()` | `crates/roko-core/src/affect.rs` |
+| `AlmaLayers`, `AffectState`, `DaimonState`, appraisal | `crates/roko-daimon/src/lib.rs` |
+| `AffectOctant`, `BehavioralStateTracker`, `ContrarianTracker` | `crates/roko-daimon/src/phase2_stubs.rs` |
+| `VitalityPhase`, `MortalityEmotion`, `EmotionalDeathTestament` | `crates/roko-daimon/src/mortality.rs` |
+| `LifeReview`, `NarrativeArc` | `crates/roko-daimon/src/life_review.rs` |
+| `GoalSeed`, `GoalNode`, `GoalTree` | `crates/roko-daimon/src/goals.rs` |
+| `SomaticOracleContext`, `IitPhiMetric`, `somatic_confidence_bias()` | `crates/roko-daimon/src/somatic_ta.rs` |
 
 ---
 

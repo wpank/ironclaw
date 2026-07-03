@@ -3,10 +3,10 @@
 **Source reference**: `roko-runtime` (`crates/roko-runtime/src/`)
 **Priority**: MEDIUM — system resilience, process management, observability
 **Reference docs**:
-- [`docs/v1/00-architecture/07b-bus-transport-fabric.md`](https://github.com/wpank/roko/blob/main/docs/v1/00-architecture/07b-bus-transport-fabric.md)
-- [`docs/v2-depth/07-agent-runtime/26-agent-lifecycle-type-state.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/07-agent-runtime/26-agent-lifecycle-type-state.md)
-- [`docs/v1/07-conductor/13-process-supervision-wiring.md`](https://github.com/wpank/roko/blob/main/docs/v1/07-conductor/13-process-supervision-wiring.md)
-- [`docs/v1/12-interfaces/22-statehub-projection-layer.md`](https://github.com/wpank/roko/blob/main/docs/v1/12-interfaces/22-statehub-projection-layer.md)
+- `docs/v1/00-architecture/07b-bus-transport-fabric.md`
+- `docs/v2-depth/07-agent-runtime/26-agent-lifecycle-type-state.md`
+- `docs/v1/07-conductor/13-process-supervision-wiring.md`
+- `docs/v1/12-interfaces/22-statehub-projection-layer.md`
 
 > **Self-contained implementation note**: Source references point to the captured roko codebase as provenance anchors, not build dependencies. Section 15 maps every pattern to IronClaw's existing `src/agent/`, `src/observability/`, and `src/context/` modules.
 
@@ -80,7 +80,7 @@ The `roko-runtime` crate is the shared async runtime substrate for all Roko appl
 
 > No domain types. This crate knows nothing about agents, plans, gates, or TUI. It provides generic infrastructure that higher layers parameterise. Tokio-native. All primitives are `Send + Sync + 'static` and designed for multi-task Tokio runtimes. Zero unsafe. All concurrency goes through `tokio::sync` or `std::sync::atomic`.
 
-**Source**: [`crates/roko-runtime/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-runtime/src/lib.rs)
+**Source**: `crates/roko-runtime/src/lib.rs`
 
 | Module | Purpose |
 |--------|---------|
@@ -117,7 +117,7 @@ The `roko-runtime` crate is the shared async runtime substrate for all Roko appl
 
 The EventBus is a typed, bounded broadcast channel with a monotonically sequenced replay ring. It generalizes the ad-hoc `mpsc::UnboundedSender<AgentEvent>` channels that were scattered through earlier agent code into a single, generic primitive.
 
-**Source**: [`crates/roko-runtime/src/event_bus.rs`](https://github.com/wpank/roko/blob/main/crates/roko-runtime/src/event_bus.rs)
+**Source**: `crates/roko-runtime/src/event_bus.rs`
 
 ### Architecture
 
@@ -259,7 +259,7 @@ See [orchestrator-swarm.md](orchestrator-swarm.md) for the durable journal layer
 
 A cooperative cancellation system where tokens form a tree: cancelling a parent automatically cancels all descendants, but cancelling a child does not affect its parent. This enables scoped resource cleanup — cancel a session and all its jobs, tools, and background tasks stop; cancel just one tool call and the session keeps running.
 
-**Source**: [`crates/roko-runtime/src/cancel.rs`](https://github.com/wpank/roko/blob/main/crates/roko-runtime/src/cancel.rs)
+**Source**: `crates/roko-runtime/src/cancel.rs`
 
 ### Architecture
 
@@ -360,7 +360,7 @@ See [conductor-anomaly.md](conductor-anomaly.md) for circuit breaker patterns th
 
 A structured model for agent process lifecycle based on FIPA standard FIPA00023 [7], extended with cloud-native concepts: health probes, degradation stages, and GitOps configuration management.
 
-**Source**: [`crates/roko-runtime/src/lifecycle.rs`](https://github.com/wpank/roko/blob/main/crates/roko-runtime/src/lifecycle.rs)
+**Source**: `crates/roko-runtime/src/lifecycle.rs`
 
 ### FIPA Background
 
@@ -612,7 +612,7 @@ graph LR
 
 ### The Pure State Machine: PipelineStateV2
 
-**Source**: [`crates/roko-runtime/src/pipeline_state.rs`](https://github.com/wpank/roko/blob/main/crates/roko-runtime/src/pipeline_state.rs)
+**Source**: `crates/roko-runtime/src/pipeline_state.rs`
 
 The state machine represents a config-driven workflow pipeline:
 
@@ -716,7 +716,7 @@ The state machine contains no I/O handles — only plain data — making it full
 
 ### The Effect Driver
 
-**Source**: [`crates/roko-runtime/src/effect_driver.rs`](https://github.com/wpank/roko/blob/main/crates/roko-runtime/src/effect_driver.rs)
+**Source**: `crates/roko-runtime/src/effect_driver.rs`
 
 ```rust
 // crates/roko-runtime/src/effect_driver.rs, lines 40-74
@@ -785,7 +785,7 @@ The state machine never makes any I/O call — it only decides what should happe
 
 OS-level process lifecycle management: spawn, track, monitor, timeout, kill, and reap child processes and their entire process trees.
 
-**Source**: [`crates/roko-runtime/src/process.rs`](https://github.com/wpank/roko/blob/main/crates/roko-runtime/src/process.rs)
+**Source**: `crates/roko-runtime/src/process.rs`
 
 The `ProcessSupervisor` applies Armstrong's Erlang/OTP supervision tree principles [8] to OS processes: every process has a supervisor, supervisors restart failed processes, and cascading failures are bounded by the supervision tree structure.
 
@@ -883,7 +883,7 @@ impl ProcessSupervisor {
 
 The StateHub bridges the event bus to a materialized `DashboardSnapshot` via a `tokio::sync::watch` channel, serving three consumer interfaces with different performance characteristics.
 
-**Source**: [`crates/roko-runtime/src/state_hub.rs`](https://github.com/wpank/roko/blob/main/crates/roko-runtime/src/state_hub.rs)
+**Source**: `crates/roko-runtime/src/state_hub.rs`
 
 ### Architecture
 
@@ -954,7 +954,7 @@ See [orchestrator-swarm.md](orchestrator-swarm.md) for the higher-level event so
 
 ### Checksummed State Snapshots
 
-**Source**: [`crates/roko-runtime/src/state_snapshot.rs`](https://github.com/wpank/roko/blob/main/crates/roko-runtime/src/state_snapshot.rs)
+**Source**: `crates/roko-runtime/src/state_snapshot.rs`
 
 ```rust
 // crates/roko-runtime/src/state_snapshot.rs, lines 17-34
@@ -973,13 +973,13 @@ The `verify()` method checks both version compatibility and checksum integrity, 
 
 ### JSONL Event Logger
 
-**Source**: [`crates/roko-runtime/src/jsonl_logger.rs`](https://github.com/wpank/roko/blob/main/crates/roko-runtime/src/jsonl_logger.rs)
+**Source**: `crates/roko-runtime/src/jsonl_logger.rs`
 
 Each event is wrapped in a `RuntimeEventEnvelope` with run_id, sequence number, source label, and event payload, then serialized as a single JSON line and flushed immediately. A contract guard test enforces that events are serialized with `serde_json`, not Rust `Debug` formatting — ensuring forward-compatible deserialization.
 
 ### RuntimeProjection: Reconstructing State from Logs
 
-**Source**: [`crates/roko-runtime/src/projection.rs`](https://github.com/wpank/roko/blob/main/crates/roko-runtime/src/projection.rs)
+**Source**: `crates/roko-runtime/src/projection.rs`
 
 ```rust
 pub struct RunSummary {
@@ -1008,7 +1008,7 @@ This enables the "resume" workflow: read the event log, reconstruct where the wo
 
 ## 11. Resource Accounting
 
-**Source**: [`crates/roko-runtime/src/resource.rs`](https://github.com/wpank/roko/blob/main/crates/roko-runtime/src/resource.rs)
+**Source**: `crates/roko-runtime/src/resource.rs`
 
 Per-plan and per-task resource consumption tracked against budgets:
 
@@ -1048,7 +1048,7 @@ When a budget is exceeded, the system can throttle (reduce model tier, entering 
 
 ## 12. Run Ledger
 
-**Source**: [`crates/roko-runtime/src/run_ledger.rs`](https://github.com/wpank/roko/blob/main/crates/roko-runtime/src/run_ledger.rs)
+**Source**: `crates/roko-runtime/src/run_ledger.rs`
 
 The `RunLedger` provides a typed source of truth for a single workflow run, replacing the need to replay the entire event bus to reconstruct a report:
 
@@ -1374,16 +1374,17 @@ IronClaw's agent module (verified against source in `src/agent/`):
 // src/agent/cancel.rs (new file, ~165 lines):
 // Adapt CancelToken from roko-runtime/src/cancel.rs — trivial to implement locally.
 
-// src/agent/session.rs — add cancel token to Session:
-pub struct Session {
-    pub id: Uuid,
-    pub cancel_token: CancelToken, // NEW
-    // ... existing fields unchanged
+// Keep cancellation handles in runtime-only state, keyed by persisted IDs.
+// Do not store CancelToken directly on persisted Session structs.
+pub struct CancellationRegistry {
+    sessions: DashMap<Uuid, CancelToken>,
+    jobs: DashMap<Uuid, CancelToken>,
 }
 
 // src/agent/session_manager.rs — on session destroy:
 pub fn destroy_session(&self, session_id: &Uuid) {
-    if let Some(session_arc) = self.sessions.remove(session_id) {
+    if let Some(token) = self.cancellations.remove_session(session_id) {
+        token.cancel();
         let session = session_arc.lock();
         session.cancel_token.cancel(); // Cascades to all children
     }
@@ -1424,7 +1425,7 @@ pub async fn run_heartbeat(cancel_token: CancelToken, ...) {
 
 **Estimated complexity**: ~200-300 lines changed across 5 files. No behavioral change — only the shutdown path changes.
 
-**Risk**: Low. `CancelToken` is purely additive alongside existing `WorkerMessage::Stop` signaling. Both coexist during transition.
+**Risk**: Low to medium. `CancelToken` coexists alongside existing `WorkerMessage::Stop` signaling during transition, but shutdown behavior is user-visible and needs caller-level tests.
 
 ### B. EventBus for Observability
 
@@ -1473,7 +1474,7 @@ pub async fn run_reactive(&self) {
 
 **Estimated complexity**: ~400-500 lines for event type definitions, bus initialization, SSE adapters, and emission points.
 
-**Risk**: Low. The EventBus is purely additive and does not replace existing logging or the `Observer` trait.
+**Risk**: Low to medium. The EventBus starts as an observability layer and does not replace existing logging or the `Observer` trait, but event ordering and user scoping need tests.
 
 ### C. Agent Lifecycle Management
 

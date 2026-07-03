@@ -1,11 +1,11 @@
 # Roko → IronClaw Knowledge Base
 
-A technology transfer analysis extracting novel concepts from the [Roko](https://github.com/wpank/roko)
-AI agent framework for integration into [IronClaw](https://github.com/wpank/ironclaw), a secure
-personal AI assistant built in Rust. 96 Markdown documents and 6 benchmark scenario fixtures cover
-28 analyzed concepts — from hyperdimensional computing and dream consolidation to VCG auctions and
-on-chain reputation — each mapped to concrete IronClaw targets, buildable Rust blueprints, and
-staged rollout runbooks. No access to the Roko source tree is required.
+A technology transfer analysis extracting Roko-derived agent-system concepts for
+IronClaw, a secure personal AI assistant built in Rust. The collection contains
+116 Markdown documents and 6 benchmark scenario fixtures covering 28 analysis
+entries and 25 ranked implementation concepts, each mapped to IronClaw targets,
+Rust blueprints, tests, metrics, and rollout gates. No access to the Roko source
+tree is required.
 
 ---
 
@@ -23,7 +23,7 @@ graph TD
     subgraph INTEL ["Agent Intelligence"]
         DREAM["Dream Consolidation\n5-subsystem offline learning\nmammalian sleep model"]
         AFFECT["Affect Engine\nPAD emotional vectors\nsomatic markers"]
-        LEARN["Online Learning\nLinUCB contextual bandit\n18D model routing"]
+        LEARN["Online Learning\nLinUCB contextual bandit\n14D model routing"]
         PAT["Agent Patterns\nMetacognitive monitor\ncomposable scorers"]
     end
 
@@ -36,7 +36,7 @@ graph TD
     end
 
     subgraph CTX ["Context & Memory"]
-        BUDGET["Budget Composition\nVCG auction · U-shape\n9-layer prompt builder"]
+        BUDGET["Budget Composition\ndensity allocation · placement\n9-layer prompt builder"]
         CODEI["Code Intelligence\nAST · PageRank · HDC\nRRF hybrid search"]
         PERSIST["Persistence & Storage\nAppend-only JSONL\nBLAKE3 dedup"]
         LANG["Language Support\nRust · TS · Go\ntree-sitter parsing"]
@@ -45,9 +45,9 @@ graph TD
     subgraph ECO ["Ecosystem"]
         REP["On-Chain Reputation\nSoulbound passports\nTraceRank · EMA trust"]
         PLUGIN["Plugin Extension\nEventSource · hot-reload\n5-tier extensibility"]
-        MCP["ACP / MCP Integration\nJSON-RPC 2.0\n5 MCP server crates"]
+        MCP["ACP / MCP Integration\nJSON-RPC 2.0\ntools client + server plan"]
         CTRL["Control Plane\nHTTP API · sidecars\nSSE streaming"]
-        CONTRACT["Smart Contracts\n13 Solidity contracts\nNEAR port analysis"]
+        CONTRACT["Smart Contracts\nNEAR contract ports\nintegration analysis"]
     end
 
     CORE --> INTEL
@@ -117,12 +117,9 @@ tmp/
 │   ├── plugin-extension.md
 │   ├── mcp-editor-integration.md
 │   ├── control-plane.md
-│   └── smart-contracts/                  # Solidity analysis, NEAR port, EVM sim
+│   └── smart-contracts/                  # NEAR contract ports, integration plan
 │       ├── README.md
-│       ├── solidity-contracts.md
-│       ├── evm-simulator.md
 │       ├── near-contracts.md
-│       ├── benchmarking.md
 │       ├── ironclaw-integration.md
 │       └── references.md
 │
@@ -219,7 +216,7 @@ tmp/
 
 ## Quick Start
 
-### "Build something NOW" — Top quick wins (under 1 week each)
+### Quick Wins — Top items under 1 week each
 
 | # | What to build | Effort | Where to start |
 |---|---------------|--------|----------------|
@@ -253,7 +250,7 @@ Phase 1 checklist: [implementation/phase-1-checklist.md](implementation/phase-1-
 4. [core-concepts/universal-engram.md](core-concepts/universal-engram.md) — 7-axis content-addressed data objects with taint propagation
 5. [core-concepts/mathematical-primitives.md](core-concepts/mathematical-primitives.md) — topology, category theory, and TDA in production Rust
 6. [core-concepts/cognitive-architecture.md](core-concepts/cognitive-architecture.md) — dual-process cognition, pheromones, C-factor
-7. [context-memory/budget-composition.md](context-memory/budget-composition.md) — VCG auction for prompt token budgets
+7. [context-memory/budget-composition.md](context-memory/budget-composition.md) — density allocation and diagnostics for prompt token budgets
 8. [reference/research-citations/README.md](reference/research-citations/README.md) — 200+ academic papers across 18 topic areas
 
 ---
@@ -285,7 +282,7 @@ Phase 1 checklist: [implementation/phase-1-checklist.md](implementation/phase-1-
 | 21 | MCP & Editor Integration | Ecosystem | — | — | [ecosystem/mcp-editor-integration.md](ecosystem/mcp-editor-integration.md) |
 | 22 | Language Support | Context | — | — | [context-memory/language-support.md](context-memory/language-support.md) |
 | 23 | Control Plane | Ecosystem | — | — | [ecosystem/control-plane.md](ecosystem/control-plane.md) |
-| 24 | Smart Contracts | Ecosystem | Long-Term | 2.30 | [ecosystem/smart-contracts/README.md](ecosystem/smart-contracts/README.md) |
+| 24 | NEAR Contracts | Ecosystem | Long-Term | 2.30 | [ecosystem/smart-contracts/README.md](ecosystem/smart-contracts/README.md) |
 | 25 | Research Citations | Reference | — | — | [reference/research-citations/README.md](reference/research-citations/README.md) |
 | 26 | Architecture Overview | Reference | — | — | [reference/architecture-overview.md](reference/architecture-overview.md) |
 | 27 | v2-Depth Research | Reference | — | — | [reference/v2-depth-research.md](reference/v2-depth-research.md) |
@@ -304,7 +301,7 @@ The [`implementation/`](implementation/README.md) folder is the master tracker. 
 | 1 — Quick Wins | Robust stats, metacognitive monitor, Ebbinghaus decay, BLAKE3 dedup | 1–2 weeks | [phase-1-checklist.md](implementation/phase-1-checklist.md) |
 | 2 — Core Enhancements | LinUCB cascade router, HDC similarity, gate pipeline rungs 1–4 | 4–6 weeks | [phase-2-checklist.md](implementation/phase-2-checklist.md) |
 | 3 — Architecture | Full DAG engine, conductor anomaly detection, cognitive speeds | 6–10 weeks | [phase-3-4-checklist.md](implementation/phase-3-4-checklist.md) |
-| 4 — Advanced | NEAR identity, code intelligence, affect engine, VCG auction | 8–12 weeks | [phase-3-4-checklist.md](implementation/phase-3-4-checklist.md) |
+| 4 — Advanced | NEAR identity, code intelligence, affect engine, prompt budget diagnostics | 8–12 weeks | [phase-3-4-checklist.md](implementation/phase-3-4-checklist.md) |
 
 Merge gate: [implementation/07-implementation-readiness-contract.md](implementation/07-implementation-readiness-contract.md) · Regression coverage: [implementation/08-caller-test-matrix.md](implementation/08-caller-test-matrix.md)
 
@@ -316,14 +313,14 @@ Merge gate: [implementation/07-implementation-readiness-contract.md](implementat
 |--------|-------|
 | Roko crates analyzed | 30 crates + 3 apps (727K Rust LOC, 8,300+ tests) |
 | Captured implementation subset | 18+ crates, ~200K LOC, 1,600+ tests |
-| Markdown documents (this collection) | 115 files across 9 top-level folders |
+| Markdown documents (this collection) | 116 files across 8 top-level folders |
 | Benchmark scenario fixtures | 6 YAML files |
-| Directories | 18 subdirectories |
+| Directories | 19 including root |
 | Academic citations cataloged | 200+ papers across 18 topic areas |
-| v2-depth research documents cataloged | 155 depth docs + 30 support files (422 total, 8.8 MB) |
+| v2-depth research documents cataloged | 145 depth docs across 23 thematic sections |
 | Implementation plans cataloged | 27 TOML plans, 219 tasks total |
 | Concepts ranked by composite ROI | 25 (scores 1.55–4.55) |
-| Total collection size | 4.3 MB |
+| Total collection size | ~3.2 MB |
 
 ---
 
@@ -351,10 +348,10 @@ Focus on the intelligence stack and the bandit routing concept, which is the hig
 
 ### Blockchain / NEAR developer
 
-The ecosystem section covers on-chain identity, soulbound reputation, and a full NEAR port analysis of 13 Solidity contracts.
+The ecosystem section covers on-chain identity, soulbound reputation, and NEAR-native contract surfaces for agent trust workflows.
 
 1. [ecosystem/chain-reputation/README.md](ecosystem/chain-reputation/README.md) — soulbound passports, EMA trust, TraceRank
-2. [ecosystem/smart-contracts/README.md](ecosystem/smart-contracts/README.md) — 13 contracts with NEAR port analysis
+2. [ecosystem/smart-contracts/README.md](ecosystem/smart-contracts/README.md) — NEAR contract surfaces and integration plan
 3. [ecosystem/chain-reputation/passport-system.md](ecosystem/chain-reputation/passport-system.md) — ERC-8004 identity system deep dive
 4. [implementation/04-reputation-contract-blueprints.md](implementation/04-reputation-contract-blueprints.md) — off-chain and NEAR registry sketches
 
@@ -371,17 +368,15 @@ The examples folder and user stories explain what these concepts mean in real wo
 
 ## About
 
-**Roko** ([github.com/wpank/roko](https://github.com/wpank/roko)) is a Rust toolkit for building
-agents that build themselves. Given a PRD, it generates an implementation plan, dispatches
+**Roko** is a Rust toolkit for building agents that build themselves. Given a PRD, it generates an implementation plan, dispatches
 LLM-powered agents to execute tasks in parallel, validates output through a 7-rung progressive
 verification pipeline, persists results as content-addressed Signal objects, and feeds outcomes
 back into learning subsystems. What makes Roko unusual is the research harness around the LLM:
 hyperdimensional computing for sub-millisecond semantic similarity, dream consolidation for offline
 memory compression modeled on mammalian sleep stages, PAD affect vectors for emotional state
-modeling, and VCG auction theory for prompt token allocation.
+modeling, and mechanism-design-inspired prompt token allocation.
 
-**IronClaw** ([github.com/wpank/ironclaw](https://github.com/wpank/ironclaw)) is a secure
-personal AI assistant built in Rust with multi-channel access (CLI/TUI, web, Telegram, webhooks,
+**IronClaw** is a secure personal AI assistant built in Rust with multi-channel access (CLI/TUI, web, Telegram, webhooks,
 WASM channels), WASM-sandboxed extensible tools, dual-backend persistence (PostgreSQL + libSQL),
 and proactive background execution. This knowledge base identifies what Roko does that IronClaw
 does not yet do, and provides the implementation blueprints to close those gaps.

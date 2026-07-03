@@ -9,7 +9,7 @@ behavior; compile flags only control dependency footprint.
 | Signal records | `experimental.signal_records` | off | DB-backed setting | yes | workspace/memory owner |
 | Cascade router | `experimental.cascade_router` | off | runtime config + DB override | yes | LLM owner |
 | Progressive gates | `experimental.progressive_gates` | off | runtime config | yes | verification/tool owner |
-| Provider conductor | `experimental.provider_conductor` | observe | runtime config | yes | LLM owner |
+| Provider conductor | `experimental.provider_conductor` | off | runtime config | yes | LLM owner |
 | Dream consolidation | `experimental.dream_consolidation` | off | DB-backed user/workspace setting | yes | agent/runtime owner |
 | DAG workflow runner | `experimental.dag_workflow_runner` | off | runtime config | restart may be required | product workflow owner |
 | Event replay | `experimental.event_replay` | off | runtime config | yes | web gateway owner |
@@ -41,4 +41,3 @@ enable feature -> verify candidate behavior
 enable kill switch -> verify baseline behavior returns
 verify data remains readable
 ```
-

@@ -2,7 +2,8 @@
 
 This folder makes the transfer documents implementation-ready by defining the
 shared data shapes that the proposed IronClaw features should use. The shapes
-are intentionally IronClaw-native: they do not depend on any Roko package.
+are intentionally IronClaw-native: they do not depend on any external research
+package.
 
 | File | Contents |
 |---|---|

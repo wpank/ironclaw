@@ -1,6 +1,10 @@
+schema_version: 1
 id: signal_memory.near_duplicate_preference
 feature: signal_content_addressing
+feature_flag_id: flag.signal_records
 owner: src/workspace
+stage: local
+repetitions: 50
 input:
   memories:
     - "Use short factual answers for build failures."
@@ -18,11 +22,10 @@ oracle:
   type: retrieval_relevance
   expected_top5_contains: "short factual answers for build failures"
 expected_metrics:
-  duplicate_candidate_rate_min: 0.5
+  duplicate_storage_reduction_min_pct: 30
   top5_relevance_min: 0.95
 guardrails:
   max_write_latency_p95_ms: 100
   max_false_duplicate_rate: 0.02
 artifacts:
   retain_memory_bodies: local_only
-

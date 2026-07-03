@@ -21,7 +21,7 @@ Hyperdimensional computing (HDC), also known as Vector Symbolic Architectures (V
 - **Concept**: Content-addressable memory in high dimensions. In spaces with D >= 1,000, random vectors are nearly orthogonal with high probability, enabling content-addressable memory with simple bitwise operations. The book establishes capacity bounds, noise tolerance, and the mathematics of random projection.
 - **Roko adaptation**: Foundational for all HDC operations. The 10,240-bit BSC dimensionality follows Kanerva's capacity analysis for the intended knowledge store size.
 - **Crate**: `roko-core` (HDC fingerprint on every Signal/Engram), `roko-index` (code similarity search)
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/09-hdc-vsa.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/09-hdc-vsa.md), [`https://github.com/wpank/roko/blob/main/docs/v2-depth/11-memory/02-hdc-algebra-and-retrieval.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/11-memory/02-hdc-algebra-and-retrieval.md)
+- **Roko source**: `docs/v1/21-references/09-hdc-vsa.md`, `docs/v2-depth/11-memory/02-hdc-algebra-and-retrieval.md`
 - **tmp/ cross-refs**: `01-hyperdimensional-computing.md`, `10-universal-engram.md`, `11-mathematical-primitives.md`
 
 ---
@@ -32,7 +32,7 @@ Hyperdimensional computing (HDC), also known as Vector Symbolic Architectures (V
 - **Concept**: Introduces binding (XOR), bundling (majority-vote), and permutation as the three fundamental HDC operations. Explains why 10,000-dimensional binary vectors provide sufficient capacity for practical computing, with worked examples showing compositional representation.
 - **Roko adaptation**: Primary reference for the 10,240-bit BSC dimensionality choice. Every Signal carries an HDC fingerprint for similarity-based retrieval.
 - **Crate**: `roko-core`, `roko-neuro`, `roko-index`
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2/08-GATEWAY.md`](https://github.com/wpank/roko/blob/main/docs/v2/08-GATEWAY.md) (line 973), [`https://github.com/wpank/roko/blob/main/docs/v2/23-ARENAS.md`](https://github.com/wpank/roko/blob/main/docs/v2/23-ARENAS.md) (line 370)
+- **Roko source**: `docs/v2/08-GATEWAY.md` (line 973), `docs/v2/23-ARENAS.md` (line 370)
 - **tmp/ cross-refs**: `01-hyperdimensional-computing.md`
 
 ---
@@ -43,7 +43,7 @@ Hyperdimensional computing (HDC), also known as Vector Symbolic Architectures (V
 - **Concept**: Comprehensive VSA survey covering all major families (MAP-B, MAP-C, BSC, HRR, FHRR, VTB). Validates bundle similarity formula and capacity bounds. Provides the most rigorous comparison of VSA variants with unified mathematical notation.
 - **Roko adaptation**: Validates BSC selection and the similarity formulas used in retrieval. Confirms that BSC is optimal for binary hardware and noise tolerance requirements.
 - **Crate**: `roko-core`
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/09-hdc-vsa.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/09-hdc-vsa.md), [`https://github.com/wpank/roko/blob/main/docs/v1/06-neuro/04-hdc-vsa-foundations.md`](https://github.com/wpank/roko/blob/main/docs/v1/06-neuro/04-hdc-vsa-foundations.md)
+- **Roko source**: `docs/v1/21-references/09-hdc-vsa.md`, `docs/v1/06-neuro/04-hdc-vsa-foundations.md`
 - **tmp/ cross-refs**: `01-hyperdimensional-computing.md`
 
 ---
@@ -55,7 +55,7 @@ Hyperdimensional computing (HDC), also known as Vector Symbolic Architectures (V
 - **Concept**: The JL lemma: N points can be embedded into O(log N / epsilon^2) dimensions while preserving pairwise distances within factor (1 +/- epsilon). For epsilon=0.1 and N=100,000, the minimum dimensionality is D >= 4,604.
 - **Roko adaptation**: Roko's 10,240 bits provide generous headroom beyond the JL lower bound. Mathematical foundation for projecting 1,536-dimensional LLM embeddings to 10,240-bit binary hypervectors without catastrophic information loss.
 - **Crate**: `roko-core`
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/09-hdc-vsa.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/09-hdc-vsa.md)
+- **Roko source**: `docs/v1/21-references/09-hdc-vsa.md`
 - **tmp/ cross-refs**: `01-hyperdimensional-computing.md`, `11-mathematical-primitives.md`
 
 ---
@@ -66,7 +66,7 @@ Hyperdimensional computing (HDC), also known as Vector Symbolic Architectures (V
 - **Concept**: SimHash — a single random projection h(x) = sign(w^T x) produces binary codes where collision probability equals 1 - theta/pi, relating Hamming distance to angular distance. Enables locality-sensitive hashing for approximate nearest neighbor search.
 - **Roko adaptation**: Phase 1 encoding in the HDC pipeline. The projection matrix is derived deterministically from configuration for reproducibility across agent restarts.
 - **Crate**: `roko-core`, `roko-index`
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/09-hdc-vsa.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/09-hdc-vsa.md), [`https://github.com/wpank/roko/blob/main/docs/v2/08-GATEWAY.md`](https://github.com/wpank/roko/blob/main/docs/v2/08-GATEWAY.md) (convergence detection via SimHash)
+- **Roko source**: `docs/v1/21-references/09-hdc-vsa.md`, `docs/v2/08-GATEWAY.md` (convergence detection via SimHash)
 - **tmp/ cross-refs**: `01-hyperdimensional-computing.md`
 
 ---
@@ -77,7 +77,7 @@ Hyperdimensional computing (HDC), also known as Vector Symbolic Architectures (V
 
 - **Concept**: Holographic Reduced Representations (HRR) using circular convolution for binding. Theoretical ancestor of BSC. Proves that structured compositional representations (trees, sequences, graphs) can be encoded in fixed-width vectors.
 - **Crate**: `roko-core` (BSC is the binary descendant of HRR)
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/09-hdc-vsa.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/09-hdc-vsa.md)
+- **Roko source**: `docs/v1/21-references/09-hdc-vsa.md`
 - **tmp/ cross-refs**: `01-hyperdimensional-computing.md`
 
 ---
@@ -87,7 +87,7 @@ Hyperdimensional computing (HDC), also known as Vector Symbolic Architectures (V
 
 - **Concept**: Binary sparse distributed codes for structured knowledge representation. Formal treatment of binding and bundling operations in sparse binary vectors.
 - **Roko adaptation**: Foundational for BSC binding operations used throughout the codebase.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2/01-SIGNAL.md`](https://github.com/wpank/roko/blob/main/docs/v2/01-SIGNAL.md) (line 1482), [`https://github.com/wpank/roko/blob/main/docs/v1/20-technical-analysis/06-hyperdimensional-ta.md`](https://github.com/wpank/roko/blob/main/docs/v1/20-technical-analysis/06-hyperdimensional-ta.md)
+- **Roko source**: `docs/v2/01-SIGNAL.md` (line 1482), `docs/v1/20-technical-analysis/06-hyperdimensional-ta.md`
 - **tmp/ cross-refs**: `01-hyperdimensional-computing.md`
 
 ---
@@ -95,7 +95,7 @@ Hyperdimensional computing (HDC), also known as Vector Symbolic Architectures (V
 **Levy, S.D. & Gayler, R.W. (2008). Vector Symbolic Architectures: A New Building Block for Artificial General Intelligence. _Proceedings of the 2008 Conference on Artificial General Intelligence_, pp. 414-418.**
 
 - **Concept**: Comprehensive survey establishing VSA as a computational paradigm distinct from neural networks and symbolic AI, with applications in analogy, question answering, and cognitive modeling.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2/01-SIGNAL.md`](https://github.com/wpank/roko/blob/main/docs/v2/01-SIGNAL.md) (line 1483), [`https://github.com/wpank/roko/blob/main/docs/v2/06-MEMORY.md`](https://github.com/wpank/roko/blob/main/docs/v2/06-MEMORY.md) (line 515)
+- **Roko source**: `docs/v2/01-SIGNAL.md` (line 1483), `docs/v2/06-MEMORY.md` (line 515)
 - **tmp/ cross-refs**: `01-hyperdimensional-computing.md`
 
 ---
@@ -105,7 +105,7 @@ Hyperdimensional computing (HDC), also known as Vector Symbolic Architectures (V
 
 - **Concept**: Iterative convergence method for HDC retrieval that factorizes bundled vectors to recover constituents without exhaustive search. More space-efficient than codebook lookup for large dictionaries.
 - **Roko adaptation**: Referenced as a future optimization path for scaled retrieval. Used in dream consolidation pipeline to identify patterns learned separately.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2/01-SIGNAL.md`](https://github.com/wpank/roko/blob/main/docs/v2/01-SIGNAL.md) (line 1485), [`https://github.com/wpank/roko/blob/main/docs/v2/06-MEMORY.md`](https://github.com/wpank/roko/blob/main/docs/v2/06-MEMORY.md) (line 470), [`https://github.com/wpank/roko/blob/main/docs/v2/07-LEARNING.md`](https://github.com/wpank/roko/blob/main/docs/v2/07-LEARNING.md) (line 826)
+- **Roko source**: `docs/v2/01-SIGNAL.md` (line 1485), `docs/v2/06-MEMORY.md` (line 470), `docs/v2/07-LEARNING.md` (line 826)
 - **tmp/ cross-refs**: `01-hyperdimensional-computing.md`
 
 ---
@@ -115,7 +115,7 @@ Hyperdimensional computing (HDC), also known as Vector Symbolic Architectures (V
 
 - **Concept**: Made HRR viable as differentiable deep learning components via a projection step forcing vectors into a well-behaved subspace, solving numerical instability. Demonstrates 100x retrieval improvement over baseline HRR implementations.
 - **Roko adaptation**: Bridge paper enabling end-to-end learning with HDC representations in neural settings.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/09-hdc-vsa.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/09-hdc-vsa.md)
+- **Roko source**: `docs/v1/21-references/09-hdc-vsa.md`
 - **tmp/ cross-refs**: `01-hyperdimensional-computing.md`
 
 ---
@@ -125,7 +125,7 @@ Hyperdimensional computing (HDC), also known as Vector Symbolic Architectures (V
 
 - **Concept**: HNSW: O(log N) approximate nearest neighbor search at 95-99% recall for billion-scale vectors, using a hierarchical graph with long-range connections at upper layers and short-range connections at lower layers.
 - **Roko adaptation**: Production search infrastructure for HDC index at scale.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/09-hdc-vsa.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/09-hdc-vsa.md)
+- **Roko source**: `docs/v1/21-references/09-hdc-vsa.md`
 - **tmp/ cross-refs**: `01-hyperdimensional-computing.md`
 
 ---
@@ -134,7 +134,7 @@ Hyperdimensional computing (HDC), also known as Vector Symbolic Architectures (V
 [DOI: 10.1038/381607a0](https://doi.org/10.1038/381607a0)
 
 - **Concept**: Visual cortex neurons learn sparse representations of natural images under constraints of overcomplete dictionaries, producing Gabor-like receptive fields. Biological validation for sparse distributed representations.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2/01-SIGNAL.md`](https://github.com/wpank/roko/blob/main/docs/v2/01-SIGNAL.md) (line 1486), [`https://github.com/wpank/roko/blob/main/docs/v2/06-MEMORY.md`](https://github.com/wpank/roko/blob/main/docs/v2/06-MEMORY.md) (line 515)
+- **Roko source**: `docs/v2/01-SIGNAL.md` (line 1486), `docs/v2/06-MEMORY.md` (line 515)
 - **tmp/ cross-refs**: `01-hyperdimensional-computing.md`
 
 ---
@@ -142,7 +142,7 @@ Hyperdimensional computing (HDC), also known as Vector Symbolic Architectures (V
 **Rahimi, A. et al. (2024). HDC: A Framework for Stochastic Computation and Symbolic AI. _Journal of Big Data_.**
 
 - **Concept**: Unified framework positioning HDC as both stochastic computation substrate and symbolic AI system. Validates BSC as a general-purpose knowledge representation format.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/24-additions-2025.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/24-additions-2025.md)
+- **Roko source**: `docs/v1/21-references/24-additions-2025.md`
 - **tmp/ cross-refs**: `01-hyperdimensional-computing.md`
 
 ---
@@ -151,7 +151,7 @@ Hyperdimensional computing (HDC), also known as Vector Symbolic Architectures (V
 [DOI: 10.3389/frai.2024.1371988](https://doi.org/10.3389/frai.2024.1371988)
 
 - **Concept**: Gradient-descent-based adaptive encoder for HDC, bridging fixed encoding (fast, no training) and learned encoding (slower, better performance) phases. Shows adaptive encoding significantly outperforms fixed encoding on structured tasks.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/24-additions-2025.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/24-additions-2025.md), [`https://github.com/wpank/roko/blob/main/docs/v1/06-neuro/16-current-status-and-gaps.md`](https://github.com/wpank/roko/blob/main/docs/v1/06-neuro/16-current-status-and-gaps.md)
+- **Roko source**: `docs/v1/21-references/24-additions-2025.md`, `docs/v1/06-neuro/16-current-status-and-gaps.md`
 
 ---
 

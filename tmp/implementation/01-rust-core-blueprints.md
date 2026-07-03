@@ -1,11 +1,11 @@
 # Rust Core Blueprints
 
 This document provides compact, complete-enough Rust sketches for the most
-portable algorithms in the Roko analysis: HDC vectors, content-addressed
-signals, decay, robust statistics, and LinUCB routing.
+portable captured algorithms: HDC vectors, content-addressed signals, decay,
+robust statistics, and LinUCB routing.
 
 The code is written as IronClaw-native blueprint code. It intentionally avoids
-`roko-*` dependencies.
+external research-crate dependencies.
 
 ## HDC Vector Core
 
@@ -371,4 +371,3 @@ reward = 0.55 * quality_pass
 
 Where `cost_score = clamp(1 - actual_cost / baseline_cost, 0, 1)` and
 `latency_score = clamp(1 - actual_latency / latency_budget, 0, 1)`.
-

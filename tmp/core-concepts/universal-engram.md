@@ -3,18 +3,18 @@
 **Captured source set**: `roko-core` (`crates/roko-core/`)
 **Priority**: HIGH -- richer memory entries with multi-axis scoring and decay
 **GitHub source files**:
-- [`crates/roko-core/src/engram.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/engram.rs) -- Engram struct, builder, HDC helpers, derive methods
-- [`crates/roko-core/src/score.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/score.rs) -- Score struct with 7 axes, `effective()` formula, arithmetic
-- [`crates/roko-core/src/decay.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/decay.rs) -- Decay enum (None, HalfLife, Ttl, Ebbinghaus), `apply()`, `is_alive()`
-- [`crates/roko-core/src/demurrage.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/demurrage.rs) -- Demurrage trait (balance, tick, replenish, is_depleted)
-- [`crates/roko-core/src/hash.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/hash.rs) -- ContentHash (BLAKE3), hex serialization, `of()`, `short()`
-- [`crates/roko-core/src/provenance.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/provenance.rs) -- Provenance, Taint (9 variants), TaintInfo, coherence checks
-- [`crates/roko-core/src/traits.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/traits.rs) -- Store, Score (trait), Verify, Route, Compose, React, Bus, ColdStore
-- [`crates/roko-core/src/kind.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/kind.rs) -- Kind enum (30+ variants), Compound, `identity_key()`
-- [`crates/roko-core/src/body.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/body.rs) -- Body enum (Empty, Text, Json, Bytes), `canonical_bytes()`
-- [`crates/roko-core/src/attestation.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/attestation.rs) -- Ed25519 attestation, `sign()`, `verify()`, ChainAttestation
-- [`crates/roko-core/src/datum.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/datum.rs) -- Datum polymorphism (Engram | Pulse)
-- [`crates/roko-core/src/signal.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/signal.rs) -- Signal type alias (Engram -> Signal rename in progress)
+- `crates/roko-core/src/engram.rs` -- Engram struct, builder, HDC helpers, derive methods
+- `crates/roko-core/src/score.rs` -- Score struct with 7 axes, `effective()` formula, arithmetic
+- `crates/roko-core/src/decay.rs` -- Decay enum (None, HalfLife, Ttl, Ebbinghaus), `apply()`, `is_alive()`
+- `crates/roko-core/src/demurrage.rs` -- Demurrage trait (balance, tick, replenish, is_depleted)
+- `crates/roko-core/src/hash.rs` -- ContentHash (BLAKE3), hex serialization, `of()`, `short()`
+- `crates/roko-core/src/provenance.rs` -- Provenance, Taint (9 variants), TaintInfo, coherence checks
+- `crates/roko-core/src/traits.rs` -- Store, Score (trait), Verify, Route, Compose, React, Bus, ColdStore
+- `crates/roko-core/src/kind.rs` -- Kind enum (30+ variants), Compound, `identity_key()`
+- `crates/roko-core/src/body.rs` -- Body enum (Empty, Text, Json, Bytes), `canonical_bytes()`
+- `crates/roko-core/src/attestation.rs` -- Ed25519 attestation, `sign()`, `verify()`, ChainAttestation
+- `crates/roko-core/src/datum.rs` -- Datum polymorphism (Engram | Pulse)
+- `crates/roko-core/src/signal.rs` -- Signal type alias (Engram -> Signal rename in progress)
 
 ---
 
@@ -86,7 +86,7 @@ For IronClaw, this concept is compelling because IronClaw's current memory syste
 
 ## 3. The Engram Struct -- Complete Anatomy
 
-The actual Engram struct from [`crates/roko-core/src/engram.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/engram.rs) (lines 62-98):
+The actual Engram struct from `crates/roko-core/src/engram.rs` (lines 62-98):
 
 ```rust
 /// The universal datum of the Roko system.
@@ -174,7 +174,7 @@ This partitioning is analogous to Protocol Buffers' field number stability rule 
 
 ### 3.2 The Builder Pattern
 
-Engrams are constructed via a builder that provides sensible defaults. From [`crates/roko-core/src/engram.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/engram.rs) (lines 310-343):
+Engrams are constructed via a builder that provides sensible defaults. From `crates/roko-core/src/engram.rs` (lines 310-343):
 
 ```rust
 pub struct EngramBuilder {
@@ -221,7 +221,7 @@ let verdict = task.derive(Kind::GateVerdict, Body::text("compilation passed"))
 
 ### 3.3 Effective Weight
 
-The single most important runtime calculation on an Engram is its **effective weight**, which combines score and decay into a single scalar. From [`crates/roko-core/src/engram.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/engram.rs) (lines 136-142):
+The single most important runtime calculation on an Engram is its **effective weight**, which combines score and decay into a single scalar. From `crates/roko-core/src/engram.rs` (lines 136-142):
 
 ```rust
 impl Engram {
@@ -261,7 +261,7 @@ Every Engram is identified by a `ContentHash` -- a 32-byte BLAKE3 digest of its 
 
 ### 4.1 The ContentHash Type
 
-From [`crates/roko-core/src/hash.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/hash.rs) (lines 17-66):
+From `crates/roko-core/src/hash.rs` (lines 17-66):
 
 ```rust
 /// A 32-byte content-addressed identifier (BLAKE3 digest).
@@ -304,7 +304,7 @@ These advantages over SHA-256 come without any reduction in security: BLAKE3 pro
 
 ### 4.3 The Exact Hash Computation
 
-From [`crates/roko-core/src/engram.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/engram.rs) (lines 113-134), the `content_hash()` method feeds identity fields into a BLAKE3 hasher with pipe delimiters between fields:
+From `crates/roko-core/src/engram.rs` (lines 113-134), the `content_hash()` method feeds identity fields into a BLAKE3 hasher with pipe delimiters between fields:
 
 ```rust
 impl Engram {
@@ -356,7 +356,7 @@ Content-addressed storage is a well-established paradigm with deep roots in dist
 
 ### 4.5 Serialization
 
-ContentHashes serialize as 64-character hex strings in JSON via a custom serde module (`hex_bytes`) in [`crates/roko-core/src/hash.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/hash.rs):
+ContentHashes serialize as 64-character hex strings in JSON via a custom serde module (`hex_bytes`) in `crates/roko-core/src/hash.rs`:
 
 ```json
 {"id":"a1b2c3d4e5f6...","kind":"task","body":{"format":"text","data":"implement login"}}
@@ -366,7 +366,7 @@ ContentHashes serialize as 64-character hex strings in JSON via a custom serde m
 
 ## 5. 7-Axis Scoring System
 
-Every Engram carries a multi-dimensional quality score. The Score struct from [`crates/roko-core/src/score.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/score.rs) (lines 50-69) provides seven independent axes -- four primary (always populated) and three extended (opt-in):
+Every Engram carries a multi-dimensional quality score. The Score struct from `crates/roko-core/src/score.rs` (lines 50-69) provides seven independent axes -- four primary (always populated) and three extended (opt-in):
 
 ```rust
 /// A multi-dimensional quality score for a signal.
@@ -420,13 +420,7 @@ pub struct Score {
 
 **Role in scoring**: Like novelty, acts as a multiplicative bonus via `(1 + utility)`. With utility 5.0, the multiplier is 6.0x.
 
-#### Reputation -- [0, infinity)
-
-**What it measures**: How trustworthy is the Engram's producer at the time the Engram was created?
-
-**Critical property**: Zero reputation produces zero effective score (like zero confidence). Untrusted sources are structurally excluded.
-
-**Default values by provenance** (from [`crates/roko-core/src/provenance.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/provenance.rs) lines 297-347):
+#### Reputation -- `crates/roko-core/src/provenance.rs` lines 297-347):
 - `Provenance::trusted()` --> trust 1.0, taint Clean
 - `Provenance::agent()` --> trust 0.75, taint Clean
 - `Provenance::user()` --> trust 0.5, taint UserInput
@@ -447,7 +441,7 @@ How consistent is this Engram with the system's existing knowledge base? Like sa
 
 ### 5.3 The Effective Score Formula
 
-All seven axes collapse into a single scalar via a 6-factor formula. From [`crates/roko-core/src/score.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/score.rs) (lines 179-201):
+All seven axes collapse into a single scalar via a 6-factor formula. From `crates/roko-core/src/score.rs` (lines 179-201):
 
 ```rust
 impl Score {
@@ -554,7 +548,7 @@ Scores support element-wise arithmetic:
 
 ### 5.5 Numerical Safety
 
-All Score constructors sanitize non-finite values (from [`crates/roko-core/src/score.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/score.rs) lines 29-43):
+All Score constructors sanitize non-finite values (from `crates/roko-core/src/score.rs` lines 29-43):
 
 ```rust
 fn finite_unit_interval(value: f32) -> f32 {
@@ -572,7 +566,7 @@ fn finite_non_negative(value: f32) -> f32 {
 
 ## 6. Four Decay Variants
 
-Every Engram has a decay function that determines how its weight diminishes over time. The `Decay` enum from [`crates/roko-core/src/decay.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/decay.rs) (lines 18-69):
+Every Engram has a decay function that determines how its weight diminishes over time. The `Decay` enum from `crates/roko-core/src/decay.rs` (lines 18-69):
 
 ```rust
 /// How a signal's weight diminishes over time.
@@ -620,7 +614,7 @@ weight(age) = 0.5 ^ (age_ms / half_life_ms)
 - At `age = n * half_life_ms`: weight = 0.5^n
 - Asymptotically approaches 0 but never reaches it
 
-**Implementation** (from [`crates/roko-core/src/decay.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/decay.rs) lines 93-99):
+**Implementation** (from `crates/roko-core/src/decay.rs` lines 93-99):
 
 ```rust
 Self::HalfLife { half_life_ms } => {
@@ -666,13 +660,7 @@ weight(age) = exp(-age_ms / (strength * scale_ms))
 ```
 
 Where:
-- `strength` (float, [0..infinity)) is a retention multiplier. Higher = signal persists longer.
-- `scale_ms` (integer) is the base time unit in milliseconds.
-- The product `strength * scale_ms` gives the effective time constant `tau`.
-
-**At the time constant** (age = strength * scale_ms = tau): `weight = 1/e ~ 0.368`.
-
-**Implementation** (from [`crates/roko-core/src/decay.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/decay.rs) lines 107-114):
+- `strength` (float, `crates/roko-core/src/decay.rs` lines 107-114):
 
 ```rust
 Self::Ebbinghaus { strength, scale_ms } => {
@@ -708,7 +696,7 @@ A Transient Warning decays with an effective half-life of 0.7 days (0.1 x 7). A 
 
 ### 6.5 The `is_alive` Check
 
-From [`crates/roko-core/src/decay.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/decay.rs) (lines 117-121):
+From `crates/roko-core/src/decay.rs` (lines 117-121):
 
 ```rust
 impl Decay {
@@ -726,7 +714,7 @@ Used by garbage collection and pruning routines. Note that negative ages (clock 
 
 Beyond the four decay variants, Roko defines a **demurrage** system that models knowledge retention as an attention economy. The concept is borrowed from Silvio Gesell's 1916 *The Natural Economic Order* (Gesell 1916), which proposed that money should carry a holding cost ("demurrage") to encourage circulation. Just as Gesellian demurrage taxes idle money to prevent hoarding, Roko's demurrage taxes idle knowledge to ensure active validation.
 
-From [`crates/roko-core/src/demurrage.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/demurrage.rs) (lines 9-32):
+From `crates/roko-core/src/demurrage.rs` (lines 9-32):
 
 ```rust
 /// Time-decay tax on stored value -- ensures active validation.
@@ -805,7 +793,7 @@ impl Engram {
 
 ## 8. Kind -- Semantic Type System
 
-The `Kind` enum from [`crates/roko-core/src/kind.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/kind.rs) (lines 23-109) tells consumers how to interpret an Engram's body. There are 30+ built-in variants organized by architectural concern:
+The `Kind` enum from `crates/roko-core/src/kind.rs` (lines 23-109) tells consumers how to interpret an Engram's body. There are 30+ built-in variants organized by architectural concern:
 
 ```rust
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -853,7 +841,7 @@ pub enum Kind {
 
 ## 9. Body -- Typed Payload
 
-The `Body` enum from [`crates/roko-core/src/body.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/body.rs) (lines 14-25) carries the Engram's actual content in one of four formats:
+The `Body` enum from `crates/roko-core/src/body.rs` (lines 14-25) carries the Engram's actual content in one of four formats:
 
 ```rust
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -888,7 +876,7 @@ The `lineage` field on every Engram is a `Vec<ContentHash>` identifying the pare
 
 ### 10.1 Derivation Methods
 
-From [`crates/roko-core/src/engram.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/engram.rs) (lines 167-193):
+From `crates/roko-core/src/engram.rs` (lines 167-193):
 
 ```rust
 impl Engram {
@@ -950,7 +938,7 @@ Every Engram carries a `Provenance` record that answers three questions: who pro
 
 ### 11.1 The Provenance Struct
 
-From [`crates/roko-core/src/provenance.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/provenance.rs) (lines 263-292):
+From `crates/roko-core/src/provenance.rs` (lines 263-292):
 
 ```rust
 /// Who produced a signal and how trustworthy they are.
@@ -973,7 +961,7 @@ pub struct Provenance {
 
 ### 11.2 The Taint Enum -- All 9 Variants
 
-The `Taint` enum from [`crates/roko-core/src/provenance.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/provenance.rs) (lines 21-67) has 9 variants. Each variant is `#[non_exhaustive]` so new taint reasons can be added without breaking downstream matches:
+The `Taint` enum from `crates/roko-core/src/provenance.rs` (lines 21-67) has 9 variants. Each variant is `#[non_exhaustive]` so new taint reasons can be added without breaking downstream matches:
 
 ```rust
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -1023,7 +1011,7 @@ The `inherited_from` field provides a direct link back to the originating tainte
 
 ### 11.4 Provenance Constructors
 
-From [`crates/roko-core/src/provenance.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/provenance.rs) (lines 294-347):
+From `crates/roko-core/src/provenance.rs` (lines 294-347):
 
 ```rust
 impl Provenance {
@@ -1050,7 +1038,7 @@ impl Provenance {
 
 ### 11.5 Trust Checking
 
-From [`crates/roko-core/src/provenance.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/provenance.rs) (lines 409-412):
+From `crates/roko-core/src/provenance.rs` (lines 409-412):
 
 ```rust
 impl Provenance {
@@ -1066,7 +1054,7 @@ The `is_trusted()` method requires **both** sufficient trust score **and** no ta
 
 ## 12. Cryptographic Attestation
 
-Engrams support optional cryptographic proof of origin via Ed25519 signatures. From [`crates/roko-core/src/attestation.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/attestation.rs) (lines 54-64):
+Engrams support optional cryptographic proof of origin via Ed25519 signatures. From `crates/roko-core/src/attestation.rs` (lines 54-64):
 
 ```rust
 /// Cryptographic proof that a specific signer produced an Engram.
@@ -1082,7 +1070,7 @@ pub struct Attestation {
 }
 ```
 
-The sign/verify workflow (from [`crates/roko-core/src/attestation.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/attestation.rs) lines 87-109):
+The sign/verify workflow (from `crates/roko-core/src/attestation.rs` lines 87-109):
 
 ```rust
 pub fn sign(engram: &Engram, key: &SigningKey) -> Attestation {
@@ -1115,7 +1103,7 @@ pub fn verify(engram: &Engram, attestation: &Attestation) -> bool {
 
 Every Engram can carry an HDC (Hyperdimensional Computing) fingerprint for fast similarity search. For full coverage of the HDC system — theory, all four algebraic operations, capacity analysis, benchmarks, and IronClaw integration plan — see **[core-concepts/hyperdimensional-computing/](./hyperdimensional-computing/README.md)**. What follows is the Engram-specific surface.
 
-The fingerprint field from [`crates/roko-core/src/engram.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/engram.rs) (lines 17-27):
+The fingerprint field from `crates/roko-core/src/engram.rs` (lines 17-27):
 
 ```rust
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -1154,13 +1142,13 @@ impl Engram {
 }
 ```
 
-Similarity search is wired through the `Store` trait's `query_similar()` method (see Section 14.1). Performance: ~13 ns per pairwise similarity; 100K Engrams scanned in ~1.3 ms.
+Similarity search is wired through the `Store` trait's `query_similar()` method (see Section 14.1). For HDC-backed lookup, a single fixed-width comparison is cheap but a brute-force scan is still O(N); use the HDC benchmark harness to set local latency targets.
 
 ---
 
 ## 14. The Core Traits
 
-The entire Roko system is built from the Engram and traits defined in [`crates/roko-core/src/traits.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/traits.rs). These traits define the complete operational surface:
+The entire Roko system is built from the Engram and traits defined in `crates/roko-core/src/traits.rs`. These traits define the complete operational surface:
 
 ### 14.1 Store (lines 37-80)
 
@@ -1280,7 +1268,7 @@ Roko has two data mediums, not one:
 | **Typical rate** | 1 Hz - 1 kHz | 1 Hz - 1 MHz |
 | **Typical lifetime** | Minutes to permanent | Milliseconds to seconds |
 
-The `Datum` enum from [`crates/roko-core/src/datum.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/datum.rs) (lines 34-40) provides a polymorphic input surface:
+The `Datum` enum from `crates/roko-core/src/datum.rs` (lines 34-40) provides a polymorphic input surface:
 
 ```rust
 pub enum Datum<'a> {
@@ -1715,7 +1703,7 @@ For a typical IronClaw deployment with 10,000 memory documents, the overhead is 
 
 | Feature | Flat Document (current IronClaw) | Engram-enhanced |
 |---|---|---|
-| Deduplication | None (UUID always unique) | BLAKE3 content hash, O(1) lookup |
+| Deduplication | Existing version/content hash semantics | Optional canonical content hash index after migration analysis |
 | Quality ranking | None (text similarity only) | 7-axis weighted scoring |
 | Temporal relevance | Age only (updated_at) | Mathematical decay, configurable per-doc |
 | Provenance | None | Author + trust + taint |
@@ -1723,7 +1711,7 @@ For a typical IronClaw deployment with 10,000 memory documents, the overhead is 
 | Safety filtering | None | Taint-based exclusion/penalization |
 | Memory economics | Hard delete or keep-all | Demurrage + cold storage |
 
-The flat model is simpler and has lower storage overhead, but the Engram model provides structural guarantees that would otherwise require application-layer logic scattered across multiple handlers.
+The flat model is simpler and has lower storage overhead. The Engram model can centralize scoring, lineage, and taint behavior that would otherwise drift across handlers, but only after the repository and DB contracts enforce those fields consistently.
 
 ---
 
@@ -2454,9 +2442,9 @@ pub struct EngramLifecycleConfig {
 | DB repository updates (find_by_content_hash) | 60 | Low | New index + query |
 | **Total** | **~670** | **Low** | |
 
-**Risk assessment**: Low overall. All new fields have sensible defaults (confidence=0.5, utility=0.0, decay=None, balance=1.0, is_tainted=false), so existing code continues to function without modification. The migration is purely additive (new nullable columns). The one medium-risk area -- the heartbeat lifecycle tick -- requires careful handling to ensure the archive threshold never permanently hides high-utility documents.
+**Risk assessment**: Medium. Start with a metadata overlay on `MemoryDocument` and caller-level ranking tests before adding columns. Any schema migration must go through the shared DB trait, implement both PostgreSQL and libSQL, preserve file-like memory semantics, and include rollback/backfill notes. The heartbeat lifecycle tick is the highest-risk behavior because it can hide useful documents if the archive threshold is wrong.
 
-**Dependencies**: `blake3` crate (pure Rust, no C dependencies; ~100KB compiled). Already present in IronClaw's workspace document layer as a `sha2`/`sha256` user -- replacing the SHA-256 used in `DocumentVersion.content_hash` with BLAKE3 gives a performance improvement as a side benefit.
+**Dependencies**: `blake3` is already available in the workspace. Do not replace existing SHA-256 `DocumentVersion.content_hash` semantics solely for speed; introduce any BLAKE3 content address as a separate field unless a migration plan proves compatibility.
 
 ---
 

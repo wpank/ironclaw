@@ -1,15 +1,14 @@
 # IronClaw Integration Recipes
 
-These recipes translate the Roko-derived concepts into IronClaw work items with
+These recipes translate the captured concepts into IronClaw work items with
 concrete caller boundaries and tests.
 
 ## 1. Metacognitive Monitor
 
 Target files:
 
-- `src/agent/agent_loop.rs`
+- `src/agent/agentic_loop.rs`
 - `src/agent/cost_guard.rs`
-- optional new `src/agent/metacognition.rs`
 
 Minimum behavior:
 
@@ -79,7 +78,7 @@ Caller-level tests:
 
 Target files:
 
-- new `crates/ironclaw_gate/` or `src/verification/`
+- planned `crates/ironclaw_gate/`
 - tool-builder or code-generation callers
 - `src/tools/dispatch.rs` only if a gate is exposed as a tool
 
@@ -101,7 +100,7 @@ Caller-level tests:
 Target files:
 
 - `crates/ironclaw_llm/src/circuit_breaker.rs`
-- optional new `crates/ironclaw_llm/src/provider_health.rs`
+- planned `crates/ironclaw_llm/src/conductor_lite.rs`
 - LLM factory composition in `crates/ironclaw_llm/src/lib.rs`
 
 Minimum behavior:
@@ -138,4 +137,3 @@ Caller-level tests:
 - Seed session outcomes, run the heartbeat routine, and assert memory writes go
   through the memory tool/facade with correct taint metadata.
 - Verify a monthly budget cap prevents consolidation.
-

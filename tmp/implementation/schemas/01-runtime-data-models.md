@@ -21,8 +21,16 @@ pub enum ExperimentalFeature {
     ProviderConductor,
     DreamConsolidation,
     DagWorkflowRunner,
+    EventReplay,
+    WorkspaceCodeSearch,
+    ExtensionHooks,
     ControlPlaneProjection,
     LocalReputationLedger,
+    CognitiveSpeeds,
+    FullDreamConsolidation,
+    PromptComposition,
+    AffectEngine,
+    SwarmCoordination,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

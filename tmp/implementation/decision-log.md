@@ -1,6 +1,6 @@
-# Decision Log — IronClaw × Roko Integration
+# Decision Log — IronClaw Concept Integration
 
-Architecture Decision Records (ADRs) for the Roko concept adoption project.
+Architecture Decision Records (ADRs) for the captured concept adoption project.
 Each record captures context, the decision made, alternatives considered, and
 consequences. ADRs are append-only: superseded decisions get a "Superseded by"
 line rather than being edited or deleted.
@@ -63,7 +63,7 @@ a decision? What forces are in play? What would happen if no decision is made?>
 
 ### Context
 
-The Roko adoption plan introduces 25 new behaviors across four phases, touching
+The concept adoption plan introduces 25 new behaviors across four phases, touching
 the agent loop, LLM routing, workspace memory, a new gate verification crate,
 and optional NEAR on-chain integration. IronClaw is a personal AI assistant
 running in production for its users — a broken LLM routing change or a
@@ -81,7 +81,7 @@ switch is a feature flag.
 
 ### Decision
 
-Every new feature derived from the Roko adoption plan must be placed behind an
+Every new feature derived from the concept adoption plan must be placed behind an
 IronClaw-owned feature flag with key `experimental.<feature_name>` that
 defaults to `false`. No feature may change observable behavior for users who
 have not opted in. Feature flags must be readable at runtime without restart
@@ -185,7 +185,7 @@ both backends at that point.
 |-------------|-----------------|
 | Add dedicated columns for each new field | Requires dual-backend migration for every field. 10+ migration files across Phase 1–3. High ceremony for exploratory features that may be removed. |
 | Store in separate side tables | Even higher migration burden. Adds JOIN complexity to every memory read. |
-| New append-only JSONL files (Roko-style) | Does not integrate with IronClaw's existing workspace search, tool boundary, or audit trail. Adds a third storage system. |
+| New standalone append-only JSONL files | Does not integrate with IronClaw's existing workspace search, tool boundary, or audit trail. Adds a third storage system. |
 | In-memory only (no persistence) | Learning state is lost on restart. Ebbinghaus decay is meaningless without persistence. |
 
 ### Consequences
@@ -277,7 +277,7 @@ the robust-statistics-hardened learner, not the raw EMA.
 |-------------|-----------------|
 | Build Cascade Router first, add robust stats later | Bandit trains on corrupted reward signals during its warm-up period. Corrupted learning is hard to detect and correct; the bandit may converge to a locally optimal but globally wrong routing policy that is expensive to undo. |
 | Build Cascade Router with its own internal outlier filtering | Duplicates logic that belongs in the estimation module. Creates two separate outlier-filtering implementations that can diverge. Estimation module is the canonical source for cost/time learning signals. |
-| Skip robust statistics entirely, use raw EMA for bandit rewards | LLM cost distributions are demonstrably heavy-tailed. Roko's primitives docs cite this explicitly. The EMA without dampening is provably distorted by single outlier calls. |
+| Skip robust statistics entirely, use raw EMA for bandit rewards | LLM cost distributions are heavy-tailed in the captured primitives notes and in production-style traces. The EMA without dampening is distorted by single outlier calls. |
 | Use median instead of trimmed mean in the bandit reward | Median is fine for ranking but loses magnitude information needed for accurate cost projections. Trimmed mean preserves magnitude while removing extremes. |
 
 ### Consequences
@@ -323,7 +323,7 @@ independently.
 
 ---
 
-## ADR-004: Clean-Room Reimplementation — No Roko Source Imports
+## ADR-004: Clean-Room Reimplementation — No External Source Imports
 
 **Date**: 2026-07-03
 **Status**: Accepted
@@ -332,54 +332,51 @@ independently.
 
 ### Context
 
-The Roko framework is a research codebase at `github.com/wpank/roko`. The
-integration project began with a comprehensive analysis of Roko's source code
-captured into 31 documents under `tmp/`. These documents include: algorithm
-descriptions, data type definitions, Mermaid architecture diagrams, trait
-signatures, test patterns, and academic citations.
+The integration project began with captured analysis material recorded in
+documents under `tmp/`. These documents include algorithm descriptions, data
+type definitions, Mermaid architecture diagrams, trait signatures, test
+patterns, and academic citations.
 
-The question of whether to depend on Roko as an upstream Rust crate or to
-reimplement its concepts inside IronClaw-owned modules requires a clear answer
+The question of whether to depend on an upstream research crate or to
+reimplement the concepts inside IronClaw-owned modules requires a clear answer
 before any code is written.
 
 ### Decision
 
-All Roko concepts are reimplemented inside IronClaw-owned modules using the
-captured analysis documents as the specification. No Roko crate is imported as
-a `[dependencies]` entry in any IronClaw `Cargo.toml`. Roko source file paths
-appearing in the analysis documents (e.g.,
-`crates/roko-primitives/src/robust.rs`) are treated as provenance labels — they
-identify the original source of an algorithm for traceability but are not live
-dependencies.
+All concepts are reimplemented inside IronClaw-owned modules using the captured
+analysis documents as the specification. No external research crate is imported
+as a `[dependencies]` entry in any IronClaw `Cargo.toml`. Legacy source-path
+labels appearing in the analysis documents are provenance only; they are not
+live dependencies, required files, or implementation instructions.
 
 ### Alternatives Considered
 
 | Alternative | Reason Rejected |
 |-------------|-----------------|
-| Import Roko crates as upstream dependencies | Roko is a research codebase, not a stable library. Its API is subject to change. Adding it as a dependency would couple IronClaw's stability to Roko's development velocity. License compatibility would require audit. |
-| Fork Roko and vendored-import selected crates | Fork maintenance overhead. Selected Roko crates have transitive dependencies that are unlikely to compile cleanly in IronClaw's dependency graph without conflicts. |
-| Vendor individual files from Roko | Technically a copy, not a clean-room implementation. Would require attribution and license review. Does not allow the implementation to be adapted to IronClaw's types and patterns. |
+| Import upstream research crates as dependencies | The source project is research code, not a stable library. Its API is subject to change. Adding it as a dependency would couple IronClaw's stability to external development velocity. License compatibility would require audit. |
+| Fork and vendored-import selected crates | Fork maintenance overhead. Selected crates may have transitive dependencies that are unlikely to compile cleanly in IronClaw's dependency graph without conflicts. |
+| Vendor individual files | Technically a copy, not a clean-room implementation. Would require attribution and license review. Does not allow the implementation to be adapted to IronClaw's types and patterns. |
 
 ### Consequences
 
 **Positive:**
 - IronClaw owns all new code completely; no upstream breakage risk.
-- Implementations are adapted to IronClaw's exact types (`MemoryDocument`, `ToolDispatcher`, `SmartRoutingProvider`) rather than being forced into Roko's API shape.
+- Implementations are adapted to IronClaw's exact types (`MemoryDocument`, `ToolDispatcher`, `SmartRoutingProvider`) rather than being forced into an external API shape.
 - No license audit required.
-- The analysis documents are a complete specification; no access to the Roko repo is needed after the initial capture.
+- The analysis documents are the implementation reference; no external checkout is needed after the initial capture.
 
 **Negative / Trade-offs:**
 - Some reimplementation effort for algorithms that could theoretically be imported directly (e.g., HoltForecast is ~30 lines). Accepted — the adaption to IronClaw's types is the value.
-- Bug fixes or improvements in Roko's upstream implementations do not automatically flow into IronClaw. Mitigation: the analysis documents are versioned snapshots; revisit after major Roko releases if warranted.
+- Bug fixes or improvements in external upstream implementations do not automatically flow into IronClaw. Mitigation: the analysis documents are versioned snapshots; revisit only through an explicit design review.
 
 ### Implementation Notes
 
-When the analysis documents describe a Roko algorithm, the implementation should:
+When the analysis documents describe an algorithm, the implementation should:
 1. Use the algorithm (trimmed mean, Holt smoothing, HDC XOR, LinUCB) exactly as specified.
 2. Adapt the surrounding types to IronClaw conventions (error types via `thiserror`, logging via `tracing::debug!`, async via `tokio`).
-3. Add the Roko source path as a provenance comment, not a live link:
+3. Cite the captured concept document and any academic reference. Do not add inaccessible source-path labels to code comments:
    ```rust
    /// Holt double exponential smoothing.
-   /// Algorithm reference: roko-conductor/src/holt.rs (captured 2026-06)
+   /// Concept reference: tmp/execution-verification/conductor-anomaly.md.
    /// Academic reference: Holt (1957) ONR Memorandum 52.
    ```

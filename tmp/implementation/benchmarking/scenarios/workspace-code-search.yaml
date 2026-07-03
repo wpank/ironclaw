@@ -1,6 +1,10 @@
+schema_version: 1
 id: code_search.symbol_graph_rrf
 feature: workspace_code_search
+feature_flag_id: flag.workspace_code_search
 owner: src/workspace
+stage: local
+repetitions: 50
 input:
   fixture_repo: polyglot_small
   query: "where is webhook signature validation performed?"
@@ -13,8 +17,8 @@ variant:
 oracle:
   type: expected_file_and_symbol
   expected:
-    file: src/channels/web/auth.rs
-    symbol: verify_webhook_signature
+    file: src/channels/web/handlers/webhooks.rs
+    symbol: validate_webhook_secret
 expected_metrics:
   top5_symbol_recall_delta_min_pp: 15
 guardrails:
@@ -22,4 +26,3 @@ guardrails:
   max_memory_growth_pct: 20
 artifacts:
   retain_index_snapshot: true
-

@@ -9,7 +9,7 @@ Support documents for the knowledge base: a complete system overview, full acade
 | [Roko Architecture Overview](architecture-overview.md) | First-time-reader reference for the entire Roko system. Five-layer model, crate dependency graph, nine protocol traits, agent lifecycle, gate pipeline, dream consolidation, IronClaw comparison table across 10 dimensions. Start here. |
 | [v2-Depth Research Catalog](v2-depth-research.md) | Catalog of 145 depth documents across 23 thematic sections in `docs/v2-depth/`. Top-20 must-reads, 7 goal-based reading guides, per-section tables with IronClaw relevance ratings (52 HIGH / 40 MED / 53 LOW). |
 | [Plans Catalog](plans-catalog.md) | Catalog of 27 TOML-defined implementation plans (P08–P34). TOML task format, tier classification (mechanical/focused/integrative/architectural), LoC budgets, dependency chains, cross-plan patterns, and anti-pattern taxonomy. |
-| [Glossary of Terms](glossary.md) | Alphabetical quick-reference for 130+ domain-specific terms: HDC/VSA, affect, execution, memory, blockchain, protocol, math, architecture. Each entry is 1–2 sentences with a link to the full explanation. |
+| [Glossary of Terms](glossary.md) | Alphabetical quick-reference for domain-specific terms across HDC/VSA, affect, execution, memory, blockchain, protocol, math, and architecture. |
 | [Terminology Glossary](terminology-glossary.md) | Maps v1/captured source terms (Engram, Substrate, Module, Workflow, Daimon, Neuro) to v2/spec terms (Signal, Store, Cell, Graph, Affect Engine, Memory/Search) and IronClaw-native targets. |
 | [Cross-Reference Map](cross-reference-map.md) | Table connecting every concept document to its complementary deep dives, schema documents, benchmark scenarios, rollout runbooks, and example workflows. Recommended reading order: concept doc → deep dive → schema/benchmark → examples. |
 | [Source Corpus Map](source-corpus-map.md) | Maps captured Roko crate families to concept documents and IronClaw-native implementation targets. Includes the no-external-dependency policy and Roko-to-IronClaw translation table. |
@@ -31,7 +31,7 @@ Support documents for the knowledge base: a complete system overview, full acade
 graph TD
     OVERVIEW["Architecture Overview\nfull system map\nfirst-time reader guide"]
     CITATIONS["Research Citations\nacademic bibliography\n8 topic files"]
-    V2DEPTH["v2-Depth Catalog\n145 depth docs\n23 thematic sections"]
+    V2DEPTH["v2-Depth Catalog\n23 thematic sections"]
     PLANS["Plans Catalog\n27 TOML plans\ntask + tier + budget"]
 
     OVERVIEW -->|"concept docs\nlink back to"| CITATIONS
@@ -42,9 +42,9 @@ graph TD
 
 ## Quick Start
 
-**Unfamiliar term** (hypervector, somatic marker, TraceRank, coboundary, demurrage)? Check [Glossary of Terms](glossary.md) first — 130+ terms from every domain area with precise 1–2 sentence definitions.
+**Unfamiliar term** (hypervector, somatic marker, TraceRank, coboundary, demurrage)? Check [Glossary of Terms](glossary.md) first.
 
-**New to Roko entirely?** Read [Roko Architecture Overview](architecture-overview.md) first. It gives you the full mental model of how all 30+ crates fit together and contains the IronClaw comparison table.
+**New to Roko entirely?** Read [Roko Architecture Overview](architecture-overview.md) first. It gives you the system map and the IronClaw comparison table.
 
 **Looking for the academic basis of a concept?** Open [Research Citations](research-citations/README.md) — 8 domain areas: HDC/VSA, memory/learning, affect/cognition, verification/safety, agents/orchestration, blockchain/economics, context/search, math/statistics.
 

@@ -50,10 +50,10 @@ Metrics:
 
 | Metric | Target |
 |---|---|
-| Cost/request | 20-50% reduction |
+| Cost/request | >=20% median reduction after warmup on eligible low-risk cases |
 | Quality pass rate | no worse than -2 percentage points |
 | Fallback rate | below 10% after warmup |
-| Warmup | stable per class after 200-500 observations |
+| Warmup | report convergence after 200-500 observations per class; hold if unstable |
 
 ## Gate Pipeline
 
@@ -108,7 +108,7 @@ Metrics:
 | Metric | Target |
 |---|---|
 | Background cost | under configured daily/monthly cap |
-| Promoted memory precision | 80% manually accepted sample |
+| Promoted memory precision | >=80% manually accepted redacted sample |
 | Future retrieval lift | +5% relevant@10 for repeated task classes |
 | Retry reduction | fewer repeated failures in rehearsed categories |
 
@@ -167,6 +167,6 @@ benchmark target even when it is not one of the initial six playbooks.
 | HDC search | top-5 relevance improves with p95 search latency inside budget | false duplicate rate > 2% or latency > +10% |
 | Cascade router | cost/request down >= 20%, quality no worse than -2pp | quality drops > 2pp or fallback rate rises > 5pp |
 | Gates | escaped defects down and false blocks < 5% | secret in artifact or false blocks >= 5% |
-| Conductor | degraded-provider spend down >= 50% | healthy-provider false positives > 3% |
+| Conductor | degraded-provider spend down >= 50% in degradation fixture | healthy-provider false positives > 3% |
 | Dreams | useful-memory hit rate +10pp within budget | background cap exceeded or sensitive data leak |
 | Control plane | reconnect fixture loses zero events | auth/origin/rate-limit regression |

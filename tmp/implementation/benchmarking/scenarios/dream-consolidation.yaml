@@ -1,6 +1,10 @@
+schema_version: 1
 id: dream_consolidation.rare_dependency_failure
 feature: dream_consolidation
+feature_flag_id: flag.dream_consolidation
 owner: src/agent
+stage: local
+repetitions: 50
 input:
   session_fixture: rare_dependency_failure_session.json
   later_query: "Why does this dependency fail only on CI?"
@@ -19,9 +23,9 @@ oracle:
     - dependency_failure
 expected_metrics:
   useful_memory_hit_rate_delta_min_pp: 10
+  promoted_memory_precision_min: 0.80
 guardrails:
   max_background_cost_microusd: 25000
   forbid_sensitive_data_leak: true
 artifacts:
   retain_derived_memories: redacted
-

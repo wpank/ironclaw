@@ -1,6 +1,6 @@
 # Phase 2 Implementation Checklists: Core Enhancements
 
-> **Scope**: Actionable per-item checklists for Phase 2 of the IronClaw × Roko
+> **Scope**: Actionable per-item checklists for Phase 2 of the IronClaw concept
 > integration. Each item is independently deliverable behind a feature flag. No
 > Phase 2 item requires another Phase 2 item to ship — they are parallel
 > workstreams.
@@ -124,14 +124,14 @@ cascade that learns from experience: (1) static rules for known-safe patterns,
 (2) confidence guard for out-of-distribution contexts, (3) LinUCB bandit for
 everything else.
 
-**Concept sources**:
-- [`../agent-intelligence/online-learning.md`](../agent-intelligence/online-learning.md)
-- Roko source: `crates/roko-learn/src/cascade_router.rs`, `crates/roko-learn/src/linucb.rs`
+**Concept doc**: [`../agent-intelligence/online-learning.md`](../agent-intelligence/online-learning.md)
 
-**Risk**: HIGH. **Value**: VERY HIGH. Per roadmap: 30–50% cost reduction after warmup.
+**Risk**: HIGH. **Value**: VERY HIGH. Hypothesis: at least 20% median
+cost/request reduction for eligible low-risk request classes after warmup, with
+quality no worse than -2pp.
 
-**Feature flag**: `LLM_CASCADE_ROUTER_ENABLED=false` (default) / `LLM_CASCADE_SHADOW=true`
-(shadow logging without routing changes)
+**Feature flag**: `experimental.cascade_router` (default `off`), with
+`mode = "shadow"` for scoring without routing changes.
 
 **Primary files to create**:
 
@@ -187,7 +187,9 @@ everything else.
 
 ### Configuration
 
-- [ ] **CF1** Add `LlmCascadeConfig` to `src/config/llm.rs` with `from_env()` reading `LLM_CASCADE_ROUTER_ENABLED`, `LLM_CASCADE_ALPHA`, `LLM_CASCADE_WARMUP`, `LLM_CASCADE_SHADOW`
+- [ ] **CF1** Add `LlmCascadeConfig` to `src/config/llm.rs` with `enabled`,
+`mode`, `alpha`, and `warmup_requests`. Env/bootstrap names may map into this
+struct, but the canonical rollout key is `experimental.cascade_router`.
 - [ ] **CF2** Default `enabled = false` so `SmartRoutingProvider` behavior is completely unchanged without the env var
 - [ ] **CF3** Add `cascade_router` entry to `.env.example` with documentation comment
 - [ ] **CF4** Emit `FeatureExposureEvent` at the start of every request when `enabled = true` (required by feature flag inventory)
@@ -195,7 +197,8 @@ everything else.
 ### Database Migration (Both Backends)
 
 - [ ] **DB1** Write PostgreSQL migration: `model_routing_episodes` table with columns `(id, user_id, session_id, created_at, model_selected, feature_vector JSONB, reward REAL, task_succeeded BOOL, cost_cents INT, latency_ms BIGINT)`
-- [ ] **DB2** Write libSQL equivalent migration for the same table
+- [ ] **DB2** Add the libSQL equivalent in `src/db/libsql_migrations.rs` with the
+same semantic table and indexes
 - [ ] **DB3** Verify both migrations run in `cargo test --features integration` without errors
 - [ ] **DB4** Confirm table is append-only (no deletes, no updates); old episodes are never removed
 
@@ -207,30 +210,37 @@ everything else.
 - [ ] **T4** Unit test shadow mode: `CascadeRouter` in shadow mode always returns the same provider as `SmartRoutingProvider` (no bandit influence)
 - [ ] **T5** Integration test with `StubLlm` (50 requests): bandit converges toward higher-reward model; selection share of good model > 70% by request 50
 - [ ] **T6** Integration test: safety-critical path (file containing "auth" in path) always routed to frontier tier regardless of bandit state
-- [ ] **T7** Regression test: `LLM_CASCADE_ROUTER_ENABLED=false` (or unset) → `CascadeRouter` is not instantiated; `SmartRoutingProvider` path is unchanged end-to-end
+- [ ] **T7** Regression test: `experimental.cascade_router.enabled=false` →
+`CascadeRouter` is not instantiated; `SmartRoutingProvider` path is unchanged
+end-to-end
 
 ### Benchmark Setup
 
 - [ ] **B1** Enable shadow mode for 1 week before live routing; collect `model_routing_episodes` from DB to establish baseline cost distribution per request class
 - [ ] **B2** Record baseline metrics: cost per request by model tier, quality pass rate (task success from `SuccessEvaluator`), model selection distribution
 - [ ] **B3** Define A/B split criteria: users on the same instance A/B-tested by session parity (even session_id = control, odd = treatment)
-- [ ] **B4** Target metrics from roadmap: cost per request down 20–50%; quality pass rate floor at baseline minus 2pp; cheap model selection for greetings > 80% after warmup
+- [ ] **B4** Target metrics: median cost/request down at least 20% on eligible
+fixture classes; quality pass rate floor at baseline minus 2pp; cheap model
+selection for greetings > 80% after warmup
 - [ ] **B5** Shadow mode overhead target: < 2ms per request (measure with `criterion` bench)
 
 ### Feature Flag + A/B Test Infrastructure
 
-- [ ] **F1** Verify kill switch: `LLM_CASCADE_ROUTER_ENABLED=false` immediately routes all requests through `SmartRoutingProvider`; no state corruption
+- [ ] **F1** Verify kill switch: `experimental.cascade_router.enabled=false`
+immediately routes all requests through `SmartRoutingProvider`; no state corruption
 - [ ] **F2** Verify bandit state survives process restart (loaded from DB on startup)
 - [ ] **F3** Add `cascade_router_enabled` field to any request-level telemetry struct (for A/B segmentation in analysis)
 
 ### Documentation
 
 - [ ] **DOC1** Add `## Cascade Router` section to `crates/ironclaw_llm/CLAUDE.md` describing: what it does, the 3 stages, how to interpret `model_routing_episodes`, when to reset arm state
-- [ ] **DOC2** Update `CLAUDE.md` project instructions (or `.env.example`) with `LLM_CASCADE_ROUTER_ENABLED`, `LLM_CASCADE_ALPHA`, `LLM_CASCADE_WARMUP`, `LLM_CASCADE_SHADOW`
+- [ ] **DOC2** Update `CLAUDE.md` project instructions or config docs with
+`experimental.cascade_router` fields and any env/bootstrap aliases.
 
 ### Rollback Plan
 
-- [ ] **ROLL1** Set `LLM_CASCADE_ROUTER_ENABLED=false` (or remove it); `SmartRoutingProvider` is the only active provider
+- [ ] **ROLL1** Set `experimental.cascade_router.enabled=false`; `SmartRoutingProvider`
+is the only active provider
 - [ ] **ROLL2** The `model_routing_episodes` table stays populated but inert; no cleanup required
 - [ ] **ROLL3** Revert `src/app.rs` wiring if flag-based switch is insufficient
 - [ ] **ROLL4** Document single revert commit SHA in PR description
@@ -262,11 +272,10 @@ resolution) for code generated by the agent or tool builder. Each rung is
 selected based on the complexity of the changed files. Rungs 5–7 (LLM-generated
 tests, property tests, integration) are deferred to Phase 4.
 
-**Concept sources**:
-- [`../execution-verification/gate-verification.md`](../execution-verification/gate-verification.md)
-- Roko source: `crates/roko-gate/src/pipeline.rs`
+**Concept doc**: [`../execution-verification/gate-verification.md`](../execution-verification/gate-verification.md)
 
-**Risk**: MEDIUM. **Value**: HIGH. Target: +20% defect catch rate, < 3% false block rate.
+**Risk**: MEDIUM. **Value**: HIGH. Hypothesis: seeded defect catch rate improves
+by at least 20% while false blocks stay under 5%.
 
 **Feature flag**: `experimental.progressive_gates = off` (DB-backed runtime config)
 
@@ -332,7 +341,7 @@ tests, property tests, integration) are deferred to Phase 4.
 
 ### Security Requirements
 
-- [ ] **SEC1** ALL subprocess invocations MUST use `tokio::process::Command::new(name).args([...])` — never `Command::new("sh").args(["-c", &format!(...)])` or any form of string interpolation
+- [ ] **SEC1** ALL subprocess invocations MUST use `tokio::process::Command::new(name).args([...])` with a fixed executable and argv list — never route through a shell command string or any form of string interpolation
 - [ ] **SEC2** File paths from user input (changed_files, working_dir) must be validated: must be under `~/.ironclaw/` or project root; reject paths with `..` components
 - [ ] **SEC3** Diagnostic output must be scanned for secrets before being returned: redact any string matching `[A-Z_]*(TOKEN|KEY|SECRET|PASSWORD)[A-Z_]*=\S+`
 - [ ] **SEC4** `stdout_preview` and `stderr_preview` are always truncated to 2048 chars before leaving the crate
@@ -393,13 +402,13 @@ the workspace using at most 3 cheap LLM calls per cycle.
 starts. The `DecayVariant::strengthen()` method is called by the NREM replay
 subsystem.
 
-**Concept sources**:
-- [`../agent-intelligence/dream-consolidation.md`](../agent-intelligence/dream-consolidation.md)
-- Roko source: `crates/roko-dreams/src/nrem.rs`, `crates/roko-dreams/src/rehearsal.rs`
+**Concept doc**: [`../agent-intelligence/dream-consolidation.md`](../agent-intelligence/dream-consolidation.md)
 
-**Risk**: LOW-MEDIUM. **Value**: HIGH. Target: < $0.05/cycle background cost, useful memory hit rate +5pp.
+**Risk**: LOW-MEDIUM. **Value**: HIGH. Hypothesis: background spend stays under
+the configured cycle cap and useful-memory hit rate improves by at least 5pp on
+the repeated-failure fixture.
 
-**Feature flag**: `CONSOLIDATION_ENABLED=false` (default)
+**Feature flag**: `experimental.dream_consolidation` (default `off`)
 
 **Primary files to create**:
 
@@ -420,7 +429,7 @@ subsystem.
 
 | File | Change |
 |------|--------|
-| `src/agent/heartbeat.rs` | Add `ConsolidationEngine::run()` call inside idle heartbeat cycle when `CONSOLIDATION_ENABLED=true` |
+| `src/agent/heartbeat.rs` | Add `ConsolidationEngine::run()` call inside idle heartbeat cycle when `experimental.dream_consolidation.enabled=true` |
 | `src/config/heartbeat.rs` (or `src/config/mod.rs`) | Add `ConsolidationConfig` with `from_env()` |
 
 ### Research & Design
@@ -464,8 +473,11 @@ subsystem.
 ### Configuration
 
 - [ ] **CF1** Add `ConsolidationConfig` struct with: `enabled: bool`, `interval_hours: u32` (default: 2), `max_replay_entries: usize` (default: 20), `max_rehearsal_calls: usize` (default: 3), `rem_enabled: bool` (false — Phase 3.4), `creativity_enabled: bool` (false — Phase 3.4)
-- [ ] **CF2** Implement `ConsolidationConfig::from_env()` reading `CONSOLIDATION_ENABLED`, `CONSOLIDATION_INTERVAL_HOURS`
-- [ ] **CF3** Add `CONSOLIDATION_ENABLED`, `CONSOLIDATION_INTERVAL_HOURS` to `.env.example` with documentation comments
+- [ ] **CF2** Implement `ConsolidationConfig` through the existing heartbeat/config
+path. Env/bootstrap aliases may map into it, but the canonical rollout key is
+`experimental.dream_consolidation`.
+- [ ] **CF3** Document the flag and interval setting in `.env.example` or config docs
+without making env vars the only control plane.
 - [ ] **CF4** Wire `ConsolidationEngine::run()` into `heartbeat.rs` behind `config.enabled` check
 
 ### Tests
@@ -476,7 +488,9 @@ subsystem.
 - [ ] **T4** Integration test threat rehearsal (uses `StubLlm`): provide 3 failed job records; assert `StubLlm` receives exactly 2 calls (threat analysis + defense synthesis); assert defensive memory is written to correct workspace path
 - [ ] **T5** Integration test budget cap: configure `max_rehearsal_calls = 1`; assert only 1 LLM call is made even when more failures are available
 - [ ] **T6** Integration test active-session guard: set an active session in DB; call `ConsolidationEngine::run()`; assert 0 LLM calls and 0 workspace writes
-- [ ] **T7** Regression test: `CONSOLIDATION_ENABLED=false` → `ConsolidationEngine` is never instantiated; heartbeat behavior is identical to pre-Phase-2.4
+- [ ] **T7** Regression test: `experimental.dream_consolidation.enabled=false` →
+`ConsolidationEngine` is never instantiated; heartbeat behavior is identical to
+pre-Phase-2.4
 
 ### Benchmark Targets
 
@@ -486,18 +500,22 @@ subsystem.
 
 ### Feature Flag + Rollback
 
-- [ ] **F1** Kill switch: `CONSOLIDATION_ENABLED=false` → heartbeat runs exactly as it did before Phase 2.4; no consolidation, no LLM calls, no workspace writes
+- [ ] **F1** Kill switch: `experimental.dream_consolidation.enabled=false` →
+heartbeat runs exactly as it did before Phase 2.4; no consolidation, no LLM
+calls, no workspace writes
 - [ ] **F2** Phase 3.4 readiness: `rem_enabled` and `creativity_enabled` flags are wired to `false` in `ConsolidationConfig` but the field must exist so Phase 3.4 can activate them without structural changes
 - [ ] **F3** Verify consolidation cycles do not stack: if a previous cycle is still running when the interval fires, the new cycle is skipped
 
 ### Documentation
 
 - [ ] **DOC1** Update `src/agent/CLAUDE.md` with a `## Dream Consolidation` section: what NREM replay does, what threat rehearsal does, how to read `daily/consolidation/` memories, how to interpret debug logs
-- [ ] **DOC2** Update `CLAUDE.md` project instructions top-level description with `CONSOLIDATION_ENABLED` and `CONSOLIDATION_INTERVAL_HOURS`
+- [ ] **DOC2** Update `src/agent/CLAUDE.md` or config docs with the canonical flag
+and interval setting.
 
 ### Rollback Plan
 
-- [ ] **ROLL1** Set `CONSOLIDATION_ENABLED=false`; heartbeat reverts to pre-Phase-2.4 behavior immediately
+- [ ] **ROLL1** Set `experimental.dream_consolidation.enabled=false`; heartbeat
+reverts to pre-Phase-2.4 behavior immediately
 - [ ] **ROLL2** Defensive memories written to `daily/consolidation/` are inert if consolidation is disabled; no cleanup needed
 - [ ] **ROLL3** The three new source files (`consolidation.rs`, `consolidation_replay.rs`, `consolidation_rehearsal.rs`) can remain compiled-in without effect; no file removal needed for rollback
 
@@ -521,13 +539,15 @@ subsystem.
 degradation 1–2 requests before the reactive breaker would trip, eliminating
 wasted spend on requests that are almost certainly going to fail.
 
-**Concept sources**:
-- [`../execution-verification/conductor-anomaly.md`](../execution-verification/conductor-anomaly.md)
-- Roko source: `crates/roko-conductor/src/conductor.rs`
+**Concept doc**: [`../execution-verification/conductor-anomaly.md`](../execution-verification/conductor-anomaly.md)
 
-**Risk**: LOW-MEDIUM. **Value**: HIGH. Target: warn 1+ request before reactive circuit breaker; false positive rate < 5%/provider-hour.
+**Risk**: LOW-MEDIUM. **Value**: HIGH. Hypothesis: warn at least 1 request
+before the reactive circuit breaker on a simulated degradation fixture, with
+false positives under 5% per provider-hour in shadow data.
 
-**Feature flag**: `experimental.provider_conductor = observe` (default) / `= active` (enable interventions) / `= off`
+**Feature flag**: `experimental.provider_conductor` (default `off`), with
+`mode = "observe"` as the first explicit rollout stage and `mode = "active"`
+only after shadow review.
 
 **Primary files to create**:
 
@@ -552,7 +572,7 @@ wasted spend on requests that are almost certainly going to fail.
 
 ### Design Decisions to Document in PR
 
-- [ ] **D1** `observe` mode (default): `ProviderHealthMonitor` runs alongside the reactive breaker, logs `debug!("Holt forecast: degradation predicted in {} requests", h)` but takes no action; existing `CircuitBreakerProvider` behavior is 100% unchanged
+- [ ] **D1** `observe` mode: `ProviderHealthMonitor` runs alongside the reactive breaker, logs `debug!("Holt forecast: degradation predicted in {} requests", h)` but takes no action; existing `CircuitBreakerProvider` behavior is unchanged
 - [ ] **D2** `active` mode: when Holt forecaster predicts error rate will exceed 0.5 within 3 requests, pre-trip the circuit before the reactive threshold is reached
 - [ ] **D3** `off` mode: `ProviderHealthMonitor` is not constructed; zero overhead
 - [ ] **D4** Compound pattern trigger for Phase 2: detect `latency_spike AND error_rate_increase` pattern (two signals trending upward together); log `debug!("compound pattern: provider_degradation")` in observe mode; pre-trip in active mode
@@ -584,8 +604,9 @@ wasted spend on requests that are almost certainly going to fail.
 ### Configuration
 
 - [ ] **CF1** Add `ConductorConfig` to `src/config/llm.rs` with `mode: ConductorMode` (enum: `Off`, `Observe`, `Active`), `alpha: f64` (default 0.3), `beta: f64` (default 0.1)
-- [ ] **CF2** Read `CONDUCTOR_MODE` env var (`off`/`observe`/`active`); default `observe`
-- [ ] **CF3** Add `CONDUCTOR_MODE` to `.env.example` with description
+- [ ] **CF2** Read config/env aliases into the canonical
+`experimental.provider_conductor` flag; default is `off`
+- [ ] **CF3** Add the flag and `mode` values to `.env.example` or config docs
 
 ### Tests
 
@@ -594,30 +615,39 @@ wasted spend on requests that are almost certainly going to fail.
 - [ ] **T3** Unit test compound pattern: feed `ProviderHealthMonitor` with alternating latency increase + error increase; assert `health_signal() == HealthSignal::Degrading` even when neither individual forecast exceeds its threshold
 - [ ] **T4** Integration test (observe mode): simulate degrading provider (increasing latency feed); assert `HealthSignal::PredictedFailure` is emitted; assert circuit state remains `Closed` (observe mode takes no action)
 - [ ] **T5** Integration test (active mode): same degrading provider feed; assert circuit moves to `Open` before the reactive failure count threshold is reached
-- [ ] **T6** Regression test: `CONDUCTOR_MODE=off` → `ProviderHealthMonitor` is not constructed; `CircuitBreakerProvider` behavior is byte-for-byte identical to pre-Phase-2.X
+- [ ] **T6** Regression test: `experimental.provider_conductor.enabled=false` →
+`ProviderHealthMonitor` is not constructed; `CircuitBreakerProvider` behavior is
+identical to pre-Phase-2.X
 
 ### Benchmark Targets
 
 - [ ] **B1** Lead time improvement: with Holt active mode, circuit should pre-trip at least 1 request earlier than the reactive breaker (measure in integration test with simulated degradation)
 - [ ] **B2** False positive rate: run Holt monitor against 1 hour of stable synthetic traffic; assert 0 `PredictedFailure` signals are emitted
-- [ ] **B3** Overhead per request: Holt update should take < 1 microsecond (DMA-style math); assert with `criterion` bench
+- [ ] **B3** Overhead per request: Holt update should take < 1 microsecond
+(constant-size scalar math); assert with `criterion` bench
 
 ### Feature Flag + Rollback
 
-- [ ] **F1** `CONDUCTOR_MODE=off` → zero overhead; `ProviderHealthMonitor` not constructed; existing `CircuitBreakerProvider` entirely unaffected
-- [ ] **F2** `CONDUCTOR_MODE=observe` (default) → monitor runs but never trips circuit; only debug logging; existing reactive behavior unchanged
-- [ ] **F3** Kill switch from `observe` to `off`: restart with `CONDUCTOR_MODE=off`; takes effect immediately on next startup
+- [ ] **F1** `experimental.provider_conductor.enabled=false` → zero overhead;
+`ProviderHealthMonitor` not constructed; existing `CircuitBreakerProvider`
+unaffected
+- [ ] **F2** `mode=observe` → monitor runs but never trips circuit; only debug
+logging; existing reactive behavior unchanged
+- [ ] **F3** Kill switch from `observe` to `off`: set enabled false; takes effect
+through the normal config reload or next startup, whichever the config facade supports
 
 ### Documentation
 
 - [ ] **DOC1** Update `crates/ironclaw_llm/CLAUDE.md` with `## Provider Health Monitoring` section: what Holt smoothing does, how to read the debug logs, when to switch from observe to active mode, false positive mitigation
-- [ ] **DOC2** Add `CONDUCTOR_MODE` to `.env.example` with documentation
+- [ ] **DOC2** Add `experimental.provider_conductor` and `mode` to config docs
 
 ### Rollback Plan
 
-- [ ] **ROLL1** Set `CONDUCTOR_MODE=off`; circuit breaker reverts to purely reactive behavior
+- [ ] **ROLL1** Set `experimental.provider_conductor.enabled=false`; circuit breaker
+reverts to purely reactive behavior
 - [ ] **ROLL2** The two new files (`holt.rs`, `conductor_lite.rs`) can remain compiled-in without effect; no removal needed for rollback
-- [ ] **ROLL3** Document: if a false positive pre-trip is observed, restart with `CONDUCTOR_MODE=observe` immediately; full diagnosis in next heartbeat cycle
+- [ ] **ROLL3** Document: if a false positive pre-trip is observed, switch to
+`mode=observe` or disable the flag immediately; preserve health metrics for diagnosis
 
 **Estimated effort**: 3–5 developer-days (Holt core) + 3–5 days (integration).
 **Concept doc**: [`../execution-verification/conductor-anomaly.md`](../execution-verification/conductor-anomaly.md)
@@ -648,10 +678,10 @@ Quick reference for rolling back any Phase 2 item in production.
 
 | Item | Kill Switch | Immediate Effect | Data Preserved? |
 |------|------------|-----------------|-----------------|
-| 2.1 Cascade Router | `LLM_CASCADE_ROUTER_ENABLED=false` | `SmartRoutingProvider` only | Yes — `model_routing_episodes` table inert |
+| 2.1 Cascade Router | `experimental.cascade_router.enabled=false` | `SmartRoutingProvider` only | Yes — `model_routing_episodes` table inert |
 | 2.3 Gate Pipeline | `experimental.progressive_gates=false` | Legacy `validation.rs` path | Yes — no DB changes |
-| 2.4 Enhanced Heartbeat | `CONSOLIDATION_ENABLED=false` | Heartbeat as pre-Phase-2.4 | Yes — `daily/consolidation/` entries inert |
-| 2.X Provider Health | `CONDUCTOR_MODE=off` | Reactive-only circuit breaker | Yes — no DB changes |
+| 2.4 Enhanced Heartbeat | `experimental.dream_consolidation.enabled=false` | Heartbeat as pre-Phase-2.4 | Yes — `daily/consolidation/` entries inert |
+| 2.X Provider Health | `experimental.provider_conductor.enabled=false` | Reactive-only circuit breaker | Yes — no DB changes |
 
 **Full Phase 2 rollback** (all items simultaneously):
 1. Set all four kill switches in `.env` or service config
@@ -661,5 +691,5 @@ Quick reference for rolling back any Phase 2 item in production.
 
 ---
 
-*Document generated 2026-07-03. Relative links from this file assume it lives at*
-*`/Users/will/dev/near/ironclaw/tmp/implementation/phase-2-checklist.md`.*
+*Document generated 2026-07-03. Relative links assume this file stays under*
+*`tmp/implementation/`.*

@@ -4,7 +4,7 @@
 
 Roko is a Rust platform for autonomous software agents that develops itself. It reads PRDs, generates implementation plans as TOML task DAGs, dispatches LLM agents, verifies output through a multi-rung gate pipeline, persists results as content-addressed Engrams, and learns from outcomes. Scale: 30 crates + 3 application binaries, ~727K lines of Rust, ~8,300 tests.
 
-> All `https://github.com/wpank/roko/blob/main/...` links point to the authoritative source. For IronClaw-native build plans see `implementation/README.md`.
+> All ``...`` links point to the authoritative source. For IronClaw-native build plans see `implementation/README.md`.
 
 **Cross-references**: [v2-depth-research.md](v2-depth-research.md) — 145 depth docs behind these patterns | [plans-catalog.md](plans-catalog.md) — 27 TOML plans realizing this architecture | `./research-citations/README.md` — academic bibliography
 
@@ -54,9 +54,9 @@ Engram              — the universal datum: addressable, decaying, scored, trac
     Observe/Connect/Trigger — peripheral Cell-based protocols
 ```
 
-The nine traits form a **dependency lattice** whose topological sort yields the five-layer architecture — layer ordering is not a design choice but a mathematical consequence of which protocols depend on which others. Source: [`crates/roko-core/src/traits.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/traits.rs).
+The nine traits form a **dependency lattice** whose topological sort yields the five-layer architecture — layer ordering is not a design choice but a mathematical consequence of which protocols depend on which others. Source: `crates/roko-core/src/traits.rs`.
 
-See depth doc [`00-index/architectural-thesis.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/00-index/architectural-thesis.md) — the SWE-bench data showing 30–65% performance variation from harness quality, not model quality. See also [`../core-concepts/cognitive-architecture.md`](../core-concepts/cognitive-architecture.md).
+See depth doc `docs/v2-depth/00-index/architectural-thesis.md` — the SWE-bench data showing 30–65% performance variation from harness quality, not model quality. See also [`../core-concepts/cognitive-architecture.md`](../core-concepts/cognitive-architecture.md).
 
 ### Nine Protocol Signatures
 
@@ -115,7 +115,7 @@ async fn retrieve(&self, id: &ContentHash) -> Result<Option<Engram>>;
 
 ## 2. Five-Layer Model
 
-Each crate declares its layer via `[package.metadata.roko] layer = N`. CI script [`scripts/layer_check.rs`](https://github.com/wpank/roko/blob/main/scripts/layer_check.rs) enforces no upward dependencies.
+Each crate declares its layer via `[package.metadata.roko] layer = N`. CI script `scripts/layer_check.rs` enforces no upward dependencies.
 
 ```mermaid
 graph TB
@@ -241,7 +241,7 @@ graph TD
 
 ### L0 — Primitives
 
-#### `roko-primitives` — [GitHub](https://github.com/wpank/roko/blob/main/crates/roko-primitives/)
+#### `roko-primitives` — `crates/roko-primitives`
 
 Zero-dependency compute primitives. No internal workspace dependencies.
 
@@ -260,7 +260,7 @@ Zero-dependency compute primitives. No internal workspace dependencies.
 
 ### L1 — Kernel + Runtime
 
-#### `roko-core` — [GitHub](https://github.com/wpank/roko/blob/main/crates/roko-core/)
+#### `roko-core` — `crates/roko-core`
 
 The kernel. ~30K LOC. Defines `Engram`, all nine protocol traits, and ~100 supporting types.
 
@@ -278,9 +278,9 @@ The kernel. ~30K LOC. Defines `Engram`, all nine protocol traits, and ~100 suppo
 | `immune` | `QuarantineVault`, `AnomalyScore`, `ImmuneResponse` |
 | `attestation` | `Attestation`, `Ed25519Signature`, `ChainAttestation` |
 
-Key files: [`src/engram.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/engram.rs), [`src/traits.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/traits.rs), [`src/loop_tick.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/loop_tick.rs)
+Key files: `crates/roko-core/src/engram.rs`, `crates/roko-core/src/traits.rs`, `crates/roko-core/src/loop_tick.rs`
 
-#### `roko-runtime` — [GitHub](https://github.com/wpank/roko/blob/main/crates/roko-runtime/)
+#### `roko-runtime` — `crates/roko-runtime`
 
 Shared async runtime primitives: typed event bus, process supervision, pipeline state, cancellation.
 
@@ -295,7 +295,7 @@ Shared async runtime primitives: typed event bus, process supervision, pipeline 
 
 ### L2 — Capabilities
 
-#### `roko-agent` — [GitHub](https://github.com/wpank/roko/blob/main/crates/roko-agent/)
+#### `roko-agent` — `crates/roko-agent`
 
 Agent trait and LLM backend implementations. Tool-use loop and dispatcher.
 
@@ -308,40 +308,40 @@ Backends: Claude API, Claude CLI, OpenAI, OpenAI-compatible, Codex, Cursor, Olla
 | `safety/` | Pre/post execution safety checks |
 | `mcp/` | MCP client for agent tool calls |
 
-Key file: [`src/dispatcher/mod.rs`](https://github.com/wpank/roko/blob/main/crates/roko-agent/src/dispatcher/mod.rs)
+Key file: `crates/roko-agent/src/dispatcher/mod.rs`
 
-#### `roko-compose` — [GitHub](https://github.com/wpank/roko/blob/main/crates/roko-compose/)
+#### `roko-compose` — `crates/roko-compose`
 
 Prompt assembly and context composition. Implements the `Compose` trait.
 
 9-layer `SystemPromptBuilder`: L1 Mission, L2 Role policy, L3 Domain, L4 Task brief, L5 Playbook, L6 Research, L7 Episodes, L8 Knowledge, L9 Affect.
 
-Also: VCG auction for token budget allocation, `AttentionBidder` variants, token counting (tiktoken-rs).
+Also: density-greedy token budget allocation with VCG-inspired displacement diagnostics, `AttentionBidder` variants, token counting (tiktoken-rs).
 
-See depth docs [`02-block/vcg-attention-auction.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/02-block/vcg-attention-auction.md), [`02-block/active-inference-context-selection.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/02-block/active-inference-context-selection.md). See also [`../context-memory/budget-composition.md`](../context-memory/budget-composition.md).
+See depth docs `docs/v2-depth/02-block/vcg-attention-auction.md`, `docs/v2-depth/02-block/active-inference-context-selection.md`. See also [`../context-memory/budget-composition.md`](../context-memory/budget-composition.md).
 
-#### `roko-learn` — [GitHub](https://github.com/wpank/roko/blob/main/crates/roko-learn/)
+#### `roko-learn` — `crates/roko-learn`
 
 Learning without LLM fine-tuning — routing weights, gate thresholds, prompt A/B tests, playbook rules.
 
 | Module | Description |
 |--------|-------------|
-| `cascade_router/` | 3-stage: confidence threshold → UCB exploration → contextual bandit (LinUCB, 18D context vector) |
+| `cascade_router/` | 3-stage: confidence threshold → UCB exploration → contextual bandit (LinUCB; IronClaw adaptation uses a 14D context vector) |
 | `episode_logger` | Records agent turns and gate results to `.roko/episodes.jsonl` |
 | `playbook/` | Pattern extraction from successful episodes (0.95 confidence ceiling) |
 | `bandits` | Epsilon-greedy and contextual bandit algorithms |
 | `prompt_experiment` | A/B testing with Thompson sampling |
 | `provider_health` | LLM provider health tracking |
 
-Key file: [`src/cascade_router.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/cascade_router.rs). See [`../agent-intelligence/online-learning.md`](../agent-intelligence/online-learning.md).
+Key file: `crates/roko-learn/src/cascade_router.rs`. See [`../agent-intelligence/online-learning.md`](../agent-intelligence/online-learning.md).
 
-#### `roko-neuro` — [GitHub](https://github.com/wpank/roko/blob/main/crates/roko-neuro/)
+#### `roko-neuro` — `crates/roko-neuro`
 
 Knowledge and memory — durable knowledge store with distillation and tier progression.
 
 D1 (raw experience) → D2 (pattern-extracted) → D3 (principle-abstracted) distillation stages. Optional HDC-indexed similarity queries. See [`../core-concepts/universal-engram.md`](../core-concepts/universal-engram.md).
 
-#### `roko-daimon` — [GitHub](https://github.com/wpank/roko/blob/main/crates/roko-daimon/)
+#### `roko-daimon` — `crates/roko-daimon`
 
 Affect and motivation modeling (Pleasure-Arousal-Dominance somatic marker system).
 
@@ -351,9 +351,9 @@ Affect and motivation modeling (Pleasure-Arousal-Dominance somatic marker system
 | `somatic_ta` | Somatic marker hypothesis (Damasio): k-d tree indexed embeddings |
 | `mortality` | Temporal urgency modeling (deadline pressure) |
 
-See depth doc [`07-agent-runtime/18-affect-as-functor.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/07-agent-runtime/18-affect-as-functor.md). See also [`../agent-intelligence/affect-engine.md`](../agent-intelligence/affect-engine.md).
+See depth doc `docs/v2-depth/07-agent-runtime/18-affect-as-functor.md`. See also [`../agent-intelligence/affect-engine.md`](../agent-intelligence/affect-engine.md).
 
-#### `roko-dreams` — [GitHub](https://github.com/wpank/roko/blob/main/crates/roko-dreams/)
+#### `roko-dreams` — `crates/roko-dreams`
 
 Offline consolidation — background processing during idle periods.
 
@@ -367,21 +367,21 @@ Three-phase dream cycle: NREM (replay high-utility episodes via Mattar-Daw scori
 | `replay` | Experience replay with current knowledge |
 | `threat` | Threat scenario simulation |
 
-Key file: [`src/cycle.rs`](https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/cycle.rs). See [`../agent-intelligence/dream-consolidation.md`](../agent-intelligence/dream-consolidation.md).
+Key file: `crates/roko-dreams/src/cycle.rs`. See [`../agent-intelligence/dream-consolidation.md`](../agent-intelligence/dream-consolidation.md).
 
-#### `roko-fs` — [GitHub](https://github.com/wpank/roko/blob/main/crates/roko-fs/)
+#### `roko-fs` — `crates/roko-fs`
 
 `FileSubstrate`: JSONL append-only persistence (`.roko/signals.jsonl`). `ArchiveColdSubstrate`: implements `ColdStore`. Optional HDC-indexed similarity.
 
-#### `roko-std` — [GitHub](https://github.com/wpank/roko/blob/main/crates/roko-std/)
+#### `roko-std` — `crates/roko-std`
 
 19 built-in tools: `apply_patch`, `bash`, `edit_file`, `exit_plan_mode`, `glob`, `grep`, `ls`, `multi_edit`, `read_file`, `run_tests`, `sandbox`, `task_agent`, `todo_write`, `web_fetch`, `web_search`, `write_file`, plus `MemorySubstrate` (in-memory Store for testing), `StaticRouter`, `WeightedRouter`, `RelevanceScorer`, `RecencyScorer`.
 
-#### `roko-graph` — [GitHub](https://github.com/wpank/roko/blob/main/crates/roko-graph/)
+#### `roko-graph` — `crates/roko-graph`
 
 DAG-based graph execution engine. Topological sort with cycle detection (petgraph). TOML-based graph definition loader. Conditional edge evaluation. Hot-reloading. See [`../execution-verification/dag-execution.md`](../execution-verification/dag-execution.md).
 
-#### `roko-index` — [GitHub](https://github.com/wpank/roko/blob/main/crates/roko-index/)
+#### `roko-index` — `crates/roko-index`
 
 Code intelligence: source parsing, symbol graphs, PageRank scoring, HDC fingerprinting. Multi-language (Rust via tree-sitter; TypeScript, Go via regex). Optional SQLite-backed persistent index. See [`../context-memory/code-intelligence.md`](../context-memory/code-intelligence.md).
 
@@ -391,11 +391,11 @@ Standalone MCP servers invoked via `--mcp-config`. Transport: stdio JSON-RPC.
 
 | Crate | Tools |
 |-------|-------|
-| [`roko-mcp-stdio`](https://github.com/wpank/roko/blob/main/crates/roko-mcp-stdio/) | Shared stdio transport (dependency for others) |
-| [`roko-mcp-github`](https://github.com/wpank/roko/blob/main/crates/roko-mcp-github/) | GitHub API: PR management, file reading, issue tracking |
-| [`roko-mcp-slack`](https://github.com/wpank/roko/blob/main/crates/roko-mcp-slack/) | Slack Web API: channel messaging, search |
-| [`roko-mcp-scripts`](https://github.com/wpank/roko/blob/main/crates/roko-mcp-scripts/) | Wraps arbitrary scripts as MCP tools |
-| [`roko-mcp-code`](https://github.com/wpank/roko/blob/main/crates/roko-mcp-code/) | Code intelligence tools backed by roko-index |
+| `crates/roko-mcp-stdio` | Shared stdio transport (dependency for others) |
+| `crates/roko-mcp-github` | GitHub API: PR management, file reading, issue tracking |
+| `crates/roko-mcp-slack` | Slack Web API: channel messaging, search |
+| `crates/roko-mcp-scripts` | Wraps arbitrary scripts as MCP tools |
+| `crates/roko-mcp-code` | Code intelligence tools backed by roko-index |
 
 See [`../ecosystem/mcp-editor-integration.md`](../ecosystem/mcp-editor-integration.md).
 
@@ -403,7 +403,7 @@ See [`../ecosystem/mcp-editor-integration.md`](../ecosystem/mcp-editor-integrati
 
 ### L3 — Orchestration
 
-#### `roko-gate` — [GitHub](https://github.com/wpank/roko/blob/main/crates/roko-gate/)
+#### `roko-gate` — `crates/roko-gate`
 
 Concrete `Verify` implementations. 42 source files, 15 gate types.
 
@@ -422,9 +422,9 @@ Concrete `Verify` implementations. 42 source files, 15 gate types.
 | `spc` | Statistical process control |
 | `pelt` | PELT changepoint detection |
 
-Key file: [`src/gate_pipeline.rs`](https://github.com/wpank/roko/blob/main/crates/roko-gate/src/gate_pipeline.rs). See [`../execution-verification/gate-verification.md`](../execution-verification/gate-verification.md).
+Key file: `crates/roko-gate/src/gate_pipeline.rs`. See [`../execution-verification/gate-verification.md`](../execution-verification/gate-verification.md).
 
-#### `roko-orchestrator` — [GitHub](https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/)
+#### `roko-orchestrator` — `crates/roko-orchestrator`
 
 Plan discovery, task DAG management, worktree isolation, parallel execution.
 
@@ -440,7 +440,7 @@ Plan discovery, task DAG management, worktree isolation, parallel execution.
 
 See [`../execution-verification/orchestrator-swarm.md`](../execution-verification/orchestrator-swarm.md).
 
-#### `roko-conductor` — [GitHub](https://github.com/wpank/roko/blob/main/crates/roko-conductor/)
+#### `roko-conductor` — `crates/roko-conductor`
 
 Reactive supervision — 10 watcher Cells that monitor execution and trigger interventions.
 
@@ -463,21 +463,21 @@ Also: `circuit_breaker` (Closed/Open/Half-Open with predictive breaking via Holt
 
 ### L4 — Applications
 
-#### `roko-cli` — [GitHub](https://github.com/wpank/roko/blob/main/crates/roko-cli/)
+#### `roko-cli` — `crates/roko-cli`
 
 Main `roko` binary. 60+ subcommands: plan management, PRD workflow, research, knowledge inspection, agent management, deployment, TUI dashboard, chat REPL.
 
-Key: [`src/orchestrate.rs`](https://github.com/wpank/roko/blob/main/crates/roko-cli/src/orchestrate.rs) — the plan execution engine wiring all subsystems. TUI dashboard at [`src/tui/`](https://github.com/wpank/roko/blob/main/crates/roko-cli/src/tui/) with F1–F7 tabs.
+Key: `crates/roko-cli/src/orchestrate.rs` — the plan execution engine wiring all subsystems. TUI dashboard at `crates/roko-cli/src/tui` with F1–F7 tabs.
 
-#### `roko-serve` — [GitHub](https://github.com/wpank/roko/blob/main/crates/roko-serve/)
+#### `roko-serve` — `crates/roko-serve`
 
 HTTP control plane: ~85 REST routes, SSE streaming, WebSocket. Port 6677 via `roko serve`. JWKS auth, OpenAPI (utoipa). See [`../ecosystem/control-plane.md`](../ecosystem/control-plane.md).
 
-#### `roko-agent-server` — [GitHub](https://github.com/wpank/roko/blob/main/crates/roko-agent-server/)
+#### `roko-agent-server` — `crates/roko-agent-server`
 
 Per-agent HTTP sidecar. Endpoints: `/message`, `/stream` (WebSocket), `/predictions`, `/research`, `/tasks`. Handles ERC-8004 agent card registration.
 
-#### `roko-acp` — [GitHub](https://github.com/wpank/roko/blob/main/crates/roko-acp/)
+#### `roko-acp` — `crates/roko-acp`
 
 Agent Client Protocol server for editor integrations (VS Code, JetBrains, Zed). Bridges editor events to the Roko pipeline. See [`../ecosystem/mcp-editor-integration.md`](../ecosystem/mcp-editor-integration.md).
 
@@ -485,9 +485,9 @@ Agent Client Protocol server for editor integrations (VS Code, JetBrains, Zed). 
 
 | Binary | Purpose |
 |--------|---------|
-| [`mirage-rs`](https://github.com/wpank/roko/blob/main/apps/mirage-rs/) | In-process Ethereum fork simulator (lazy upstream reads, copy-on-write branching, JSON-RPC server) |
-| [`agent-relay`](https://github.com/wpank/roko/blob/main/apps/agent-relay/) | In-memory relay for agent WebSocket presence and message forwarding |
-| [`roko-chain-watcher`](https://github.com/wpank/roko/blob/main/apps/roko-chain-watcher/) | Long-running agent subscribing to chain events, posting insights via HTTP |
+| `apps/mirage-rs` | In-process Ethereum fork simulator (lazy upstream reads, copy-on-write branching, JSON-RPC server) |
+| `apps/agent-relay` | In-memory relay for agent WebSocket presence and message forwarding |
+| `apps/roko-chain-watcher` | Long-running agent subscribing to chain events, posting insights via HTTP |
 
 ---
 
@@ -559,7 +559,7 @@ flowchart TD
 
 ## 6. Universal Cognitive Loop
 
-Every operation reduces to `loop_tick()` with different trait implementations. Defined in [`crates/roko-core/src/loop_tick.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/loop_tick.rs):
+Every operation reduces to `loop_tick()` with different trait implementations. Defined in `crates/roko-core/src/loop_tick.rs`:
 
 ```rust
 pub async fn loop_tick(
@@ -586,7 +586,7 @@ By plugging in different implementations, the same loop serves multiple purposes
 | Context assembler | `HdcSubstrate` | `NoopVerify` | `RelevanceRouter` | `ContextAssembler` |
 | Knowledge retriever | `HdcSubstrate` | `NoopVerify` | `RecencyRouter` | `SummaryComposer` |
 
-See [`../core-concepts/cognitive-architecture.md`](../core-concepts/cognitive-architecture.md) and depth doc [`05-execution-engine/cognitive-loop-as-graph.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/05-execution-engine/cognitive-loop-as-graph.md).
+See [`../core-concepts/cognitive-architecture.md`](../core-concepts/cognitive-architecture.md) and depth doc `docs/v2-depth/05-execution-engine/cognitive-loop-as-graph.md`.
 
 ---
 
@@ -696,7 +696,7 @@ graph LR
 
 **Gate feedback**: Structured `GateFeedback` type encodes failure mode, location, reason, and suggested fix. 97.75% token reduction vs prose feedback. Model escalation: stronger model after N retries.
 
-See [`../execution-verification/gate-verification.md`](../execution-verification/gate-verification.md) and depth doc [`02-block/verify-as-universal-oracle.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/02-block/verify-as-universal-oracle.md).
+See [`../execution-verification/gate-verification.md`](../execution-verification/gate-verification.md) and depth doc `docs/v2-depth/02-block/verify-as-universal-oracle.md`.
 
 ---
 
@@ -718,7 +718,7 @@ Roko learns without LLM fine-tuning by adjusting:
 - L3 (per-batch): knowledge consolidation and representation change
 - L4 (per-approval): architecture evolution with human oversight
 
-See [`../agent-intelligence/online-learning.md`](../agent-intelligence/online-learning.md) and depth doc [`10-learning-loops/bandit-routing-and-cascade.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/10-learning-loops/bandit-routing-and-cascade.md).
+See [`../agent-intelligence/online-learning.md`](../agent-intelligence/online-learning.md) and depth doc `docs/v2-depth/10-learning-loops/bandit-routing-and-cascade.md`.
 
 ---
 
@@ -732,7 +732,7 @@ Three-tier hierarchy: working memory → episodic → semantic.
 
 **Query**: Hybrid search (FTS + HDC vector similarity). HDC resonance enables cross-domain retrieval.
 
-See [`../core-concepts/universal-engram.md`](../core-concepts/universal-engram.md) and depth docs [`11-memory/01-knowledge-as-signal.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/11-memory/01-knowledge-as-signal.md), [`11-memory/04-antiknowledge-and-immunity.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/11-memory/04-antiknowledge-and-immunity.md).
+See [`../core-concepts/universal-engram.md`](../core-concepts/universal-engram.md) and depth docs `docs/v2-depth/11-memory/01-knowledge-as-signal.md`, `docs/v2-depth/11-memory/04-antiknowledge-and-immunity.md`.
 
 ---
 
@@ -749,7 +749,7 @@ Integration      → promote/reject candidates against confidence thresholds
                    SHY renormalization: reduce all weights periodically to prevent saturation
 ```
 
-See [`../agent-intelligence/dream-consolidation.md`](../agent-intelligence/dream-consolidation.md) and depth doc [`11-memory/06-dream-cycle-as-loop.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/11-memory/06-dream-cycle-as-loop.md).
+See [`../agent-intelligence/dream-consolidation.md`](../agent-intelligence/dream-consolidation.md) and depth doc `docs/v2-depth/11-memory/06-dream-cycle-as-loop.md`.
 
 ---
 
@@ -779,7 +779,7 @@ The blindness problem: a 200K-token context window covers at most 16% of a modes
 5. Multi-strategy search (FTS + vector + symbol)
 6. Budget-constrained context assembly
 
-See [`../context-memory/code-intelligence.md`](../context-memory/code-intelligence.md) and depth doc [`22-code-intelligence/01-code-intelligence-as-cell-pipeline.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/22-code-intelligence/01-code-intelligence-as-cell-pipeline.md).
+See [`../context-memory/code-intelligence.md`](../context-memory/code-intelligence.md) and depth doc `docs/v2-depth/22-code-intelligence/01-code-intelligence-as-cell-pipeline.md`.
 
 ---
 
@@ -793,7 +793,7 @@ See [`../context-memory/code-intelligence.md`](../context-memory/code-intelligen
 
 **Ed25519 attestation**: Every stored Engram receives a cryptographic signature. BLAKE3 integrity checking on verdict chains for forensic causal replay.
 
-See [`../execution-verification/gate-verification.md`](../execution-verification/gate-verification.md) and depth docs [`17-security/06-prompt-security-and-camel.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/17-security/06-prompt-security-and-camel.md), [`01-signal/provenance-and-taint.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/01-signal/provenance-and-taint.md).
+See [`../execution-verification/gate-verification.md`](../execution-verification/gate-verification.md) and depth docs `docs/v2-depth/17-security/06-prompt-security-and-camel.md`, `docs/v2-depth/01-signal/provenance-and-taint.md`.
 
 ---
 
@@ -815,8 +815,8 @@ See [`../execution-verification/gate-verification.md`](../execution-verification
 |-----------|------|----------|------------------|
 | Core data model | `Engram` (content-addressed, decaying, scored) | `Message` + workspace entries | HIGH: Engram decay model → workspace |
 | Persistence | JSONL (`roko-fs`) + ColdStore | PostgreSQL + libSQL (dual backend) | MEDIUM: architectural pattern |
-| LLM routing | 3-stage CascadeRouter (LinUCB, 18D vector) | Multi-provider `LlmProvider` trait | HIGH: cascade routing → `crates/ironclaw_llm/` |
-| Context composition | 9-layer prompt builder + VCG auction | `crates/ironclaw_engine/` | HIGH: EFE scoring, VCG allocation |
+| LLM routing | 3-stage CascadeRouter (LinUCB; 14D IronClaw adaptation) | Multi-provider `LlmProvider` trait | HIGH: cascade routing → `crates/ironclaw_llm/` |
+| Context composition | 9-layer prompt builder + density allocation with VCG-style diagnostics | `crates/ironclaw_engine/` | HIGH: EFE scoring, prompt budget allocation |
 | Gate verification | 7-rung pipeline + adaptive thresholds | Success evaluator + safety layer | HIGH: structured feedback, model escalation |
 | Memory | `roko-neuro` (3-tier, D1/D2/D3, HDC) | `src/workspace/` (hybrid FTS+vector) | HIGH: AntiKnowledge, decay economics |
 | Offline consolidation | `roko-dreams` (NREM/REM/Integration) | Heartbeat system | MEDIUM: dream cycle → heartbeat enhancement |

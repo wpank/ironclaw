@@ -1,6 +1,8 @@
 # User Stories
 
-These stories describe the user-visible reason to build the proposed features.
+These stories describe the user-visible reason to build each capability. The
+acceptance checks are intentionally phrased so they can become caller-level
+tests or benchmark fixture assertions.
 
 ## Individual User: Stop Repeating My Preferences
 
@@ -11,12 +13,13 @@ Relevant mechanisms:
 
 - Signal content identity.
 - HDC near-duplicate detection.
-- decay and reinforcement.
+- Decay and reinforcement.
 
 Acceptance:
 
 - Repeated preference writes produce one canonical memory or a linked duplicate.
 - The assistant can explain which memory it used.
+- Benchmark with [`memory-dedup.yaml`](../../implementation/benchmarking/scenarios/memory-dedup.yaml).
 
 ## Developer: Verify Generated Code Before I See It
 
@@ -25,15 +28,16 @@ shown as ready, so I do not become the first verifier.
 
 Relevant mechanisms:
 
-- progressive gates.
-- code intelligence.
+- Progressive gates.
+- Code intelligence.
 - DAG execution.
-- control-plane event stream.
+- Control-plane event stream.
 
 Acceptance:
 
 - Compile/lint/test failures appear as structured remediation.
 - False blocks stay below the rollout threshold.
+- Benchmark with [`gate-pipeline.yaml`](../../implementation/benchmarking/scenarios/gate-pipeline.yaml).
 
 ## Operator/Admin: Debug Why The Agent Stopped
 
@@ -43,9 +47,9 @@ see whether the cause was cancellation, provider health, gate failure, or budget
 Relevant mechanisms:
 
 - EventBus replay.
-- control-plane projection.
-- conductor.
-- gate verdicts.
+- Control-plane projection.
+- Conductor.
+- Gate verdicts.
 
 Acceptance:
 
@@ -59,16 +63,17 @@ can be installed, tested, and revoked safely.
 
 Relevant mechanisms:
 
-- plugin manifest.
-- sandbox permission declaration.
-- reputation events.
-- user approval.
+- Plugin manifest.
+- Sandbox permission declaration.
+- Reputation events.
+- User approval.
 
 Acceptance:
 
-- denied permissions fail closed.
-- revocation stops future tool calls.
-- feedback events can improve trust without bypassing sandboxing.
+- Denied permissions fail closed.
+- Revocation stops future tool calls.
+- Feedback events can improve trust without bypassing sandboxing.
+- Add a benchmark fixture before reputation affects production tool choice.
 
 ## Cost-Conscious User: Cap Background Work
 
@@ -77,14 +82,14 @@ budget, so better memory does not create surprise spending.
 
 Relevant mechanisms:
 
-- heartbeat budget.
-- dream consolidation.
-- cost guard.
-- rollout metrics.
+- Heartbeat budget.
+- Dream consolidation.
+- Cost guard.
+- Rollout metrics.
 
 Acceptance:
 
-- background spend is visible.
-- disabling the feature stops scheduled work.
-- low-confidence derived memories do not outrank user-authored facts.
-
+- Background spend is visible.
+- Disabling the feature stops scheduled work.
+- Low-confidence derived memories do not outrank user-authored facts.
+- Benchmark with [`dream-consolidation.yaml`](../../implementation/benchmarking/scenarios/dream-consolidation.yaml).

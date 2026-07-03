@@ -1,6 +1,10 @@
+schema_version: 1
 id: provider_conductor.latency_ramp
 feature: provider_conductor
+feature_flag_id: flag.provider_conductor
 owner: crates/ironclaw_llm
+stage: local
+repetitions: 100
 input:
   request_class: medium_code_reasoning
   sequence_length: 100
@@ -19,9 +23,9 @@ oracle:
   type: avoided_degradation
 expected_metrics:
   degraded_provider_spend_reduction_pct_min: 50
+  warning_lead_time_min_requests: 1
 guardrails:
   max_healthy_provider_false_positive_rate: 0.03
   max_oscillation_count: 1
 artifacts:
   retain_health_series: true
-

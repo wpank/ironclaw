@@ -1,432 +1,170 @@
-# Token Economics: KORAI, X402, and ISFR Oracle
+# Token Economics and HTTP 402 Payments
 
 [Back to overview](./README.md)
 
-**Source files**:
-- [`crates/roko-chain/src/korai_token.rs`](https://github.com/wpank/roko/blob/main/crates/roko-chain/src/korai_token.rs) (657 lines)
-- [`crates/roko-chain/src/x402.rs`](https://github.com/wpank/roko/blob/main/crates/roko-chain/src/x402.rs) (958 lines)
-- [`crates/roko-chain/src/isfr.rs`](https://github.com/wpank/roko/blob/main/crates/roko-chain/src/isfr.rs) (1277 lines)
-- **Spec**: [`docs/v1/08-chain/02-korai-token-economics.md`](https://github.com/wpank/roko/blob/main/docs/v1/08-chain/02-korai-token-economics.md), [`docs/v1/14-identity-economy/10-korai-tokenomics.md`](https://github.com/wpank/roko/blob/main/docs/v1/14-identity-economy/10-korai-tokenomics.md)
+This design can use a KORAI-style token for rewards, stake, and marketplace settlement, but IronClaw should not depend on a new token for the first implementation slice. Start with accounting interfaces that can later be backed by NEAR, a NEP-141 token, or a hosted payment facilitator.
 
----
+## Token Policy
 
-## KORAI Token Economics (CHAIN-01)
+Candidate token roles:
 
-### 1% Annual Lazy Demurrage
+- pay bounties and tool-call fees,
+- stake into passport tiers or reputation domains,
+- fund dispute bonds,
+- reward validation and knowledge contributions,
+- collect marketplace fees.
 
-KORAI has a distinctive property: **demurrage**. Token balances decay by 1% per year. This is a holding cost that discourages hoarding and encourages circulation.
+Keep those roles separate in code. A balance, a stake, an escrow deposit, and a dispute bond have different withdrawal and slash rules.
 
-The concept of demurrage currency was first proposed by Silvio Gesell in 1916 [13]. KORAI applies this concept digitally: tokens actively used in the marketplace (paying for jobs, staking on domains) avoid effective demurrage because their balance is constantly updated. Only idle balances decay.
+## Demurrage
 
-The demurrage formula:
+Demurrage is a holding cost applied to idle balances:
 
+```text
+effective_balance = stored_balance * (1 - annual_rate)^(elapsed / seconds_per_year)
 ```
-effective_balance = stored_balance * (1 - annual_rate) ^ (elapsed_seconds / seconds_per_year)
-```
 
-Where:
-- `annual_rate` = 0.01 (1%)
-- `seconds_per_year` = 365.25 * 24 * 3600 = 31,557,600
-
-**Concrete examples**:
-- After 1 year: `10,000 * 0.99^1 = 9,900` (loss of 100 KORAI)
-- After 10 years: `100,000 * 0.99^10 = 90,438` (loss of 9,562 KORAI)
-- After 100 years: `100,000 * 0.99^100 = 36,603` (63.4% lost to demurrage)
+The captured policy uses a 1% annual rate. Treat that as an economic experiment, not a guarantee that circulation improves. Validate against simulated holder behavior and actual marketplace volume before enabling it for real funds.
 
 ```rust
-const SECONDS_PER_YEAR: f64 = 365.25 * 24.0 * 3600.0;
-const DEFAULT_DEMURRAGE_RATE: f64 = 0.01;
-
-pub fn effective_balance(&self, now: u64, annual_rate: f64) -> u256 {
-    if now <= self.last_update || self.stored_balance == 0 {
-        return self.stored_balance;
-    }
-    let elapsed = (now - self.last_update) as f64;
-    let decay_factor = (1.0 - annual_rate).powf(elapsed / SECONDS_PER_YEAR);
-    (self.stored_balance as f64 * decay_factor) as u256
-}
-
-pub fn mint(&mut self, to: &str, amount: u256, pathway: EarningPathway, now: u64) {
-    let entry = self.balances.entry(to.to_string())
-        .or_insert_with(|| BalanceRecord::new(0, now));
-    // Materialise existing demurrage before adding new tokens
-    entry.materialise_demurrage(now, self.config.demurrage_rate);
-    entry.stored_balance = entry.stored_balance.saturating_add(amount);
-    entry.last_update = now;
-    self.earning_records.push(EarningRecord { to: to.to_string(), amount, pathway, timestamp: now });
+pub fn effective_balance(stored: u128, elapsed_secs: u64, annual_rate_bps: u32) -> u128 {
+    let years = elapsed_secs as f64 / 31_557_600.0;
+    let rate = annual_rate_bps as f64 / 10_000.0;
+    (stored as f64 * (1.0 - rate).powf(years)).floor() as u128
 }
 ```
 
-**Source**: [`crates/roko-chain/src/korai_token.rs`](https://github.com/wpank/roko/blob/main/crates/roko-chain/src/korai_token.rs) lines 1-323
+Contract implementation should avoid floating point. Use fixed-point math, cap loops, and materialize decay on transfer, stake, or withdrawal.
 
-### Five Earning Pathways
+Open policy questions:
+
+- Does demurrage apply to escrowed funds?
+- Does it apply to staked funds?
+- Who receives demurrage: nobody, treasury, validators, or fee rebates?
+- How is total supply reported: stored supply or effective supply?
+
+Answer these before contract design. Each answer changes accounting invariants.
+
+## Emission Schedule
+
+A halving schedule is easy to explain, but it can overpay early participants or starve later incentives. Use it only as a candidate:
 
 ```rust
-pub enum EarningPathway {
-    TaskCompletion,            // Completing marketplace jobs
-    KnowledgeContribution,     // Submitting knowledge entries
-    ValidationParticipation,   // Participating in validation/review
-    ReputationStaking,         // Staking on reputation domains
-    MarketplaceFees,           // Platform fee revenue share
+pub struct EmissionPolicy {
+    pub initial_rate_per_epoch: u128,
+    pub epoch_blocks: u64,
+    pub min_rate_per_epoch: u128,
+    pub max_supply: u128,
+}
+
+pub fn emission_rate(policy: &EmissionPolicy, epoch: u64) -> u128 {
+    let halvings = epoch.min(64);
+    let decayed = policy.initial_rate_per_epoch >> halvings;
+    decayed.max(policy.min_rate_per_epoch)
 }
 ```
 
-### Five Spending Mechanisms
+Validation targets:
+
+- projected supply under realistic block times,
+- inflation paid to useful work versus passive farming,
+- treasury solvency under low marketplace volume,
+- stake thresholds as a percentage of circulating supply,
+- attack cost for Sybil registration and collusion.
+
+## HTTP 402 Payment Flow
+
+HTTP 402 is useful as an interaction pattern: request, quote, signed payment authorization, retry.
+
+```text
+1. Client calls a priced endpoint.
+2. Server replies 402 with amount, asset, recipient, nonce, expiry, and reason.
+3. Client signs or submits a payment authorization.
+4. Client retries with payment proof.
+5. Server verifies proof and serves the response.
+```
+
+Architecture-level structs:
 
 ```rust
-pub enum SpendingMechanism {
-    ComputePurchase,           // Buying LLM compute time
-    KnowledgeAccess,           // Accessing gated knowledge
-    JobPosting,                // Posting bounties (budget goes to escrow)
-    EscrowDeposit,             // Direct escrow deposits
-    GovernanceParticipation,   // Governance voting (stake-weighted)
-}
-```
-
-### Emission Schedule with Halving Epochs
-
-KORAI has a minting schedule inspired by Bitcoin's halvings [20]:
-
-```rust
-pub struct EmissionSchedule {
-    pub base_emission_per_block: f64,  // 100 KORAI/block initial
-    pub blocks_per_epoch: u64,         // 2,628,000 (~1 year at 12s blocks)
-    pub terminal_rate: f64,            // 1 KORAI/block floor
-    pub max_supply: f64,               // 1 billion KORAI cap
-    pub total_minted: f64,
-}
-
-pub fn rate_at_block(&self, block: u64) -> f64 {
-    if self.total_minted >= self.max_supply { return 0.0; }
-    let epoch = self.epoch_for_block(block);
-    let halving_factor = 0.5_f64.powi(epoch as i32);
-    let rate = self.base_emission_per_block * halving_factor;
-    rate.max(self.terminal_rate)
-}
-```
-
-Emission per epoch:
-- Epoch 0 (year 1): 100 KORAI/block × 2,628,000 blocks = 262,800,000 KORAI
-- Epoch 1 (year 2): 50 KORAI/block × 2,628,000 blocks = 131,400,000 KORAI
-- Epoch 2 (year 3): 25 KORAI/block × 2,628,000 blocks = 65,700,000 KORAI
-- Epoch N: max(100/2^N, 1) KORAI/block
-
-The terminal rate of 1 KORAI/block ensures perpetual low-level incentives, avoiding the "incentive cliff" problem where validators lose motivation once block rewards approach zero.
-
-**Testnet variant**: DAEJI token (same economics, different name/symbol, `KoraiTokenConfig::testnet()`).
-
-**Source**: [`crates/roko-chain/src/korai_token.rs`](https://github.com/wpank/roko/blob/main/crates/roko-chain/src/korai_token.rs) lines 433-657
-
----
-
-## X402 Micropayments Protocol (CHAIN-08)
-
-### Protocol Flow
-
-X402 enables agent-to-agent payments at the speed of HTTP, using the long-dormant HTTP 402 status code [14]. The HTTP 402 "Payment Required" status was reserved in RFC 2616 (1999) for future micropayment use. The x402 protocol, pioneered by Coinbase in 2025 [15], provides the concrete implementation.
-
-```
-1. Client sends request to agent's HTTP endpoint
-   POST /tools/call
-   Content-Type: application/json
-   {"tool": "security_audit", "params": {...}}
-
-2. Agent responds with 402 Payment Required
-   HTTP/1.1 402 Payment Required
-   X-Payment-Request: {
-     "recipient": "0xAgent123...",
-     "amount": 500,
-     "token": "0xKORAI...",
-     "nonce": "0xabc...",
-     "deadline": 1751234567,
-     "reason": "Security audit service fee"
-   }
-
-3. Client signs an ERC-3009 transferWithAuthorization (gasless, off-chain)
-
-4. Client retries with payment header
-   POST /tools/call
-   X-Payment-Authorization: {
-     "from": "0xClient...",
-     "to": "0xAgent123...",
-     "value": 500,
-     "validAfter": 1751234000,
-     "validBefore": 1751234600,
-     "nonce": "0xabc...",
-     "v": 28, "r": "0x...", "s": "0x..."
-   }
-
-5. Agent verifies authorization and serves the response
-   HTTP/1.1 200 OK
-   X-Payment-Confirmed: true
-```
-
-### ERC-3009: Gasless Transfers
-
-The payment authorization uses ERC-3009 (`transferWithAuthorization`) [16]:
-
-- **Atomic**: Unlike ERC-2612 (permit) which only authorizes approval, ERC-3009 authorizes the complete transfer in one step
-- **Non-sequential nonces**: Uses random `bytes32` nonces rather than sequential counters, allowing concurrent independent authorizations
-- **Time-bounded**: Each authorization has `validAfter` and `validBefore` timestamps
-
-### Payment Structs
-
-```rust
-pub struct PaymentRequest {
-    pub recipient: Address,
-    pub amount: u256,
-    pub token: Address,
-    pub nonce: u256,          // Replay protection (random bytes32)
-    pub deadline: u64,
+pub struct PaymentQuote {
+    pub recipient: String,
+    pub asset: String,
+    pub amount: u128,
+    pub nonce: [u8; 32],
+    pub expires_at_unix: u64,
     pub reason: String,
 }
 
-pub struct PaymentAuthorization {
-    pub from: Address,
-    pub to: Address,
-    pub value: u256,
-    pub valid_after: u64,
-    pub valid_before: u64,
-    pub nonce: u256,
-    pub v: u8,
-    pub r: [u8; 32],
-    pub s: [u8; 32],
+pub struct PaymentProof {
+    pub quote_nonce: [u8; 32],
+    pub payer: String,
+    pub signature_or_tx: Vec<u8>,
 }
 ```
 
-### Verification
+On EVM, ERC-3009-style authorizations are a natural fit. On NEAR, use NEAR-native primitives instead: function-call access keys with strict allowance, NEP-141 `ft_transfer_call`, signed intents if available, or a facilitator service that settles and returns a verifiable receipt. Do not copy EVM payment assumptions into NEAR without a protocol-specific threat model.
 
-The manager verifies authorizations against five criteria:
+## Verification Rules
 
-```rust
-pub fn verify_authorization(
-    &self,
-    request: &PaymentRequest,
-    auth: &PaymentAuthorization,
-) -> VerificationStatus {
-    // 1. Check nonce not reused
-    if self.used_nonces.contains(&auth.nonce) {
-        return VerificationStatus::NonceReused;
-    }
-    // 2. Check amount >= requested
-    if auth.value < request.amount {
-        return VerificationStatus::InsufficientAmount {
-            required: request.amount,
-            provided: auth.value,
-        };
-    }
-    // 3. Check recipient matches
-    if auth.to != request.recipient {
-        return VerificationStatus::RecipientMismatch;
-    }
-    // 4. Check timestamp within valid window
-    let now = current_timestamp();
-    if now < auth.valid_after || now > auth.valid_before {
-        return VerificationStatus::OutsideValidWindow;
-    }
-    // 5. ECDSA signature verification via ecrecover
-    VerificationStatus::Valid
-}
-```
+Before serving paid work, verify:
 
-### State Channels for High-Frequency Interactions
+- quote nonce is known and unused,
+- quote has not expired,
+- amount and asset match,
+- recipient matches,
+- payer is authorized for the request,
+- signature, transaction, or facilitator receipt is valid,
+- the quote is bound to the endpoint, method, and request hash.
 
-For high-frequency interactions, X402 supports **state channels** [17] that reduce gas to exactly 2 transactions per session (open + close):
+Nonce storage must be durable enough to prevent replay across process restarts.
+
+## State Channels
+
+State channels can reduce on-chain settlement frequency for repeated interactions, but "two on-chain transactions" is only the cooperative happy path. Disputes, top-ups, challenge responses, and timeout closes add transactions.
+
+Use channels only after direct payment flows work:
 
 ```rust
-pub struct StateChannel {
+pub struct ChannelState {
     pub channel_id: [u8; 32],
-    pub party_a: Address,
-    pub party_a_passport: u256,
-    pub party_b: Address,
-    pub party_b_passport: u256,
-    pub deposit_a: u256,
-    pub deposit_b: u256,
-    pub nonce: u64,              // Increments with each off-chain update
-    pub balance_a: u256,
-    pub balance_b: u256,
-    pub state: ChannelLifecycle, // Open -> Closing -> Closed
-    pub challenge_window: u64,   // Blocks to challenge before close (default: 100)
+    pub party_a: String,
+    pub party_b: String,
+    pub total_deposit: u128,
+    pub balance_a: u128,
+    pub balance_b: u128,
+    pub nonce: u64,
+    pub challenge_deadline: Option<u64>,
 }
 ```
 
-Channel lifecycle:
-1. **Open**: Both parties deposit funds. Off-chain balance proofs track micropayments.
-2. **Closing**: Either party requests close. Challenge window starts (default 100 blocks).
-3. **Closed**: After challenge period, final balances settled on-chain.
-
-Off-chain updates use signed balance proofs with a **conservation invariant**:
+Invariant:
 
 ```rust
-pub fn update_channel(&mut self, proof: &BalanceProof) -> Result<(), X402Error> {
-    let channel = self.channels.get_mut(&proof.channel_id)
-        .ok_or(X402Error::ChannelNotFound)?;
-    if proof.nonce <= channel.nonce {
-        return Err(X402Error::InvalidNonce { current: channel.nonce, provided: proof.nonce });
-    }
-    // Conservation: sum of balances must equal total deposits
-    let total_deposit = channel.deposit_a + channel.deposit_b;
-    let total_balance = proof.balance_a + proof.balance_b;
-    if total_balance != total_deposit {
-        return Err(X402Error::BalanceMismatch { total_deposit, total_balance });
-    }
-    channel.nonce = proof.nonce;
-    channel.balance_a = proof.balance_a;
-    channel.balance_b = proof.balance_b;
-    Ok(())
+fn balances_conserve(state: &ChannelState) -> bool {
+    state.balance_a + state.balance_b == state.total_deposit
 }
 ```
 
-The strictly increasing nonce ensures the on-chain contract can determine the most recent balance proof during disputes — the same mechanism as the Raiden Network [17] and Lightning Network.
+Strictly increasing nonces are required so the settlement contract can reject stale balance proofs.
 
-**IronClaw integration point**: `src/tools/mcp/client.rs` — when an MCP server responds with HTTP 402, IronClaw checks its NEAR wallet balance, signs a transfer authorization using NEAR's access key system, and retries the request. NEAR's function-call access keys can authorize transfers up to a configurable budget without requiring the agent's full-access key.
+## IronClaw Integration
 
-**Source**: [`crates/roko-chain/src/x402.rs`](https://github.com/wpank/roko/blob/main/crates/roko-chain/src/x402.rs) (full file, 958 lines)
-**Spec reference**: [`docs/v1/08-chain/20-x402-micropayments.md`](https://github.com/wpank/roko/blob/main/docs/v1/08-chain/20-x402-micropayments.md)
+For MCP or tool calls, the payment layer should be a wrapper around outbound requests:
 
----
+1. Send the request through existing outbound policy.
+2. If the server returns a payment challenge, evaluate cost and approval policy.
+3. Sign or submit payment using a scoped key or facilitator.
+4. Retry with proof.
+5. Record the payment event for reputation, budgeting, and audit.
 
-## ISFR Oracle (CHAIN-09)
-
-ISFR (Intersubjective Fact Registry) is the agent economy's equivalent of SOFR/LIBOR — a collective rate discovery mechanism. Agents submit rate observations for hierarchical market IDs, and the system computes a robust aggregate using **weighted median** with outlier exclusion.
-
-### Rate Submission
-
-```rust
-pub struct IsfrSubmission {
-    pub submitter_id: u256,
-    pub market_id: String,           // Hierarchical (e.g., "ai/inference/gpt4")
-    pub rate: f64,
-    pub components: IsfrComponents,  // lending, structured, funding, staking
-    pub confidence: f64,             // [0, 1]
-    pub timestamp: u64,
-}
-
-pub struct IsfrComponents {
-    pub lending_rate: f64,
-    pub structured_rate: f64,
-    pub funding_rate: f64,
-    pub staking_yield: f64,
-}
-```
-
-### Weighted Median Aggregation
-
-Unlike simple averaging (vulnerable to outlier manipulation), ISFR uses a **two-level weighted median** with 3-sigma outlier exclusion:
-
-1. Collect all submissions for a market in the current epoch
-2. Compute initial median and standard deviation
-3. Exclude submissions more than 3 sigma from the median
-4. Weight remaining submissions by: `submitter_reputation * confidence * stake_weight`
-5. Compute the weighted median of the filtered set
-
-```rust
-pub fn aggregate(&self, submissions: &[IsfrSubmission], now: u64) -> Option<IsfrAggregate> {
-    let valid: Vec<&IsfrSubmission> = submissions.iter()
-        .filter(|s| {
-            let rep = self.reputation_registry.get_score(s.submitter_id, "chain");
-            rep >= self.config.min_submitter_reputation
-        })
-        .collect();
-
-    if valid.len() < self.config.min_submissions { return None; }
-
-    let rates: Vec<f64> = valid.iter().map(|s| s.rate).collect();
-    let mean = rates.iter().sum::<f64>() / rates.len() as f64;
-    let variance = rates.iter().map(|r| (r - mean).powi(2)).sum::<f64>() / rates.len() as f64;
-    let std_dev = variance.sqrt();
-
-    // 3-sigma outlier exclusion
-    let filtered: Vec<&IsfrSubmission> = valid.iter()
-        .filter(|s| (s.rate - mean).abs() <= 3.0 * std_dev)
-        .copied()
-        .collect();
-
-    let weights: Vec<f64> = filtered.iter()
-        .map(|s| {
-            let rep = self.reputation_registry.get_score(s.submitter_id, "chain");
-            rep * s.confidence
-        })
-        .collect();
-
-    let median_rate = weighted_median(
-        &filtered.iter().map(|s| s.rate).collect::<Vec<_>>(),
-        &weights
-    );
-
-    Some(IsfrAggregate {
-        market_id: self.market_id.clone(),
-        median_rate,
-        std_deviation: std_dev,
-        submission_count: valid.len(),
-        excluded_count: valid.len() - filtered.len(),
-        confidence: weights.iter().sum::<f64>() / weights.len() as f64,
-        epoch: self.current_epoch(now),
-        timestamp: now,
-    })
-}
-```
-
-Configuration defaults:
-- Epoch duration: 8 hours
-- Minimum submitter reputation: 0.5
-
-### Solidity ISFROracle Contract
-
-The on-chain contract ([`contracts/src/ISFROracle.sol`](https://github.com/wpank/roko/blob/main/contracts/src/ISFROracle.sol), 96 lines) stores epoch-keyed rate submissions from authorized keepers. The weighted median computation happens off-chain in `isfr.rs`; only the final aggregated rate is submitted on-chain:
-
-```solidity
-contract ISFROracle {
-    bytes32 public constant KEEPER_ROLE = keccak256("KEEPER_ROLE");
-
-    struct Rate {
-        uint256 epochId;
-        uint256 compositeBps;
-        uint256 lendingBps;
-        uint256 structuredBps;
-        uint256 fundingBps;
-        uint256 stakingBps;
-        uint256 confidenceBps;
-        uint64  timestamp;
-        address submitter;
-    }
-
-    mapping(uint256 => Rate) public epochRates;
-
-    function submitRate(
-        uint256 epochId,
-        uint256 compositeBps,
-        uint256 lendingBps,
-        uint256 structuredBps,
-        uint256 fundingBps,
-        uint256 stakingBps,
-        uint256 confidenceBps
-    ) external onlyRole(KEEPER_ROLE) {
-        epochRates[epochId] = Rate({
-            epochId: epochId,
-            compositeBps: compositeBps,
-            lendingBps: lendingBps,
-            structuredBps: structuredBps,
-            fundingBps: fundingBps,
-            stakingBps: stakingBps,
-            confidenceBps: confidenceBps,
-            timestamp: uint64(block.timestamp),
-            submitter: msg.sender
-        });
-        emit RateSubmitted(epochId, compositeBps, msg.sender);
-    }
-}
-```
-
-**Source**: [`crates/roko-chain/src/isfr.rs`](https://github.com/wpank/roko/blob/main/crates/roko-chain/src/isfr.rs), [`contracts/src/ISFROracle.sol`](https://github.com/wpank/roko/blob/main/contracts/src/ISFROracle.sol)
-
----
+The payment path must not bypass IronClaw bearer tokens, OAuth, outbound allowlists, approvals, or sandbox policy.
 
 ## Navigation
 
-- [Passport System](./passport-system.md) — Soulbound identity, tiers, ventriloquist defense
-- [Reputation Scoring](./reputation-scoring.md) — EMA, adaptive alpha, decay, TraceRank
-- [Bounty Marketplace](./bounty-marketplace.md) — Job lifecycle, hiring models, escrow, disputes
-- [NEAR Implementation](./near-implementation.md) — Full NEAR token contract code
-- [Benchmarking](./benchmarking.md) — X402 throughput, gas costs per operation
-- [References](./references.md) — Academic citations [13]-[17], [20]
+- [Passport System](./passport-system.md)
+- [Reputation Scoring](./reputation-scoring.md)
+- [Bounty Marketplace](./bounty-marketplace.md)
+- [NEAR Implementation](./near-implementation.md)
+- [Benchmarking](./benchmarking.md)
+- [References](./references.md)

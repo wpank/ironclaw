@@ -1,6 +1,6 @@
 # Benchmarking And Quantification
 
-This folder defines how to measure whether the proposed Roko-derived ideas
+This folder defines how to measure whether the captured concept proposals
 actually help IronClaw. The goal is not to produce flattering numbers. The goal
 is to make cost, quality, latency, safety, and maintenance tradeoffs visible.
 
@@ -38,7 +38,7 @@ Example:
 
 ```text
 Cascade Router target:
-  improve: cost/request -20% or better
+  improve: median cost/request -20% or better on eligible low-risk cases
   guardrails: quality pass rate no worse than -2pp, p95 latency no worse than +10%
 ```
 

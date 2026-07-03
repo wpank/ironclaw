@@ -16,7 +16,7 @@ Flag:
 ```toml
 [experimental.hdc_memory_search]
 enabled = false
-mode = "shadow" # shadow | canary | default
+mode = "off" # off | shadow | canary | default
 max_candidates = 200
 ```
 
@@ -46,7 +46,7 @@ Flag:
 ```toml
 [experimental.cascade_router]
 enabled = false
-mode = "shadow"
+mode = "shadow" # off when disabled; shadow | canary | default after enablement
 min_observations_per_arm = 100
 quality_floor = 0.98
 ```
@@ -137,7 +137,7 @@ Flag:
 ```toml
 [experimental.provider_conductor]
 enabled = false
-mode = "observe"
+mode = "observe" # ignored while disabled; observe before active
 forecast_horizon_seconds = 300
 ```
 
@@ -185,4 +185,3 @@ allow all writes
 
 Primary metric: duplicate storage reduction.
 Guardrails: false dedupe, query latency, DB migration parity.
-

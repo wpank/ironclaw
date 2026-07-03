@@ -1,7 +1,8 @@
 # Practical Real-World Use Cases
 
-These examples show how the concepts in docs 01-28 combine into workflows a
-user can understand and an implementer can test.
+These examples show how the reference concepts become practical IronClaw
+workflows. They describe desired behavior and measurement points without
+assuming access to any external source repository.
 
 ## Use Case 1: Cheaper Routine Questions
 
@@ -11,19 +12,21 @@ A user asks many simple questions in the same day: time zones, summaries,
 formatting, and short rewrites. Sending all of them to the primary model wastes
 money.
 
-Roko-derived pieces:
+IronClaw touchpoints:
 
-- Cascade Router learns cheap-model suitability.
-- Conductor watches provider latency and error rate.
-- CostGuard enforces user budget.
+- `crates/ironclaw_llm` routing and provider abstractions.
+- Static safety rules for privacy and high-stakes requests.
+- Cost guard and routing metric events.
 
 IronClaw flow:
 
-1. Existing static `SmartRoutingProvider` classifies the request as simple.
-2. LinUCB checks historical reward for the cheap model on similar requests.
-3. If confidence is high, route to cheap model.
-4. If the answer is uncertain or user corrects it, update reward downward.
-5. If provider health degrades, Conductor biases away from that provider.
+1. Static routing classifies the request as low risk and non-private.
+2. A learning router evaluates whether a cheaper provider is eligible.
+3. If confidence is high, canary traffic can route to the cheap model.
+4. If the answer is uncertain or the user corrects it, reward is updated
+   downward.
+5. If provider health degrades, provider-health bias lowers that provider's
+   score.
 
 Measurement:
 
@@ -32,6 +35,8 @@ Measurement:
 - Fallback-to-primary rate.
 - p95 latency.
 
+Benchmark fixture: [`tmp/implementation/benchmarking/scenarios/cascade-router.yaml`](../../implementation/benchmarking/scenarios/cascade-router.yaml).
+
 ## Use Case 2: Memory That Stops Duplicating Itself
 
 Problem:
@@ -39,12 +44,12 @@ Problem:
 The assistant writes the same preference or project fact repeatedly in slightly
 different words, making memory search noisy.
 
-Roko-derived pieces:
+IronClaw touchpoints:
 
+- `src/workspace/` memory write/search.
 - BLAKE3 content identity.
-- HDC similarity.
-- Ebbinghaus decay and reinforcement.
-- Taint metadata.
+- HDC similarity as a candidate near-duplicate signal.
+- Decay, reinforcement, and taint metadata.
 
 IronClaw flow:
 
@@ -57,8 +62,10 @@ IronClaw flow:
 Measurement:
 
 - Duplicate memory rate.
-- relevant@10 for memory search.
+- relevance@10 for memory search.
 - Number of stale memories pruned or downweighted.
+
+Benchmark fixture: [`tmp/implementation/benchmarking/scenarios/memory-dedup.yaml`](../../implementation/benchmarking/scenarios/memory-dedup.yaml).
 
 ## Use Case 3: Generated Code With Progressive Verification
 
@@ -67,12 +74,12 @@ Problem:
 An agent writes code that compiles locally but violates scope, fails hidden
 tests, or regresses performance.
 
-Roko-derived pieces:
+IronClaw touchpoints:
 
-- Gate rungs.
-- Acceptance contracts.
-- Forensic artifact chain.
-- Benchmark regression gate.
+- Code-generation caller and tool execution path.
+- Progressive gate rungs selected from changed files and risk.
+- Redacted artifact retention.
+- Benchmark gate for performance-sensitive modules only.
 
 IronClaw flow:
 
@@ -92,6 +99,8 @@ Measurement:
 - False positive rate.
 - Remediation success after one repair turn.
 
+Benchmark fixture: [`tmp/implementation/benchmarking/scenarios/gate-pipeline.yaml`](../../implementation/benchmarking/scenarios/gate-pipeline.yaml).
+
 ## Use Case 4: Background Learning Without Surprise Bills
 
 Problem:
@@ -100,12 +109,12 @@ The assistant repeats the same mistakes across sessions because it never
 reflects on failed attempts, but unconstrained background LLM work can burn
 money.
 
-Roko-derived pieces:
+IronClaw touchpoints:
 
-- Dream replay utility.
-- Threat rehearsal.
-- Confidence staging.
-- Cost-bounded heartbeat.
+- `src/agent/` heartbeat/background runtime.
+- Workspace memory writes for derived lessons.
+- Confidence staging for LLM-generated memory.
+- Explicit background budget ledger.
 
 IronClaw flow:
 
@@ -122,6 +131,8 @@ Measurement:
 - Repeated failure rate.
 - Promoted memory acceptance rate.
 
+Benchmark fixture: [`tmp/implementation/benchmarking/scenarios/dream-consolidation.yaml`](../../implementation/benchmarking/scenarios/dream-consolidation.yaml).
+
 ## Use Case 5: Provider Degradation Before Users Notice
 
 Problem:
@@ -129,11 +140,12 @@ Problem:
 A provider starts getting slower and then fails. A reactive circuit breaker
 trips only after several bad requests.
 
-Roko-derived pieces:
+IronClaw touchpoints:
 
-- Holt forecasting.
-- Compound event detection.
-- Intervention levels.
+- LLM provider wrapper metrics.
+- Forecasting over latency and retry pressure.
+- Existing reactive circuit breaker.
+- Observe/canary/enforce rollout modes.
 
 IronClaw flow:
 
@@ -151,6 +163,8 @@ Measurement:
 - Provider switch count.
 - Oscillation cooldown effectiveness.
 
+Benchmark fixture: [`tmp/implementation/benchmarking/scenarios/provider-degradation.yaml`](../../implementation/benchmarking/scenarios/provider-degradation.yaml).
+
 ## Use Case 6: Multi-File Refactor From The Web UI
 
 Problem:
@@ -160,8 +174,9 @@ routes share one verifier." The task touches route handlers, auth helpers,
 tests, and docs. A linear agent loop can lose track of dependencies and leave
 the dashboard stale.
 
-Roko-derived pieces:
+IronClaw touchpoints:
 
+- `src/channels/web/` browser-facing API and event stream.
 - Code intelligence for symbol and dependency discovery.
 - Budget composition for prompt packing.
 - DAG execution for independent subtasks.
@@ -184,6 +199,11 @@ Measurement:
 - gate pass rate after first repair.
 - SSE reconnect event loss.
 
+Benchmark fixtures:
+
+- [`tmp/implementation/benchmarking/scenarios/workspace-code-search.yaml`](../../implementation/benchmarking/scenarios/workspace-code-search.yaml)
+- [`tmp/implementation/benchmarking/scenarios/gate-pipeline.yaml`](../../implementation/benchmarking/scenarios/gate-pipeline.yaml)
+
 ## Use Case 7: Assistant Learns A Recurring Deployment Failure
 
 Problem:
@@ -191,11 +211,11 @@ Problem:
 The same deployment failure appears every few weeks, but the exact symptom text
 changes enough that simple search misses prior fixes.
 
-Roko-derived pieces:
+IronClaw touchpoints:
 
 - Signal lineage for previous incidents.
 - Dream consolidation for lessons learned.
-- Threat rehearsal for failure pattern extraction.
+- Failure-pattern extraction from successful repairs.
 - HDC retrieval for paraphrased symptoms.
 
 IronClaw flow:
@@ -213,6 +233,8 @@ Measurement:
 - derived memory precision.
 - background cost.
 
+Benchmark fixture: [`tmp/implementation/benchmarking/scenarios/dream-consolidation.yaml`](../../implementation/benchmarking/scenarios/dream-consolidation.yaml).
+
 ## Use Case 8: Extension Marketplace Trust Decision
 
 Problem:
@@ -221,10 +243,10 @@ A user installs a third-party tool that requests filesystem and network
 permissions. The assistant should help the user decide without bypassing the
 sandbox.
 
-Roko-derived pieces:
+IronClaw touchpoints:
 
 - Plugin manifest permission model.
-- Reputation ledger.
+- Local reputation events.
 - Approval gates.
 - Sandbox policy.
 
@@ -244,6 +266,9 @@ Measurement:
 - user approval reversal rate.
 - failed tool execution rate.
 
+Benchmark fixture: no fixture exists yet. Add an extension-trust fixture before
+using reputation to affect production tool selection.
+
 ## Use Case 9: Long-Running Task Survives Restart
 
 Problem:
@@ -251,13 +276,13 @@ Problem:
 A long task is interrupted by process restart. The user needs to know what
 completed, what was cancelled, and what can safely resume.
 
-Roko-derived pieces:
+IronClaw touchpoints:
 
 - Event-sourced orchestration.
 - DAG node snapshots.
-- bounded EventBus replay.
-- control-plane projection.
-- gate artifact retention.
+- Bounded EventBus replay.
+- Control-plane projection.
+- Gate artifact retention.
 
 IronClaw flow:
 
@@ -273,3 +298,6 @@ Measurement:
 - duplicate side-effect count.
 - event replay gap count.
 - user-visible recovery time.
+
+Benchmark fixture: no single fixture exists yet. Combine a DAG snapshot fixture
+with the SSE reconnect regression test before rollout.

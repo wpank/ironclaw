@@ -8,7 +8,7 @@ This category covers the systems that make an agent learn, adapt, and self-regul
 |----------|---------|----------|
 | [Dream Consolidation](dream-consolidation.md) | Biologically-inspired offline learning with five subsystems: NREM replay (utility-weighted experience replay), REM imagination (counterfactual synthesis), hypnagogic creativity (cross-domain insight), threat rehearsal (failure scenario replay), and a staging buffer that promotes knowledge through confidence tiers. Scheduled during idle periods. Direct extension of IronClaw's heartbeat system. | HIGH |
 | [Affect Engine (Daimon)](affect-engine.md) | PAD (Pleasure-Arousal-Dominance) emotional vectors across three temporal layers (emotion / mood / temperament). OCC appraisal theory for event evaluation, somatic markers for decision shortcuts via k-d tree lookup, six behavioral states, and mood-congruent memory retrieval. Models agent self-regulation and user emotional context. | MEDIUM |
-| [Online Learning (Cascade Router)](online-learning.md) | LinUCB contextual bandit with an 18-dimensional context vector for LLM model selection. Three-stage cascade: static rules → confidence check → UCB selection. Pareto frontier optimization across pass rate, cost, latency, and reliability. Projects 30–50% LLM cost reduction. | HIGH |
+| [Online Learning (Cascade Router)](online-learning.md) | LinUCB contextual bandit with a 14-dimensional IronClaw context vector for LLM model selection. Three-stage cascade: static rules → confidence check → UCB selection. Cost/quality gains are rollout targets measured in shadow mode before enforcement. | HIGH |
 | [Agent Patterns](agent-patterns.md) | Ten reusable design patterns for agent loops: wire-format translator, streaming event reassembly, resumable checkpoints, metacognitive monitor (stuck/contradiction/runaway detection), harness adapter, composable scorers, budget-guardrail task runner, retry with classified errors, composition operators (sequential/parallel/race/fallback), and warm session reuse. | MEDIUM |
 
 ## Intelligence Stack
@@ -45,7 +45,7 @@ flowchart TD
     DC -->|"DreamRoutingAdvice: task-category→model\nrecommendations persisted to JSON\nloaded at agent wake time"| OL
 
     %% Dreams → affect (depotentiation of somatic markers)
-    DC -->|"Dream depotentiation resets\noverly-negative somatic markers\n(Section 10.6 in affect-engine)"| AE
+    DC -->|"Dream depotentiation resets\noverly-negative somatic markers\n(Section 10.5 in affect-engine)"| AE
 
     %% Dreams → memory quality (workspace memory)
     DC -->|"Promotes insights/heuristics\ninto workspace memory store"| MEM[("Workspace Memory\n(src/workspace/)")]
@@ -68,9 +68,9 @@ These are complementary, not competing:
 | System | Layer | What it does | Timescale |
 |--------|-------|-------------|-----------|
 | Affect Engine (Section 8) | Fast behavioral override | Adjusts T0/T1/T2 prediction-error thresholds and directly promotes/demotes the model based on current behavioral state (Struggling → escalate, Coasting → demote) | Per-request (~1 s) |
-| Online Learning (CascadeRouter) | Statistical learning | Learns from cumulative outcome history which model achieves the best cost/quality Pareto point for a given 18D context vector | Converges over ~200+ observations |
+| Online Learning (CascadeRouter) | Statistical learning | Learns from cumulative outcome history which model achieves the best cost/quality Pareto point for a given 14D context vector | Converges over ~200+ observations |
 
-The Affect Engine's `DaimonPolicy` is passed as dimension 16 of the `RoutingContext` feature vector (see `online-learning.md` Section 5), allowing the bandit to learn how well affect-modulated decisions actually perform.
+The Affect Engine should expose a compact behavioral-state feature to the router only after the 14D baseline is stable. Treat affect-aware routing as an extension, not a hidden extra dimension in the baseline vector.
 
 **Agent Patterns vs Online Learning — two types of routing:**
 

@@ -17,7 +17,7 @@ The empirical study of how LLM agents interact with their computational environm
 
 - **Concept**: Agent-Computer Interfaces (ACI) purpose-built for LLM agents dramatically outperform general shell interfaces. How the agent interacts with its environment matters as much as the model's reasoning.
 - **Roko adaptation**: Influences tool permissions, structured error digests, and role-specific feedback formatting.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/14-agent-harnesses-and-tool-use.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/14-agent-harnesses-and-tool-use.md)
+- **Roko source**: `docs/v1/21-references/14-agent-harnesses-and-tool-use.md`
 - **tmp/ cross-refs**: `17-agent-patterns.md`
 
 ---
@@ -26,7 +26,7 @@ The empirical study of how LLM agents interact with their computational environm
 [arXiv:2310.06770](https://arxiv.org/abs/2310.06770)
 
 - **Concept**: Benchmark of 2,294 real GitHub issues from 12 popular Python repositories. The gold standard for evaluating coding agents on realistic software engineering tasks.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/14-agent-harnesses-and-tool-use.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/14-agent-harnesses-and-tool-use.md)
+- **Roko source**: `docs/v1/21-references/14-agent-harnesses-and-tool-use.md`
 - **tmp/ cross-refs**: `17-agent-patterns.md`
 
 ---
@@ -78,7 +78,7 @@ Stigmergy is coordination through environmental modification — agents leave tr
 - **Concept**: Coined "stigmergy" (stigma = mark, ergon = work). Termites coordinate construction without direct communication by responding to the current state of the environment.
 - **Roko adaptation**: Foundational for the Agent Mesh pheromone field. Agents deposit coordination signals that decay over time and are reinforced by confirmation.
 - **Crate**: `roko-core` (pheromone types), Bus system
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2-depth/11-memory/11-stigmergy-as-bus.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/11-memory/11-stigmergy-as-bus.md), [`https://github.com/wpank/roko/blob/main/docs/v2-depth/11-memory/12-pheromone-mechanics-and-interference.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/11-memory/12-pheromone-mechanics-and-interference.md)
+- **Roko source**: `docs/v2-depth/11-memory/11-stigmergy-as-bus.md`, `docs/v2-depth/11-memory/12-pheromone-mechanics-and-interference.md`
 - **tmp/ cross-refs**: `15-orchestrator-swarm.md`, `13-cognitive-architecture.md`
 
 ---
@@ -123,7 +123,7 @@ The Foundation for Intelligent Physical Agents (FIPA) developed the most complet
 - **Concept**: Six formal states: INITIATED, ACTIVE, SUSPENDED, WAITING, TRANSIT, DELETED. State transitions are precisely defined with pre- and post-conditions.
 - **Roko adaptation**: Roko maps FIPA states into cloud-native provisioning pipeline: Created (INITIATED), Provisioning, Active (ACTIVE), Paused (SUSPENDED), Draining (WAITING), Migrating (TRANSIT), Deleted (DELETED).
 - **Crate**: `roko-agent` (`lifecycle.rs`)
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/17-lifecycle/01-agent-creation.md`](https://github.com/wpank/roko/blob/main/docs/v1/17-lifecycle/01-agent-creation.md) (lines 359-382)
+- **Roko source**: `docs/v1/17-lifecycle/01-agent-creation.md` (lines 359-382)
 - **tmp/ cross-refs**: `17-agent-patterns.md`
 
 ---

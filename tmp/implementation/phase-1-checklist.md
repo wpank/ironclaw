@@ -8,8 +8,9 @@
 **Phase 1 summary**: Five independent items, each completable in 1–3 developer-days
 with no hard dependencies between them. They establish the patterns (decay, hashing,
 monitoring, statistics, scoring) that Phase 2 features build on. Every item ships as
-its own PR. No database migrations are required for items 1, 4, or 5. Items 2 and 3
-each require a two-backend migration.
+its own PR. The Phase 1 MVP stores per-document learning state in
+`MemoryDocument.metadata`; no database migration is required unless benchmarking
+proves an indexed column or side table is needed.
 
 Priority matrix composite scores (from [priority-matrix.md](../strategy/priority-matrix/README.md)):
 
@@ -38,7 +39,7 @@ What must exist in IronClaw **before** beginning any Phase 1 item.
 | `src/evaluation/` module | `src/evaluation/` | Already exists | Composable scorers extend this module |
 | `src/util.rs` | `src/util.rs` | Already exists | Robust stats drop into this existing file |
 | `src/tools/builtin/memory.rs` | `src/tools/builtin/memory.rs` | Already exists | Decay metadata and dedup call added to `memory_write` |
-| Dual DB backends (PostgreSQL + libSQL) | `src/db/` | Already exists | Items 2 and 3 each require two-backend migrations |
+| Dual DB backends (PostgreSQL + libSQL) | `src/db/` | Already exists | Any promoted schema/index change must update PostgreSQL migrations and `src/db/libsql_migrations.rs` together |
 
 ---
 
@@ -69,8 +70,8 @@ gantt
    touched. Confirms the new-module pattern.
 3. **Metacognitive Monitor** — replaces `DuplicateToolCallTracker` in-place, builds
    on the testing confidence from items 1 and 2.
-4. **BLAKE3 Dedup** — adds a DB migration and a new workspace query method; tackled
-   after the pure Rust items are merged.
+4. **BLAKE3 Dedup** — adds a metadata-backed workspace query method first;
+   add an index only after the fixture scan shows it is needed.
 5. **Ebbinghaus Decay** last — most invasive (touches `document.rs`, `mod.rs`,
    `search.rs`, `memory.rs`); BLAKE3 dedup should be merged first because dedup
    bumping `access_count` is the first consumer of the decay stability model.
@@ -84,7 +85,6 @@ gantt
 
 ## Item 1: Metacognitive Monitor
 
-**Concept source**: [`crates/roko-agent/src/metacognition.rs`](https://github.com/wpank/roko/blob/main/crates/roko-agent/src/metacognition.rs)
 **Concept doc**: [`../agent-intelligence/agent-patterns.md`](../agent-intelligence/agent-patterns.md) — Pattern 4: Metacognitive Monitor
 **Integration recipes**: [`03-ironclaw-integration-recipes.md`](03-ironclaw-integration-recipes.md) — Recipe 1
 
@@ -111,9 +111,10 @@ struct), `src/agent/cost_guard.rs` (add `remaining_budget_cents()` accessor).
   **File**: `src/agent/cost_guard.rs`
   **Dependency**: None.
 
-- [ ] Decide feature-flag approach: `METACOGNITIVE_MONITOR_ENABLED` env var read in
-  `src/config/agent.rs`, defaulting `true`. Struct carries an `enabled: bool` field
-  so the flag takes effect at construction with zero hot-path overhead when disabled.
+- [ ] Decide feature-flag approach: `experimental.metacognitive_monitor` read through
+  the existing settings/config facade, defaulting `false`. Struct carries an
+  `enabled: bool` field so the flag takes effect at construction with zero
+  hot-path overhead when disabled.
   **File**: `src/config/agent.rs`
   **Dependency**: None.
 
@@ -225,7 +226,6 @@ struct), `src/agent/cost_guard.rs` (add `remaining_budget_cents()` accessor).
 
 ## Item 2: Ebbinghaus Decay for Memories
 
-**Concept source**: [`crates/roko-neuro/src/decay.rs`](https://github.com/wpank/roko/blob/main/crates/roko-neuro/src/decay.rs), [`crates/roko-core/src/decay.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/decay.rs)
 **Concept doc**: [`../core-concepts/universal-engram.md`](../core-concepts/universal-engram.md) — Section 6: Four Decay Variants
 **Schema reference**: [`schemas/02-storage-and-migrations.md`](schemas/02-storage-and-migrations.md)
 
@@ -236,15 +236,14 @@ stability_seconds)`. Each time a memory is read, its `stability_seconds` doubles
 search results and archived during the heartbeat. Identity files (SOUL.md, USER.md,
 AGENTS.md, IDENTITY.md, HEARTBEAT.md) use `DecayVariant::None` — they never fade.
 
-**Architecture note**: Decay state lives in `MemoryDocument.metadata` (JSON column).
-No schema migration is required for the in-memory path. DB migrations add three
-columns to `workspace_entries` for the persistence path.
+**Architecture note**: Decay state lives in `MemoryDocument.metadata`. Do not add
+Phase 1 columns for the MVP. If a later benchmark proves an indexed archive scan is
+needed, add an additive PostgreSQL migration plus matching libSQL incremental entry.
 
 **IronClaw integration points**: `src/workspace/document.rs` (new `DecayVariant`
 enum), `src/workspace/mod.rs` (set decay on write; add `archive_decayed()`),
 `src/workspace/search.rs` (filter faded entries; weight by strength),
-`src/tools/builtin/memory.rs` (call `strengthen` on `memory_read`),
-`src/db/` (two-backend migration).
+`src/tools/builtin/memory.rs` (call `strengthen` on `memory_read`).
 
 ### Checklist
 
@@ -262,9 +261,9 @@ enum), `src/workspace/mod.rs` (set decay on write; add `archive_decayed()`),
   **File**: `src/workspace/search.rs`
   **Dependency**: None.
 
-- [ ] Read both DB migration file directories to confirm naming convention
-  (`src/db/migrations/` for PostgreSQL, `src/db/migrations_libsql/` or equivalent
-  for libSQL).
+- [ ] If an indexed query is needed, read the DB migration rules first:
+  PostgreSQL uses versioned files under `migrations/`, and libSQL uses
+  `src/db/libsql_migrations.rs` incremental entries.
   **File**: `src/db/` directory
   **Dependency**: None.
 
@@ -312,28 +311,12 @@ enum), `src/workspace/mod.rs` (set decay on write; add `archive_decayed()`),
   **File**: `src/tools/builtin/memory.rs`
   **Dependency**: `DecayVariant` above.
 
-- [ ] Write PostgreSQL migration:
-  ```sql
-  ALTER TABLE workspace_entries
-      ADD COLUMN IF NOT EXISTS decay_variant  JSONB    NOT NULL DEFAULT '{"type":"none"}',
-      ADD COLUMN IF NOT EXISTS last_accessed  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      ADD COLUMN IF NOT EXISTS access_count   INTEGER  NOT NULL DEFAULT 0;
-  CREATE INDEX IF NOT EXISTS idx_workspace_entries_last_accessed
-      ON workspace_entries(last_accessed);
-  ```
-  **File**: `src/db/migrations/YYYYMMDD_memory_decay.sql` (use today's date)
-  **Dependency**: Design steps confirming migration directory.
-
-- [ ] Write libSQL migration (identical schema, libSQL dialect — no `IF NOT EXISTS`
-  for `ALTER COLUMN`, use separate `CREATE INDEX`):
-  ```sql
-  ALTER TABLE workspace_entries ADD COLUMN decay_variant TEXT NOT NULL DEFAULT '{"type":"none"}';
-  ALTER TABLE workspace_entries ADD COLUMN last_accessed TEXT NOT NULL DEFAULT (datetime('now'));
-  ALTER TABLE workspace_entries ADD COLUMN access_count INTEGER NOT NULL DEFAULT 0;
-  CREATE INDEX IF NOT EXISTS idx_workspace_entries_last_accessed ON workspace_entries(last_accessed);
-  ```
-  **File**: `src/db/migrations_libsql/YYYYMMDD_memory_decay.sql`
-  **Dependency**: PostgreSQL migration above (for schema parity).
+- [ ] Keep the MVP metadata-only. If an index is later justified, add an
+  additive migration against the current `memory_documents` table and a matching
+  libSQL incremental migration; update the shared DB contract test in the same PR.
+  **File**: `migrations/VN__memory_decay_index.sql`,
+  `src/db/libsql_migrations.rs`
+  **Dependency**: Benchmark evidence that metadata scan is insufficient.
 
 #### Test
 
@@ -385,8 +368,8 @@ enum), `src/workspace/mod.rs` (set decay on write; add `archive_decayed()`),
 
 - [ ] `cargo clippy --all --benches --tests --examples --all-features` — zero warnings.
 
-- [ ] `cargo test --features integration` — both DB migration files run successfully
-  and the new columns exist after migration.
+- [ ] `cargo test --features integration` — metadata reads/writes work against both
+  DB backends; no schema migration is expected for the MVP.
 
 #### Benchmark
 
@@ -409,7 +392,7 @@ enum), `src/workspace/mod.rs` (set decay on write; add `archive_decayed()`),
   get `DecayVariant::None`.
 - After 5 `memory_read` accesses, `stability_seconds >= 115200` (32 hours).
 - `memory_search` does not return entries with strength < 0.05.
-- Both PostgreSQL and libSQL migration files apply without error.
+- Both PostgreSQL and libSQL preserve decay metadata through write/read/search paths.
 - 6 new unit tests pass.
 - Zero regressions in existing workspace and memory tool tests.
 
@@ -417,7 +400,6 @@ enum), `src/workspace/mod.rs` (set decay on write; add `archive_decayed()`),
 
 ## Item 3: BLAKE3 Content Deduplication
 
-**Concept source**: [`crates/roko-neuro/src/identity.rs`](https://github.com/wpank/roko/blob/main/crates/roko-neuro/src/identity.rs), [`crates/roko-core/src/hash.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/hash.rs)
 **Concept doc**: [`../core-concepts/universal-engram.md`](../core-concepts/universal-engram.md) — Section 4: Content-Addressed Identity
 
 **What it does**: Before each `memory_write`, compute the BLAKE3 hash of the
@@ -433,8 +415,7 @@ new dependencies. Ideally merged after Ebbinghaus Decay so that dedup's
 
 **IronClaw integration points**: `src/workspace/dedup.rs` (new file: hash and
 normalization), `src/workspace/mod.rs` (`find_by_content_hash()`,
-`merge_memory_entry()`), `src/tools/builtin/memory.rs` (dedup check before write),
-`src/db/` (two-backend migration).
+`merge_memory_entry()`), `src/tools/builtin/memory.rs` (dedup check before write).
 
 ### Checklist
 
@@ -469,10 +450,10 @@ normalization), `src/workspace/mod.rs` (`find_by_content_hash()`,
   **Dependency**: Design steps above.
 
 - [ ] Add to `src/workspace/mod.rs`:
-  - `pub async fn find_by_content_hash(&self, user_id: UserId, hash: &[u8; 32]) -> Result<Option<MemoryDocument>>` — queries `workspace_entries` where `content_hash = ?` and `user_id = ?`
+  - `pub async fn find_by_content_hash(&self, user_id: UserId, hash: &[u8; 32]) -> Result<Option<MemoryDocument>>` — queries existing memory documents by metadata hash for the MVP; add an indexed path only after benchmarking
   - `pub async fn merge_memory_entry(&self, entry_id: &str, new_tags: &[String], now: DateTime<Utc>) -> Result<()>` — increments `access_count`, unions tags, updates `updated_at`
   **File**: `src/workspace/mod.rs`
-  **Dependency**: `dedup.rs` types, DB migration below.
+  **Dependency**: `dedup.rs` types.
 
 - [ ] Modify `src/tools/builtin/memory.rs` `memory_write` handler:
   1. Compute `content_hash(content)` from `src::workspace::dedup`
@@ -484,23 +465,13 @@ normalization), `src/workspace/mod.rs` (`find_by_content_hash()`,
   **File**: `src/tools/builtin/memory.rs`
   **Dependency**: `dedup.rs`, workspace methods above.
 
-- [ ] Write PostgreSQL migration:
-  ```sql
-  ALTER TABLE workspace_entries ADD COLUMN IF NOT EXISTS content_hash BYTEA;
-  CREATE UNIQUE INDEX IF NOT EXISTS idx_workspace_entries_content_hash
-      ON workspace_entries(content_hash) WHERE content_hash IS NOT NULL;
-  ```
-  **File**: `src/db/migrations/YYYYMMDD_memory_content_hash.sql`
-  **Dependency**: Design steps confirming migration directory.
-
-- [ ] Write libSQL migration:
-  ```sql
-  ALTER TABLE workspace_entries ADD COLUMN content_hash BLOB;
-  CREATE UNIQUE INDEX IF NOT EXISTS idx_workspace_entries_content_hash
-      ON workspace_entries(content_hash) WHERE content_hash IS NOT NULL;
-  ```
-  **File**: `src/db/migrations_libsql/YYYYMMDD_memory_content_hash.sql`
-  **Dependency**: PostgreSQL migration above.
+- [ ] Keep the MVP metadata-only: store the normalized BLAKE3 digest under
+  `metadata["blake3"]`. If benchmark data shows metadata scans exceed the write
+  latency budget, add a `memory_documents` index or side table through the DB
+  trait with PostgreSQL and libSQL parity in the same PR.
+  **File**: optional `migrations/VN__memory_content_hash_index.sql`,
+  `src/db/libsql_migrations.rs`
+  **Dependency**: Benchmark evidence that metadata scan is insufficient.
 
 #### Test
 
@@ -540,8 +511,8 @@ normalization), `src/workspace/mod.rs` (`find_by_content_hash()`,
 
 - [ ] `cargo test` — all workspace write and read tests pass.
 - [ ] `cargo clippy --all --benches --tests --examples --all-features` — zero warnings.
-- [ ] `cargo test --features integration` — both migration files apply; dedup queries
-  work against real DB.
+- [ ] `cargo test --features integration` — dedup metadata reads/writes work against
+  both DB backends.
 
 #### Benchmark
 
@@ -563,14 +534,13 @@ normalization), `src/workspace/mod.rs` (`find_by_content_hash()`,
 - The deduplicated entry's `access_count` is incremented.
 - Different content (even 1 character changed) creates a separate entry.
 - No new `Cargo.toml` dependencies.
-- Both PostgreSQL and libSQL migrations apply cleanly.
+- Both PostgreSQL and libSQL preserve dedup metadata through the memory write path.
 - 4 unit tests + 2 integration tests pass.
 
 ---
 
 ## Item 4: Robust Statistics (Trimmed Mean, MAD)
 
-**Concept source**: [`crates/roko-primitives/src/robust.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/robust.rs)
 **Concept doc**: [`../core-concepts/mathematical-primitives.md`](../core-concepts/mathematical-primitives.md) — Section 5: Robust Statistics
 
 **What it does**: Adds five pure functions to `src/util.rs` — `median`, `trimmed_mean`,
@@ -725,7 +695,6 @@ dependencies.
 
 ## Item 5: Composable Scorers
 
-**Concept source**: [`crates/roko-std/src/scorer.rs`](https://github.com/wpank/roko/blob/main/crates/roko-std/src/scorer.rs)
 **Concept doc**: [`../agent-intelligence/agent-patterns.md`](../agent-intelligence/agent-patterns.md) — Pattern 6: Composable Scorers
 **Integration recipes**: [`03-ironclaw-integration-recipes.md`](03-ironclaw-integration-recipes.md)
 

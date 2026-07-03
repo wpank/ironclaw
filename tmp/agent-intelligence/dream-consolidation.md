@@ -1,15 +1,15 @@
 # Dream Consolidation: Biologically-Inspired Offline Learning for AI Agents
 
-**Source reference**: `roko-dreams` crate — see [wpank/roko on GitHub](https://github.com/wpank/roko/tree/main/crates/roko-dreams/)
+**Source reference**: `roko-dreams` crate — see `crates/roko-dreams`
 **Priority**: HIGH — natural extension of IronClaw's heartbeat system
 **Status**: Architecture study; IronClaw implementation planned but not yet written
 **Document version**: Expanded (2026-07-03)
 
-> This document is fully self-contained. It explains dream consolidation from neuroscience fundamentals through to complete Rust implementation code. No external checkout is required to understand the design.
+> This document is self-contained. It explains dream consolidation from the model through Rust-oriented implementation sketches. No external source tree is required.
 
 **Cross-references:**
 - [README.md](README.md) — data flow diagram showing how dream consolidation connects to all other intelligence subsystems
-- [affect-engine.md](affect-engine.md) — the PAD vector used in Section 5.8 (Emotional Biasing) is defined canonically in `affect-engine.md` Section 3. Dream depotentiation of somatic markers is covered in `affect-engine.md` Section 10.6.
+- [affect-engine.md](affect-engine.md) — the PAD vector used in Section 5.8 (Emotional Biasing) is defined canonically in `affect-engine.md` Section 3. Dream depotentiation of somatic markers is covered in `affect-engine.md` Section 10.5.
 - [online-learning.md](online-learning.md) — the `DreamRoutingAdvice` produced in Section 11 of this document is consumed by the CascadeRouter in `online-learning.md` Section 6.
 - [../core-concepts/cognitive-architecture.md](../core-concepts/cognitive-architecture.md) — the Gamma/Theta/Delta speed model; dream consolidation runs at Delta speed.
 
@@ -239,7 +239,7 @@ The WSCL framework (Luppi et al., 2024) demonstrated a complementary result: int
 
 ## 4. System Architecture Overview
 
-The reference implementation lives in the roko-dreams crate. The top-level module structure is at [wpank/roko/tree/main/crates/roko-dreams/src/](https://github.com/wpank/roko/tree/main/crates/roko-dreams/src/):
+The reference implementation lives in the roko-dreams crate. The top-level module structure is at `crates/roko-dreams/src`:
 
 ```
 crates/roko-dreams/src/
@@ -275,10 +275,10 @@ Each phase runs to completion before the next begins. Between full cycles, brief
 
 ### 4.2 Core Types and Public API
 
-The crate's public API is defined through re-exports in [lib.rs](https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/lib.rs):
+The crate's public API is defined through re-exports in `crates/roko-dreams/src/lib.rs`:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/lib.rs lines 57-84
+// Source: `crates/roko-dreams/src/lib.rs` lines 57-84
 
 pub use cycle::{
     AgentDispatcher, DreamCycle, DreamCycleReport, PhaseBudgetSummary, StagingBufferStats,
@@ -310,7 +310,7 @@ pub use threat::{ThreatScenario, enumerate_threats, threat_warning_entries};
 The `DreamCycle` struct owns the core consolidation loop:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/cycle.rs lines 391-405
+// Source: `crates/roko-dreams/src/cycle.rs` lines 391-405
 
 pub struct DreamCycle {
     episode_store: Arc<EpisodeLogger>,
@@ -400,10 +400,10 @@ The original Mattar-Daw paper derives this formula from normative decision theor
 
 ### 5.2 Exact Implementation
 
-The `ReplayUtility` struct ([replay.rs](https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/replay.rs)) decomposes the score into its three factors:
+The `ReplayUtility` struct (`crates/roko-dreams/src/replay.rs`) decomposes the score into its three factors:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/replay.rs lines 41-54
+// Source: `crates/roko-dreams/src/replay.rs` lines 41-54
 
 /// Mattar-Daw utility score for replay candidate prioritization.
 ///
@@ -427,7 +427,7 @@ pub struct ReplayUtility {
 The `compute` method assembles the three factors:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/replay.rs lines 57-75
+// Source: `crates/roko-dreams/src/replay.rs` lines 57-75
 
 impl ReplayUtility {
     pub fn compute(
@@ -450,7 +450,7 @@ impl ReplayUtility {
 Gain is derived from prediction error. Failed episodes have higher gain because they contain more to learn. Complexity (measured by token usage) adds a secondary signal:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/replay.rs lines 79-94
+// Source: `crates/roko-dreams/src/replay.rs` lines 79-94
 
 fn compute_gain(episode: &Episode) -> f64 {
     let gate_total = episode.gate_verdicts.len().max(1) as f64;
@@ -491,7 +491,7 @@ The failed episode has ~1.85x higher gain — it is replayed more often because 
 Need combines novelty (how new is this pattern?) with recency (is it still relevant to current policy?):
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/replay.rs lines 99-106
+// Source: `crates/roko-dreams/src/replay.rs` lines 99-106
 
 fn compute_need(novelty: f64, recency: f64) -> f64 {
     let novelty_term = novelty.clamp(0.0, 1.0);
@@ -508,7 +508,7 @@ Novelty is computed from how many prior episodes share the same signature hash (
 Spacing implements the spaced repetition effect from Cepeda et al. (2006):
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/replay.rs lines 111-119
+// Source: `crates/roko-dreams/src/replay.rs` lines 111-119
 
 fn compute_spacing_inv(episode: &Episode, recency: f64) -> f64 {
     let base_spacing = 1.0 - recency.clamp(0.0, 0.99);
@@ -522,7 +522,7 @@ fn compute_spacing_inv(episode: &Episode, recency: f64) -> f64 {
 Episodes that have never been replayed (no `dream:replayed` marker in their extra metadata) get a 1.5x boost. Recency uses an exponential decay with configurable half-life (default: 24 hours):
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/replay.rs lines 444-448
+// Source: `crates/roko-dreams/src/replay.rs` lines 444-448
 
 fn recency_decay(timestamp: DateTime<Utc>, now: DateTime<Utc>,
                  half_life_hours: f64) -> f64 {
@@ -539,7 +539,7 @@ Note: this is a pure exponential decay `e^(-t/tau)`, not a proper half-life form
 All Mattar-Daw parameters are configurable:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/replay.rs lines 123-177
+// Source: `crates/roko-dreams/src/replay.rs` lines 123-177
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MattarDawConfig {
@@ -562,7 +562,7 @@ pub struct DreamReplayPolicy {
 ### 5.7 Four Replay Modes
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/replay.rs lines 16-27
+// Source: `crates/roko-dreams/src/replay.rs` lines 16-27
 
 pub enum DreamReplayMode {
     /// Sample episodes using deterministic pseudo-random ordering.
@@ -592,7 +592,7 @@ The `select_replay_episodes_with_affect` function accepts an optional PAD (Pleas
 - **High arousal** (arousal > 0) increases the effective max_episodes by up to 50%: `effective_max = max_episodes × (1.0 + 0.5 × arousal)`.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/replay.rs lines 241-291
+// Source: `crates/roko-dreams/src/replay.rs` lines 241-291
 
 pub fn select_replay_episodes_with_affect(
     episodes: &[Episode],
@@ -673,7 +673,7 @@ During REM sleep, the prefrontal cortex (executive control) is suppressed while 
 Following Boden's (2004) taxonomy of creativity, which distinguishes three fundamental types of creative cognition:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/imagination.rs lines 28-36
+// Source: `crates/roko-dreams/src/imagination.rs` lines 28-36
 
 pub enum ImaginationMode {
     /// Merge patterns from two episodes.
@@ -698,7 +698,7 @@ pub enum ImaginationMode {
 The imagination system builds a lightweight causal summary from observed episodes:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/imagination.rs lines 46-99
+// Source: `crates/roko-dreams/src/imagination.rs` lines 46-99
 
 pub struct CausalModel {
     /// Episodes indexed by id.
@@ -736,7 +736,7 @@ This is a simplified structural causal model in the spirit of Pearl (2009), not 
 The core counterfactual evaluation function assesses whether a hypothetical change is plausible within a "trust region" — a boundary that prevents the system from generating implausible counterfactuals:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/imagination.rs lines 120-174
+// Source: `crates/roko-dreams/src/imagination.rs` lines 120-174
 
 pub fn imagine(
     query: &CounterfactualQuery,
@@ -812,7 +812,7 @@ The hypnagogia engine breaks this convergence by injecting agent-specific experi
 ### 7.2 The HypnagogiaEngine Struct
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/hypnagogia.rs lines 88-98
+// Source: `crates/roko-dreams/src/hypnagogia.rs` lines 88-98
 
 pub struct HypnagogiaEngine {
     /// Thalamic gate settings.
@@ -835,7 +835,7 @@ pub struct HypnagogiaEngine {
 The Thalamic Gate filters incoming knowledge signals. High-confidence signals pass through directly; low-confidence signals pass only if their "resonance score" (derived from an HDC text fingerprint) exceeds a noise floor:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/hypnagogia.rs lines 16-22
+// Source: `crates/roko-dreams/src/hypnagogia.rs` lines 16-22
 
 pub struct ThalamicGate {
     /// Minimum confidence retained by the gate before stochastic resonance.
@@ -848,7 +848,7 @@ pub struct ThalamicGate {
 The filtering logic:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/hypnagogia.rs lines 168-177
+// Source: `crates/roko-dreams/src/hypnagogia.rs` lines 168-177
 
 fn thalamic_gate(&self, signals: &[KnowledgeEntry]) -> Vec<KnowledgeEntry> {
     signals
@@ -871,7 +871,7 @@ The resonance score uses HDC (Hyperdimensional Computing) text fingerprinting to
 The Executive Loosener takes the gated signals and looks for neighborhood associations — signals within a configurable window that share at least one tag:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/hypnagogia.rs lines 34-40
+// Source: `crates/roko-dreams/src/hypnagogia.rs` lines 34-40
 
 pub struct ExecutiveLoosener {
     /// Maximum neighborhood size to consider.
@@ -890,7 +890,7 @@ When a neighborhood association is found, the loosener creates a new knowledge e
 The Dali Interrupt iterates over episodes with a configurable stride, selecting episodes whose resonance score exceeds an intensity threshold:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/hypnagogia.rs lines 52-58
+// Source: `crates/roko-dreams/src/hypnagogia.rs` lines 52-58
 
 pub struct DaliInterrupt {
     /// How many signals to skip between injected interruptions.
@@ -909,7 +909,7 @@ Selected episodes produce "Dali insight" entries with confidence 0.70, tagged wi
 The observer takes all candidates from Layers 2 and 3, scores them, deduplicates, and retains only the top candidates:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/hypnagogia.rs lines 70-76
+// Source: `crates/roko-dreams/src/hypnagogia.rs` lines 70-76
 
 pub struct HomuncularObserver {
     /// Minimum score required for a candidate to survive.
@@ -926,7 +926,7 @@ Each candidate is scored as: `confidence + novelty_score(content) + min(4, sourc
 The complete pipeline is invoked via `HypnagogiaEngine::run`:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/hypnagogia.rs lines 150-160
+// Source: `crates/roko-dreams/src/hypnagogia.rs` lines 150-160
 
 pub fn run(&self, signals: &[KnowledgeEntry], episodes: &[Episode],
            created_at: DateTime<Utc>) -> Vec<KnowledgeEntry> {
@@ -960,10 +960,10 @@ Threat rehearsal implements Revonsuo's (2000) Threat Simulation Theory. It uses 
 
 ### 8.1 Threat Enumeration (FMEA/FTA)
 
-The `enumerate_threats` function ([threat.rs](https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/threat.rs)) clusters failed episodes by a composite key of `task_id + model + failure_reason`, then scores each cluster:
+The `enumerate_threats` function (`crates/roko-dreams/src/threat.rs`) clusters failed episodes by a composite key of `task_id + model + failure_reason`, then scores each cluster:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/threat.rs lines 15-37
+// Source: `crates/roko-dreams/src/threat.rs` lines 15-37
 
 pub struct ThreatScenario {
     pub id: String,
@@ -993,7 +993,7 @@ impl ThreatScenario {
 Threats above a configurable severity floor (default: 0.20) are converted into `KnowledgeEntry` values of kind `Warning`, tagged with `["dream", "threat", "warning", "fmea", "fta"]`:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/threat.rs lines 94-157
+// Source: `crates/roko-dreams/src/threat.rs` lines 94-157
 
 pub fn threat_warning_entries_with_floor(
     episodes: &[Episode], created_at: DateTime<Utc>, severity_floor: f64,
@@ -1025,10 +1025,10 @@ Each warning entry includes the threat description and recommended mitigation, a
 
 ### 8.3 Rehearsal Engine
 
-The `rehearse_threats` function ([rehearsal.rs](https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/rehearsal.rs)) simulates recovery for the top-severity threats (bounded by `MAX_REHEARSALS_PER_CYCLE` = 20):
+The `rehearse_threats` function (`crates/roko-dreams/src/rehearsal.rs`) simulates recovery for the top-severity threats (bounded by `MAX_REHEARSALS_PER_CYCLE` = 20):
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/rehearsal.rs lines 59-87
+// Source: `crates/roko-dreams/src/rehearsal.rs` lines 59-87
 
 pub fn rehearse_threats(
     episodes: &[Episode],
@@ -1080,7 +1080,7 @@ Raw (0.20) --> Replayed (0.30) --> Validated (0.50) --> Promoted (0.70)
 ```
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/staging.rs lines 33-44
+// Source: `crates/roko-dreams/src/staging.rs` lines 33-44
 
 pub enum ConfidenceStage {
     /// Just extracted, unvalidated.
@@ -1106,7 +1106,7 @@ Each stage has a confidence floor:
 ### 9.2 Staging Entry Structure
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/staging.rs lines 71-87
+// Source: `crates/roko-dreams/src/staging.rs` lines 71-87
 
 pub struct StagingEntry {
     /// The knowledge entry being staged.
@@ -1139,7 +1139,7 @@ pub struct StagingEntry {
 Raw entries older than 7 days are garbage collected:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/staging.rs
+// Source: `crates/roko-dreams/src/staging.rs`
 
 pub fn gc_at(&mut self, now: DateTime<Utc>) {
     let horizon = now - Duration::days(GC_HORIZON_DAYS); // 7
@@ -1205,7 +1205,7 @@ stateDiagram-v2
 Dreams fire from several triggers:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/runner.rs lines 255-283
+// Source: `crates/roko-dreams/src/runner.rs` lines 255-283
 
 pub enum DreamTrigger {
     /// Idle gap between task dispatches.
@@ -1231,7 +1231,7 @@ pub enum DreamTrigger {
 Each dream cycle has a three-axis budget:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/runner.rs lines 191-205
+// Source: `crates/roko-dreams/src/runner.rs` lines 191-205
 
 pub struct DreamBudget {
     pub max_tokens: u64,
@@ -1250,7 +1250,7 @@ The budget is consumed per-episode during replay. When any axis is exhausted, th
 The phase2 module introduces per-phase budget allocation:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/phase2/sleep_time.rs lines 15-32
+// Source: `crates/roko-dreams/src/phase2/sleep_time.rs` lines 15-32
 
 pub struct DreamComputeBudget {
     /// Total daily inference budget in USD.
@@ -1263,7 +1263,7 @@ pub struct DreamComputeBudget {
 ```
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/phase2/sleep_time.rs lines 57-80
+// Source: `crates/roko-dreams/src/phase2/sleep_time.rs` lines 57-80
 
 pub struct PhaseAllocations {
     pub hypnagogia: f64,    // default: 0.10 (10%)
@@ -1287,7 +1287,7 @@ Each phase maps to a recommended model tier:
 During dreaming, the agent can enter a reduced-capability state where only urgent signals can wake it:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/phase2/sleep_time.rs lines 168-178
+// Source: `crates/roko-dreams/src/phase2/sleep_time.rs` lines 168-178
 
 pub enum SleepwalkerMode {
     /// Normal operation -- full agent capabilities.
@@ -1304,7 +1304,7 @@ Default urgent signals: `process_crash`, `critical_error`, `operator_interrupt`.
 The `DreamSchedulePolicy` adapts based on dream quality. High-quality dreams (many knowledge entries written, playbooks created) reduce the idle threshold by 25% (`quality_gain = 0.75`), making dreams fire more frequently. Low-quality dreams increase the threshold by 25% (`quality_penalty = 1.25`), backing off:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/runner.rs lines 378-416
+// Source: `crates/roko-dreams/src/runner.rs` lines 378-416
 
 pub struct DreamSchedulePolicy {
     pub enabled: bool,
@@ -1326,7 +1326,7 @@ Dream consolidation produces routing advice that influences future model selecti
 The `DreamRoutingAdvice` struct:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/routing_advice.rs lines 18-28
+// Source: `crates/roko-dreams/src/routing_advice.rs` lines 18-28
 
 pub struct DreamRoutingAdvice {
     pub generated_at: DateTime<Utc>,
@@ -1339,7 +1339,7 @@ pub struct DreamRoutingAdvice {
 Each recommendation maps a task_category + complexity_band pair to a preferred model and a list of deprioritized models:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/routing_advice.rs lines 42-60
+// Source: `crates/roko-dreams/src/routing_advice.rs` lines 42-60
 
 pub struct RoutingRecommendation {
     pub task_category: String,
@@ -1358,7 +1358,7 @@ Recommendations are generated from cross-episode consolidation patterns. A model
 Human-readable pattern summaries provide actionable guidance:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-dreams/src/routing_advice.rs lines 63-75
+// Source: `crates/roko-dreams/src/routing_advice.rs` lines 63-75
 
 pub struct PatternSummary {
     pub description: String,
@@ -1984,7 +1984,8 @@ impl ConsolidationEngine {
         Some(self.run_cycle().await)
     }
 
-    /// Runs a full consolidation cycle: Hypnagogia -> NREM -> REM -> Integration.
+    /// Adapter sketch for a consolidation cycle. Wire the real implementation
+    /// through Workspace, Database, CostGuard, and current ActionRecord APIs.
     pub async fn run_cycle(&self) -> ConsolidationCycleReport {
         let started_at = Utc::now();
         let mut budget_consumed_usd = 0.0_f64;
@@ -1995,9 +1996,9 @@ impl ConsolidationEngine {
             .map(|r| ConsolidationEpisode::from_action_record(r, "unknown", "unknown"))
             .collect();
 
-        // Load current knowledge entries for hypnagogia signals
-        let knowledge_entries = self.workspace.search_all_memory(100).await
-            .unwrap_or_default();
+        // Load current knowledge entries for hypnagogia signals through the
+        // existing memory_search/read facade. This placeholder is not a current API.
+        let knowledge_entries = self.load_memory_candidates(100).await;
 
         // Phase 1: Hypnagogia — creative onset, stochastic associations
         let hypnagogia_engine = HypnagogiaEngine::default();
@@ -2009,7 +2010,7 @@ impl ConsolidationEngine {
 
         // Phase 3: REM Imagination — counterfactual synthesis
         let imagination_outcomes = if budget_consumed_usd < self.config.max_cost_usd {
-            match self.cost_guard.check_allowed("consolidation").await {
+            match self.cost_guard.check_llm_budget("dream_consolidation").await {
                 Ok(()) => {
                     let outcomes = self.imagination_engine
                         .synthesize(&replay_batch.episodes, self.llm.as_ref()).await;
@@ -2041,16 +2042,14 @@ impl ConsolidationEngine {
             // Advance entries from Raw -> Replayed using replay batch
             buf.advance_replayed(&replay_batch.episode_ids);
 
-            // Advance Replayed -> Validated using workspace similarity check
-            let existing = self.workspace.search_all_memory(500).await
-                .unwrap_or_default();
+            // Advance Replayed -> Validated using the existing memory_search/read facade.
+            let existing = self.load_memory_candidates(500).await;
             buf.advance_validated(&existing);
 
             // Promote Validated -> Promoted: write to workspace
             let to_promote = buf.drain_promoted();
             for entry in to_promote {
-                let _ = self.workspace.memory_write(
-                    &entry.content, &entry.tags, entry.confidence).await;
+                let _ = self.write_memory_candidate(&entry).await;
             }
 
             // GC stale Raw entries

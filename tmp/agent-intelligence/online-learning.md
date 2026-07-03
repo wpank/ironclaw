@@ -1,10 +1,10 @@
 # Online Learning: Bandit-Based Model Routing and Cascade Architecture
 
 **Source provenance**: Adapted from `roko-learn` crate
-([`crates/roko-learn/src/`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/))
+(`crates/roko-learn/src`)
 **Priority**: HIGH — immediate LLM cost savings via intelligent model selection
-**Reference docs**: [`docs/v2/07-LEARNING.md`](https://github.com/wpank/roko/blob/main/docs/v2/07-LEARNING.md),
-[`docs/v1/05-learning/13-8-missing-feedback-loops.md`](https://github.com/wpank/roko/blob/main/docs/v1/05-learning/13-8-missing-feedback-loops.md)
+**Reference docs**: `docs/v2/07-LEARNING.md`,
+`docs/v1/05-learning/13-8-missing-feedback-loops.md`
 
 ---
 
@@ -91,7 +91,7 @@ Net opportunity: **40-55% cost reduction** with equivalent or better task succes
 
 ### 2.3 Why Static Thresholds Are Insufficient
 
-IronClaw's existing `SmartRoutingProvider` ([`crates/ironclaw_llm/src/smart_routing.rs`](https://github.com/wpank/roko/blob/main/crates/ironclaw_llm/src/smart_routing.rs)) scores prompts across 13 dimensions — reasoning words, token estimate, code indicators, multi-step complexity, domain-specific keywords, ambiguity, creativity, precision, context dependency, tool likelihood, safety sensitivity, question complexity, and sentence complexity — routing to cheap or primary models based on four fixed tiers (Flash/Standard/Pro/Frontier). This is a significant step forward but has three fundamental limitations:
+IronClaw's existing `SmartRoutingProvider` (`crates/ironclaw_llm/src/smart_routing.rs`) scores prompts across 13 dimensions — reasoning words, token estimate, code indicators, multi-step complexity, domain-specific keywords, ambiguity, creativity, precision, context dependency, tool likelihood, safety sensitivity, question complexity, and sentence complexity — routing to cheap or primary models based on four fixed tiers (Flash/Standard/Pro/Frontier). This is a significant step forward but has three fundamental limitations:
 
 1. **Fixed thresholds cannot adapt to user-specific patterns.** A particular user's "code review" requests might be trivial rubber-stamp approvals (routable to Haiku) or deep security analysis (requiring Opus), and the same keyword signature can mean very different things.
 
@@ -117,7 +117,7 @@ UCB(a) = mean_reward(a) + C * sqrt( ln(total_pulls) / pulls(a) )
 
 The first term exploits (prefer arms with high observed rewards). The second term explores (prefer arms with few observations, since `sqrt(ln(N)/n)` is large when `n` is small). The constant `C` controls the exploration-exploitation tradeoff.
 
-The `UcbBandit` implementation (adapted from [`crates/roko-learn/src/bandits.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/bandits.rs)):
+The `UcbBandit` implementation (adapted from `crates/roko-learn/src/bandits.rs`):
 
 ```rust
 /// Statistics for a single arm of a UcbBandit.
@@ -196,7 +196,7 @@ where `theta_a` is a weight vector specific to arm `a`, learned via ridge regres
 
 Thompson sampling (Thompson, 1933 [3]) is a Bayesian alternative to UCB. Instead of computing confidence bounds, it maintains a posterior distribution over each arm's reward rate and samples from it. The key advantage is natural Bayesian uncertainty quantification without tuning an exploration constant.
 
-Adapted from [`crates/roko-learn/src/model_router.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/model_router.rs):
+Adapted from `crates/roko-learn/src/model_router.rs`:
 
 ```rust
 pub struct ThompsonArm {
@@ -342,7 +342,7 @@ flowchart TD
 
 ### 4.6 Implementation: Per-Arm State
 
-Adapted from [`crates/roko-learn/src/model_router.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/model_router.rs):
+Adapted from `crates/roko-learn/src/model_router.rs`:
 
 ```rust
 /// Per-arm state for the LinUCB contextual bandit.
@@ -450,7 +450,7 @@ pub struct EwcRegularizer {
 
 The matrix inverse is computed via Cholesky decomposition. For a fixed small dimension like 14, this inline implementation avoids pulling in an external linear algebra library while remaining correct and fast (O(d^3) = O(2744) operations — trivial vs. an LLM API call).
 
-Adapted from [`crates/roko-learn/src/model_router.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/model_router.rs):
+Adapted from `crates/roko-learn/src/model_router.rs`:
 
 ```rust
 /// Compute the inverse of a symmetric positive-definite matrix via Cholesky decomposition.
@@ -599,7 +599,7 @@ impl LinUCBRouter {
 
 ## 5. The Context Feature Vector
 
-The context vector `x` encodes everything the router needs to make a good routing decision. IronClaw uses a 14-dimensional vector adapted from the roko 18D design, trimmed to fit IronClaw's single-agent architecture (no per-agent role hashing, no crate-level familiarity score). The full 18D design is documented in [`crates/roko-learn/src/model_router.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/model_router.rs); the IronClaw adaptation is described below.
+The context vector `x` encodes everything the router needs to make a good routing decision. IronClaw uses a 14-dimensional vector adapted from the roko 18D design, trimmed to fit IronClaw's single-agent architecture (no per-agent role hashing, no crate-level familiarity score). The full 18D design is documented in `crates/roko-learn/src/model_router.rs`; the IronClaw adaptation is described below.
 
 ### 5.1 IronClaw 14-Dimensional Vector
 
@@ -663,9 +663,9 @@ pub struct RoutingContext {
 }
 
 impl RoutingContext {
-    /// Build a RoutingContext from a CompletionRequest using SmartRoutingProvider's scorer.
+    /// Build a RoutingContext from the current provider request using SmartRoutingProvider's scorer.
     pub fn from_request(
-        request: &crate::provider::CompletionRequest,
+        request: &crate::provider::ProviderRequest,
         session_state: &SessionRoutingState,
     ) -> Self {
         let scorer = crate::smart_routing::PromptComplexityScorer::default();
@@ -776,7 +776,7 @@ The three-stage design ensures the system is never worse than the current static
 
 ### 6.2 The CascadeRouter Struct
 
-Adapted from [`crates/roko-learn/src/cascade_router.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/cascade_router.rs):
+Adapted from `crates/roko-learn/src/cascade_router.rs`:
 
 ```rust
 pub struct CascadeRouter {
@@ -953,7 +953,7 @@ Not all models are worth considering. A model that is worse than another model o
 
 ### 7.1 4-Objective Dominance
 
-Adapted from [`crates/roko-learn/src/pareto.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/pareto.rs):
+Adapted from `crates/roko-learn/src/pareto.rs`:
 
 ```rust
 /// Observed performance statistics for one model, used in Pareto dominance computation.
@@ -1086,7 +1086,7 @@ stateDiagram-v2
     end note
 ```
 
-Adapted from [`crates/roko-learn/src/provider_health.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/provider_health.rs):
+Adapted from `crates/roko-learn/src/provider_health.rs`:
 
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -1268,7 +1268,7 @@ pub struct RoutingRewardWeightsConfig {
 
 ### 9.2 Reward Computation
 
-The scalarized reward function, adapted from [`crates/roko-learn/src/model_router.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/model_router.rs):
+The scalarized reward function, adapted from `crates/roko-learn/src/model_router.rs`:
 
 ```rust
 /// Compute the composite routing reward from quality, cost, and latency.
@@ -1386,7 +1386,7 @@ The anomaly detector runs alongside the routing pipeline, watching for three pat
 
 ### 10.1 Detector Design
 
-Adapted from [`crates/roko-learn/src/anomaly.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/anomaly.rs):
+Adapted from `crates/roko-learn/src/anomaly.rs`:
 
 ```rust
 pub struct AnomalyDetector {
@@ -1504,7 +1504,7 @@ impl AnomalyDetector {
 
 For Stage 2 of the cascade, the system needs a principled way to express uncertainty about each model's true pass rate given limited observations. The conjugate Beta-Binomial model provides this.
 
-Adapted from [`crates/roko-learn/src/bayesian_confidence.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/bayesian_confidence.rs):
+Adapted from `crates/roko-learn/src/bayesian_confidence.rs`:
 
 ```rust
 /// Bayesian confidence updater using the conjugate Beta-Binomial model.
@@ -1585,7 +1585,7 @@ impl BayesianConfidenceUpdater {
 
 Every routing decision is logged to a database table and an append-only JSONL file, providing a complete audit trail for debugging and offline analysis.
 
-Adapted from [`crates/roko-learn/src/routing_log.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/routing_log.rs):
+Adapted from `crates/roko-learn/src/routing_log.rs`:
 
 ```rust
 /// Complete record of a routing decision, including context, selection, and outcome.
@@ -1634,7 +1634,7 @@ pub struct CandidateEntry {
 
 ## 13. Latency Tracking
 
-Adapted from [`crates/roko-learn/src/latency.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/latency.rs):
+Adapted from `crates/roko-learn/src/latency.rs`:
 
 ```rust
 /// Rolling latency statistics for one (model, provider) pair.
@@ -1699,7 +1699,7 @@ impl LatencyStats {
 
 An experimental (not yet wired to production) active inference module for tier routing, inspired by Friston's free energy principle (Friston, Kilner, and Harrison, 2006 [8]).
 
-Adapted from [`crates/roko-learn/src/active_inference.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/active_inference.rs):
+Adapted from `crates/roko-learn/src/active_inference.rs`:
 
 ```rust
 /// Belief state over latent variables: difficulty × skill × confidence.
@@ -2118,7 +2118,7 @@ When `CASCADE_ROUTING_ENABLED=false` (default), nothing changes. The `CascadeRou
 
 ```mermaid
 flowchart TD
-    A[LLM Request arrives at CascadeRoutingProvider] --> B[Extract RoutingContext\nfrom CompletionRequest]
+    A[LLM Request arrives at CascadeRoutingProvider] --> B[Extract RoutingContext\nfrom provider request]
     B --> C[Encode 14D feature vector x\nusing RoutingContext::to_feature_vector]
     C --> D[CascadeRouter::select_model_safe]
     D --> E{Stage?}
@@ -2134,7 +2134,7 @@ flowchart TD
     K -->|rate_limit| M[Record RateLimit in ProviderHealth\nTry fallback_chain 0]
     K -->|server_error| N[Record ServerError\nCircuit trip if threshold\nTry fallback_chain 0]
     K -->|context_overflow| O[Try context_overflow_fallback\nor truncate and retry]
-    L --> P[Return CompletionResponse]
+    L --> P[Return provider response]
     M --> J
     N --> J
     O --> J
@@ -2161,9 +2161,9 @@ crates/ironclaw_llm/src/routing/
     shadow.rs       # ShadowScorer for A/B measurement during warm-up
 ```
 
-### 17.4 Full CascadeRoutingProvider Implementation
+### 17.4 CascadeRoutingProvider Integration Contract
 
-This is the `LlmProvider` decorator that integrates the routing system into IronClaw's existing provider chain:
+This is an integration sketch for the `LlmProvider` decorator boundary. Before implementation, align request/response/error types with the current `crates/ironclaw_llm` provider APIs and keep the router in shadow mode until recorded routing observations prove it improves cost or quality.
 
 ```rust
 use std::collections::HashMap;
@@ -2173,20 +2173,16 @@ use std::time::Instant;
 use async_trait::async_trait;
 use rust_decimal::Decimal;
 
-use crate::error::LlmError;
-use crate::provider::{
-    CompletionRequest, CompletionResponse, LlmProvider, ModelMetadata,
-    ToolCompletionRequest, ToolCompletionResponse,
-};
+use crate::provider::{LlmProvider, ModelMetadata};
 use crate::routing::{
     CascadeRouter, RoutingContext, SessionRoutingState, ErrorClass,
 };
 
-/// Cascade-routing LLM provider decorator.
+/// Cascade-routing LLM provider decorator sketch.
 ///
-/// Wraps multiple LlmProvider instances and routes requests to the best
-/// model using the LinUCB contextual bandit, falling back to the default
-/// provider on any routing failure.
+/// Wraps multiple LlmProvider instances and selects a candidate model using
+/// the LinUCB contextual bandit. In initial rollout this records shadow choices
+/// while the configured default provider still serves the request.
 ///
 /// Placement in the provider chain:
 ///   CascadeRoutingProvider
@@ -2206,16 +2202,9 @@ pub struct CascadeRoutingProvider {
 }
 
 impl CascadeRoutingProvider {
-    /// Classify an LlmError into an ErrorClass for the health tracker.
-    fn classify_error(e: &LlmError) -> ErrorClass {
-        match e {
-            LlmError::RateLimited { .. } => ErrorClass::RateLimit,
-            LlmError::AuthFailed => ErrorClass::AuthFailure,
-            LlmError::RequestFailed { message } if message.contains("timeout") => ErrorClass::Timeout,
-            LlmError::RequestFailed { .. } | LlmError::Http { .. } | LlmError::Io { .. } => ErrorClass::ServerError,
-            LlmError::ContextLengthExceeded => ErrorClass::ContextOverflow,
-            _ => ErrorClass::Unknown,
-        }
+    /// Classify the current provider error into an ErrorClass for the health tracker.
+    fn classify_error(e: &ProviderError) -> ErrorClass {
+        map_current_provider_error(e)
     }
 }
 
@@ -2231,8 +2220,8 @@ impl LlmProvider for CascadeRoutingProvider {
 
     async fn complete(
         &self,
-        request: CompletionRequest,
-    ) -> Result<CompletionResponse, LlmError> {
+        request: ProviderRequest,
+    ) -> Result<ProviderResponse, ProviderError> {
         // Build routing context from request + session state
         let session_state = self.session_state.read().await;
         let context = RoutingContext::from_request(&request, &session_state);
@@ -2248,7 +2237,7 @@ impl LlmProvider for CascadeRoutingProvider {
         };
 
         let start = Instant::now();
-        let mut last_error: Option<LlmError> = None;
+        let mut last_error: Option<ProviderError> = None;
 
         for attempt in 0..cascade.max_attempts() {
             let model_spec = match cascade.model_for_attempt(attempt) {
@@ -2258,7 +2247,7 @@ impl LlmProvider for CascadeRoutingProvider {
 
             // Handle context overflow by switching to the dedicated overflow fallback
             if let Some(ref last) = last_error {
-                if matches!(last, LlmError::ContextLengthExceeded) {
+                if last.is_context_overflow() {
                     if let Some(overflow_model) = &cascade.context_overflow_fallback {
                         let slug = &overflow_model.slug;
                         if let Some(provider) = self.providers.get(slug) {
@@ -2324,8 +2313,8 @@ impl LlmProvider for CascadeRoutingProvider {
 
     async fn complete_with_tools(
         &self,
-        request: ToolCompletionRequest,
-    ) -> Result<ToolCompletionResponse, LlmError> {
+        request: ToolProviderRequest,
+    ) -> Result<ToolProviderResponse, ProviderError> {
         // Tool completion follows the same cascade pattern as complete()
         // but tool calls have side effects, so no caching applies.
         let session_state = self.session_state.read().await;
@@ -2338,7 +2327,7 @@ impl LlmProvider for CascadeRoutingProvider {
         };
 
         let start = Instant::now();
-        let mut last_error: Option<LlmError> = None;
+        let mut last_error: Option<ProviderError> = None;
 
         for attempt in 0..cascade.max_attempts() {
             let model_spec = match cascade.model_for_attempt(attempt) {
@@ -2372,7 +2361,7 @@ impl CascadeRoutingProvider {
         &self,
         context: &RoutingContext,
         slug: &str,
-        response: &CompletionResponse,
+        response: &ProviderResponse,
         elapsed: std::time::Duration,
     ) {
         let cost_usd = {
@@ -2447,17 +2436,16 @@ if config.cascade_routing_enabled {
 
 ### 17.6 State Persistence
 
-Router state persists to `~/.ironclaw/learn/`:
+Router state should persist through IronClaw's existing DB/workspace abstractions, with PostgreSQL/libSQL parity and typed repository methods. A file layout is acceptable only for a local prototype:
 
 ```
-~/.ironclaw/learn/
-  cascade-router.json      # LinUCB arm states (A matrices, b vectors), stage tracking
-  provider-health.json     # Circuit breaker states, failure windows
-  latency-registry.json    # Per-model TTFT/total/TPS EMA stats
-  routing-decisions.jsonl  # Append-only audit trail (JSONL, one entry per decision)
+model_routing_state        # LinUCB arm states (A matrices, b vectors), stage tracking
+provider_health_state      # Circuit breaker states, failure windows
+latency_registry_state     # Per-model TTFT/total/TPS EMA stats
+model_routing_episodes     # Append-only audit trail, one row per decision
 ```
 
-Persistence uses atomic write-rename (write to `.tmp`, then `rename`) for crash safety. State is loaded on startup and saved every 100 updates (debounced).
+Persistence should be debounced and versioned. State is loaded on startup only after configured model slugs are validated against the persisted arms.
 
 ### 17.7 Database Schema
 
@@ -2502,7 +2490,7 @@ CREATE INDEX idx_routing_stage     ON model_routing_episodes (routing_stage);
 
 ### 17.8 Graceful Degradation
 
-The router is strictly additive — it can only improve routing, never make it worse than the status quo:
+The router must degrade safely. It can still make worse choices once it controls live traffic, so rollout starts in shadow mode, uses quality guardrails, and falls back to the configured default provider on uncertainty:
 
 ```rust
 /// Safe wrapper: returns None on any routing failure, allowing the caller
@@ -2541,8 +2529,7 @@ CASCADE_ROUTING_MODELS=claude-haiku-4-5,claude-sonnet-4-6,claude-opus-4-6
 CASCADE_ROUTING_STAGE1_THRESHOLD=50    # Static → Confidence transition
 CASCADE_ROUTING_STAGE2_THRESHOLD=200   # Confidence → UCB transition
 
-# Persist path (default: ~/.ironclaw/learn)
-CASCADE_ROUTING_PERSIST_PATH=/path/to/learn/dir
+# Persistence backend uses the configured IronClaw database/workspace store.
 
 # Reward weights (must sum to 1.0)
 CASCADE_ROUTING_REWARD_QUALITY=0.5
@@ -2560,16 +2547,16 @@ CASCADE_PARETO_RECOMPUTE_INTERVAL_SECS=300
 
 | Component | Estimated LOC | Complexity | Source |
 |:----------|:-------------|:-----------|:-------|
-| `linucb.rs` | 400–500 | Medium | [`roko-learn/src/model_router.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/model_router.rs) |
-| `cascade.rs` | 500–600 | Medium-High | [`roko-learn/src/cascade_router.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/cascade_router.rs) |
-| `features.rs` | 200–250 | Low | Adapted from [`roko-learn/src/model_router.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/model_router.rs) |
-| `pareto.rs` | 150–200 | Low | [`roko-learn/src/pareto.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/pareto.rs) |
-| `health.rs` | 300–400 | Medium | [`roko-learn/src/provider_health.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/provider_health.rs) |
-| `anomaly.rs` | 200–250 | Low | [`roko-learn/src/anomaly.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/anomaly.rs) |
-| `reward.rs` | 100–150 | Low | [`roko-learn/src/model_router.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/model_router.rs) |
-| `latency.rs` | 200–250 | Low | [`roko-learn/src/latency.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/latency.rs) |
-| `bayesian.rs` | 150–200 | Low | [`roko-learn/src/bayesian_confidence.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/bayesian_confidence.rs) |
-| `episode.rs` | 200–250 | Low | [`roko-learn/src/routing_log.rs`](https://github.com/wpank/roko/blob/main/crates/roko-learn/src/routing_log.rs) |
+| `linucb.rs` | 400–500 | Medium | `crates/roko-learn/src/model_router.rs` |
+| `cascade.rs` | 500–600 | Medium-High | `crates/roko-learn/src/cascade_router.rs` |
+| `features.rs` | 200–250 | Low | Adapted from `crates/roko-learn/src/model_router.rs` |
+| `pareto.rs` | 150–200 | Low | `crates/roko-learn/src/pareto.rs` |
+| `health.rs` | 300–400 | Medium | `crates/roko-learn/src/provider_health.rs` |
+| `anomaly.rs` | 200–250 | Low | `crates/roko-learn/src/anomaly.rs` |
+| `reward.rs` | 100–150 | Low | `crates/roko-learn/src/model_router.rs` |
+| `latency.rs` | 200–250 | Low | `crates/roko-learn/src/latency.rs` |
+| `bayesian.rs` | 150–200 | Low | `crates/roko-learn/src/bayesian_confidence.rs` |
+| `episode.rs` | 200–250 | Low | `crates/roko-learn/src/routing_log.rs` |
 | `provider chain wiring` | 400–500 | Medium | New — `CascadeRoutingProvider` |
 | **Total** | **2800–3550** | — | — |
 
@@ -2631,8 +2618,8 @@ Symptom: After restart, bandit immediately uses UCB stage despite no valid obser
 Root cause: Persisted state loaded from a previous deployment with different model set.
 
 Response:
-1. Delete `~/.ironclaw/learn/cascade-router.json` to reset to Stage 1
-2. Or: implement model-slug validation on load — if configured slugs don't match persisted arms, reset
+1. Reset the router state through the admin/debug DB facade, scoped by workspace/deployment
+2. Implement model-slug validation on load — if configured slugs don't match persisted arms, reset
 
 ---
 

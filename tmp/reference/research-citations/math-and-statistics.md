@@ -18,7 +18,7 @@ Topological Data Analysis (TDA) uses methods from algebraic topology to extract 
 - **Concept**: Takens delay embedding theorem: a 1-D time series can be embedded into a d-dimensional phase space that preserves the topology of the underlying dynamical system, recovering its attractor structure.
 - **Roko adaptation**: Converts 1-D time series (gate pass rates over time) into point clouds in d-dimensional phase space for topological analysis.
 - **Crate**: `roko-primitives` (`tda.rs`)
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/tda.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/tda.rs) (line 15)
+- **Roko source**: `crates/roko-primitives/src/tda.rs` (line 15)
 - **tmp/ cross-refs**: `11-mathematical-primitives.md`
 
 ---
@@ -28,7 +28,7 @@ Topological Data Analysis (TDA) uses methods from algebraic topology to extract 
 
 - **Concept**: Persistent homology: tracks birth and death of topological features across increasing scale parameters. Features far from the diagonal in persistence diagrams are genuine structure; near-diagonal features are noise. H0 = connected components, H1 = loops, H2 = voids.
 - **Crate**: `roko-primitives` (`tda.rs`)
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/tda.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/tda.rs) (line 16)
+- **Roko source**: `crates/roko-primitives/src/tda.rs` (line 16)
 - **tmp/ cross-refs**: `11-mathematical-primitives.md`
 
 ---
@@ -38,7 +38,7 @@ Topological Data Analysis (TDA) uses methods from algebraic topology to extract 
 
 - **Concept**: Persistence landscape: vectorization of persistence diagrams into a Banach space element, enabling statistical operations (mean, variance, hypothesis testing) on topological summaries.
 - **Crate**: `roko-primitives` (`tda.rs`)
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/tda.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/tda.rs) (line 18)
+- **Roko source**: `crates/roko-primitives/src/tda.rs` (line 18)
 - **tmp/ cross-refs**: `11-mathematical-primitives.md`
 
 ---
@@ -47,7 +47,7 @@ Topological Data Analysis (TDA) uses methods from algebraic topology to extract 
 [DOI: 10.1007/s41468-021-00071-5](https://doi.org/10.1007/s41468-021-00071-5)
 
 - **Concept**: Efficient O(n^3) algorithm for computing persistence barcodes via the Vietoris-Rips complex, enabling practical TDA on datasets of hundreds to thousands of points.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/12-signal-processing.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/12-signal-processing.md)
+- **Roko source**: `docs/v1/21-references/12-signal-processing.md`
 - **tmp/ cross-refs**: `11-mathematical-primitives.md`
 
 ---
@@ -57,7 +57,7 @@ Topological Data Analysis (TDA) uses methods from algebraic topology to extract 
 
 - **Concept**: Persistent homology detects structural changes in financial time series (specifically rising H1 norms) that systematically precede crashes by several months.
 - **Roko adaptation**: Applicable to anomaly detection in agent performance metrics — topological features precede behavioral crashes.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/12-signal-processing.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/12-signal-processing.md)
+- **Roko source**: `docs/v1/21-references/12-signal-processing.md`
 
 ---
 

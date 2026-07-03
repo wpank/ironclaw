@@ -1,6 +1,6 @@
 # Multi-Language Code Analysis System
 
-> **Canonical home for `LanguageProvider` and `BuildSystem` traits.** This document is the single authoritative reference for the trait definitions, all concrete language provider implementations (Rust heuristic, Rust tree-sitter, TypeScript, Go), build system detection, and polyglot project analysis. [Code Intelligence](code-intelligence.md) imports these traits and builds the four-mode index on top of them; it does not re-define the traits. All source references point to the upstream repository at `https://github.com/wpank/roko/blob/main/`.
+> **Canonical home for `LanguageProvider` and `BuildSystem` traits.** This document is the single authoritative reference for the trait definitions, all concrete language provider implementations (Rust heuristic, Rust tree-sitter, TypeScript, Go), build system detection, and polyglot project analysis. [Code Intelligence](code-intelligence.md) imports these traits and builds the four-mode index on top of them; it does not re-define the traits. All source references point to the upstream repository at ```.`
 
 ---
 
@@ -82,7 +82,7 @@ This design follows the principle of ad-hoc polymorphism through trait-based dis
 
 Before examining the traits, it is important to understand the data types that flow through the system. All are defined in `roko_core::language`.
 
-**Source**: [`crates/roko-core/src/language.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/language.rs)
+**Source**: `crates/roko-core/src/language.rs`
 
 ### ImportKind
 
@@ -210,7 +210,7 @@ pub struct SourceFile {
 
 ## The BuildSystem Trait
 
-**Source**: [`crates/roko-core/src/build.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/build.rs)
+**Source**: `crates/roko-core/src/build.rs`
 
 The `BuildSystem` trait abstracts the four fundamental operations every software project needs: compile, test, lint, and format. It produces `BuildCommand` descriptors — pure data structures that carry program name, arguments, environment variables, and working directory — but **never execute anything**. This keeps `roko-core` free of `std::process` and `std::fs`, making it portable, testable, and embeddable.
 
@@ -318,7 +318,7 @@ fn detect_from_files(&self, file_names: &[&str]) -> bool {
 
 ## The LanguageProvider Trait
 
-**Source**: [`crates/roko-core/src/language.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/language.rs)
+**Source**: `crates/roko-core/src/language.rs`
 
 The `LanguageProvider` trait is the heart of code analysis. It defines how to extract structured information from raw source text.
 
@@ -350,7 +350,7 @@ pub trait LanguageProvider: Send + Sync {
 
 ### The Consuming Code (roko-index)
 
-**Source**: [`crates/roko-index/src/parser.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/parser.rs)
+**Source**: `crates/roko-index/src/parser.rs`
 
 ```rust
 pub fn parse_source(
@@ -413,9 +413,9 @@ impl LanguageRegistry {
 
 ## Rust Language Provider: Dual-Mode Parsing
 
-**Source**: [`crates/roko-lang-rust/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-lang-rust/src/lib.rs)
-**Source**: [`crates/roko-lang-rust/src/tree_sitter_parser.rs`](https://github.com/wpank/roko/blob/main/crates/roko-lang-rust/src/tree_sitter_parser.rs)
-**Cargo.toml**: [`crates/roko-lang-rust/Cargo.toml`](https://github.com/wpank/roko/blob/main/crates/roko-lang-rust/Cargo.toml)
+**Source**: `crates/roko-lang-rust/src/lib.rs`
+**Source**: `crates/roko-lang-rust/src/tree_sitter_parser.rs`
+**Cargo.toml**: `crates/roko-lang-rust/Cargo.toml`
 
 The Rust crate is unique among the language providers because it offers **two** `LanguageProvider` implementations: a heuristic parser that is always available, and a tree-sitter parser that is feature-gated behind `tree-sitter`. The crate's `Cargo.toml` shows the gating:
 
@@ -583,7 +583,7 @@ fn parse_visibility(s: &str) -> (Visibility, &str) {
 
 ### Mode 2: Tree-Sitter Parser (TreeSitterRustProvider)
 
-**Source**: [`crates/roko-lang-rust/src/tree_sitter_parser.rs`](https://github.com/wpank/roko/blob/main/crates/roko-lang-rust/src/tree_sitter_parser.rs)
+**Source**: `crates/roko-lang-rust/src/tree_sitter_parser.rs`
 
 The tree-sitter parser builds a full abstract syntax tree using the `tree-sitter-rust` grammar, then walks the AST to extract symbols and imports. It implements the same `LanguageProvider` trait, so callers can swap transparently.
 
@@ -767,7 +767,7 @@ type MyType = Vec<i32>;
 
 ## TypeScript/JavaScript Language Provider
 
-**Source**: [`crates/roko-lang-typescript/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-lang-typescript/src/lib.rs)
+**Source**: `crates/roko-lang-typescript/src/lib.rs`
 
 The TypeScript crate handles four file extensions (`ts`, `tsx`, `js`, `jsx`) and provides three `BuildSystem` implementations plus one `LanguageProvider`. All parsing is heuristic (no tree-sitter integration yet).
 
@@ -946,7 +946,7 @@ fn extract_ts_identifier(s: &str) -> String {
 
 ## Go Language Provider
 
-**Source**: [`crates/roko-lang-go/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-lang-go/src/lib.rs)
+**Source**: `crates/roko-lang-go/src/lib.rs`
 
 ### GoBuildSystem
 
@@ -1176,8 +1176,8 @@ fn try_extract_go_type(trimmed: &str, line_num: usize) -> Option<Symbol> {
 
 ## Polyglot Project Detection
 
-**Source**: [`crates/roko-core/src/polyglot.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/polyglot.rs)
-**Source**: [`crates/roko-core/src/project.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/project.rs)
+**Source**: `crates/roko-core/src/polyglot.rs`
+**Source**: `crates/roko-core/src/project.rs`
 
 ### Language and DetectedBuildSystem Enums
 
@@ -1765,10 +1765,10 @@ When the agent asks "what changes if I rename `UserProfile.email` to `UserProfil
 
 > **Scope of this section**: integration points that are specific to language analysis and build system dispatch — project detection and language-aware build commands. The full code indexing integration plan (symbol index, graph, HDC, context assembly, tools) is in [Code Intelligence](code-intelligence.md#15-ironclaw-integration-plan).
 
-The `LanguageProvider` and `BuildSystem` traits live in a new extracted crate `crates/ironclaw_code_index/` (following the same pattern as `ironclaw_safety` and `ironclaw_llm`). All IronClaw invariants hold: everything goes through `ToolDispatcher::dispatch()`, state is stored in the workspace database (never deleted).
+The `LanguageProvider` and `BuildSystem` traits can live in a proposed extracted crate or in an existing workspace-owned module until the boundary proves stable. All IronClaw invariants hold: actions go through `ToolDispatcher::dispatch()`, and durable state is stored through existing DB/workspace abstractions.
 
 ```
-crates/ironclaw_code_index/src/
+crates/ironclaw_code_index/src/   # proposed
     lib.rs           # re-exports
     language.rs      # LanguageProvider trait, Symbol, Import, SourceFile, SymbolKind, Visibility
     build.rs         # BuildSystem trait, BuildCommand
@@ -1802,7 +1802,7 @@ impl Tool for ProjectDetectTool {
     async fn execute(
         &self,
         params: Value,
-        ctx: &ToolContext,
+        ctx: &JobContext,
     ) -> Result<ToolOutput, ToolError> {
         let project_dir = params["path"]
             .as_str()
@@ -1868,7 +1868,7 @@ pub fn get_build_system_for_project(
 }
 
 // Usage in tool execution:
-async fn execute_build(&self, params: Value, ctx: &ToolContext) -> Result<ToolOutput, ToolError> {
+async fn execute_build(&self, params: Value, ctx: &JobContext) -> Result<ToolOutput, ToolError> {
     let project_ctx = ctx.workspace.get_project_context().await?;
     let bs = get_build_system_for_project(project_ctx.primary, project_ctx.build_systems[0])
         .ok_or_else(|| ToolError::Unsupported { reason: "Unknown build system".into() })?;
@@ -1894,12 +1894,12 @@ async fn execute_build(&self, params: Value, ctx: &ToolContext) -> Result<ToolOu
 
 ### Integration Points 3–5: Code Index, Context Assembly, Progressive Disclosure
 
-These integration points — symbol index construction, context-aware assembly into `AssembledContext`, memory-backed code understanding, and progressive context disclosure in `crates/ironclaw_engine/` — are documented in [Code Intelligence integration plan](code-intelligence.md#15-ironclaw-integration-plan). They consume `LanguageProvider` from this crate but the indexing logic lives in `crates/ironclaw_code_index/src/graph.rs`, `hdc.rs`, and `search.rs`.
+These integration points — symbol index construction, context-aware assembly into `AssembledContext`, memory-backed code understanding, and progressive context disclosure in `crates/ironclaw_engine/` — are documented in [Code Intelligence integration plan](code-intelligence.md#15-ironclaw-integration-plan). They consume `LanguageProvider` from the chosen crate/module boundary; graph, HDC, and search modules are proposed locations, not current files.
 
 ### Implementation Phases
 
 **Phase 1: Detection and build dispatch** (1–2 weeks, low risk)
-- Port `LanguageProvider`, `BuildSystem`, `BuildCommand`, and polyglot detection to `crates/ironclaw_code_index/`
+- Port `LanguageProvider`, `BuildSystem`, `BuildCommand`, and polyglot detection to the selected code-index crate/module boundary.
 - Implement `project_detect` tool in `src/tools/builtin/project_detect.rs`
 - Implement `build_cmd` tool (or enhance `shell` tool) using `BuildSystem` dispatch
 - Store detected project context in workspace via `ToolDispatcher::dispatch()`
@@ -1946,20 +1946,20 @@ See [Code Intelligence](code-intelligence.md#15-ironclaw-integration-plan) for p
 
 ## Source Reference Index
 
-All upstream source files referenced in this document are located in the Roko repository:
+All upstream source files referenced in this document are captured-source identifiers:
 
-| File | GitHub URL | Purpose |
+| File | Captured identifier | Purpose |
 |------|------------|---------|
-| `crates/roko-core/src/build.rs` | https://github.com/wpank/roko/blob/main/crates/roko-core/src/build.rs | `BuildSystem` trait, `BuildCommand` struct |
-| `crates/roko-core/src/language.rs` | https://github.com/wpank/roko/blob/main/crates/roko-core/src/language.rs | `LanguageProvider` trait, `Symbol`, `Import`, `SymbolKind`, `Visibility`, `SourceFile` |
-| `crates/roko-core/src/project.rs` | https://github.com/wpank/roko/blob/main/crates/roko-core/src/project.rs | `Language` enum, `DetectedBuildSystem` enum, `ProjectInfo`, `detect_from_files()` |
-| `crates/roko-core/src/polyglot.rs` | https://github.com/wpank/roko/blob/main/crates/roko-core/src/polyglot.rs | `PolyglotProject`, `detect_polyglot()` |
-| `crates/roko-lang-rust/src/lib.rs` | https://github.com/wpank/roko/blob/main/crates/roko-lang-rust/src/lib.rs | `CargoBuildSystem`, `RustLanguageProvider` (heuristic) |
-| `crates/roko-lang-rust/src/tree_sitter_parser.rs` | https://github.com/wpank/roko/blob/main/crates/roko-lang-rust/src/tree_sitter_parser.rs | `TreeSitterRustProvider` (AST-based parser) |
-| `crates/roko-lang-rust/Cargo.toml` | https://github.com/wpank/roko/blob/main/crates/roko-lang-rust/Cargo.toml | Feature-gating for tree-sitter dependency |
-| `crates/roko-lang-typescript/src/lib.rs` | https://github.com/wpank/roko/blob/main/crates/roko-lang-typescript/src/lib.rs | `NpmBuildSystem`, `PnpmBuildSystem`, `YarnBuildSystem`, `TypeScriptLanguageProvider` |
-| `crates/roko-lang-go/src/lib.rs` | https://github.com/wpank/roko/blob/main/crates/roko-lang-go/src/lib.rs | `GoBuildSystem`, `GoLanguageProvider` |
-| `crates/roko-index/src/parser.rs` | https://github.com/wpank/roko/blob/main/crates/roko-index/src/parser.rs | `parse_source()` — language-agnostic parsing entry point |
-| `crates/roko-index/src/symbol.rs` | https://github.com/wpank/roko/blob/main/crates/roko-index/src/symbol.rs | `SymbolId`, `SymbolRef`, `find_symbol()` |
-| `crates/roko-index/src/graph.rs` | https://github.com/wpank/roko/blob/main/crates/roko-index/src/graph.rs | `SymbolGraph`, `build_graph()`, `pagerank()`, `EdgeKind` |
-| `crates/roko-index/src/hdc.rs` | https://github.com/wpank/roko/blob/main/crates/roko-index/src/hdc.rs | `HdcFingerprint`, `fingerprint_symbol()`, `similarity()` |
+| `crates/roko-core/src/build.rs` | `crates/roko-core/src/build.rs` | `BuildSystem` trait, `BuildCommand` struct |
+| `crates/roko-core/src/language.rs` | `crates/roko-core/src/language.rs` | `LanguageProvider` trait, `Symbol`, `Import`, `SymbolKind`, `Visibility`, `SourceFile` |
+| `crates/roko-core/src/project.rs` | `crates/roko-core/src/project.rs` | `Language` enum, `DetectedBuildSystem` enum, `ProjectInfo`, `detect_from_files()` |
+| `crates/roko-core/src/polyglot.rs` | `crates/roko-core/src/polyglot.rs` | `PolyglotProject`, `detect_polyglot()` |
+| `crates/roko-lang-rust/src/lib.rs` | `crates/roko-lang-rust/src/lib.rs` | `CargoBuildSystem`, `RustLanguageProvider` (heuristic) |
+| `crates/roko-lang-rust/src/tree_sitter_parser.rs` | `crates/roko-lang-rust/src/tree_sitter_parser.rs` | `TreeSitterRustProvider` (AST-based parser) |
+| `crates/roko-lang-rust/Cargo.toml` | `crates/roko-lang-rust/Cargo.toml` | Feature-gating for tree-sitter dependency |
+| `crates/roko-lang-typescript/src/lib.rs` | `crates/roko-lang-typescript/src/lib.rs` | `NpmBuildSystem`, `PnpmBuildSystem`, `YarnBuildSystem`, `TypeScriptLanguageProvider` |
+| `crates/roko-lang-go/src/lib.rs` | `crates/roko-lang-go/src/lib.rs` | `GoBuildSystem`, `GoLanguageProvider` |
+| `crates/roko-index/src/parser.rs` | `crates/roko-index/src/parser.rs` | `parse_source()` — language-agnostic parsing entry point |
+| `crates/roko-index/src/symbol.rs` | `crates/roko-index/src/symbol.rs` | `SymbolId`, `SymbolRef`, `find_symbol()` |
+| `crates/roko-index/src/graph.rs` | `crates/roko-index/src/graph.rs` | `SymbolGraph`, `build_graph()`, `pagerank()`, `EdgeKind` |
+| `crates/roko-index/src/hdc.rs` | `crates/roko-index/src/hdc.rs` | `HdcFingerprint`, `fingerprint_symbol()`, `similarity()` |

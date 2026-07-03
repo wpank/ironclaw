@@ -17,9 +17,13 @@ Rust integration tests, local JSONL runs, or CI jobs.
 ## Required Fields
 
 ```yaml
+schema_version: 1
 id: feature.scenario
 feature: feature_key
+feature_flag_id: flag.feature_key
 owner: owning_ironclaw_module
+stage: local
+repetitions: 50
 input: {}
 mocked_dependencies: {}
 baseline: {}
@@ -29,4 +33,3 @@ expected_metrics: {}
 guardrails: {}
 artifacts: {}
 ```
-

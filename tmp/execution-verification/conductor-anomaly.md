@@ -3,7 +3,7 @@
 **Source provenance**: `roko-conductor` crate — `crates/roko-conductor/src/`
 **Total source**: ~10,100 lines of Rust across 24 files (roughly 50% implementation, 50% tests)
 **Priority**: MEDIUM — production-grade system health monitoring for LLM-driven agents
-**Source repository**: [wpank/roko](https://github.com/wpank/roko/blob/main/crates/roko-conductor/)
+**Source namespace**: `crates/roko-conductor`
 
 ---
 
@@ -60,7 +60,7 @@ Production AI systems that interact with LLM providers face a class of failure m
 
 The conductor addresses all of these. It is a **purely reactive** layer: it reads signal streams, produces intervention decisions, and has no side effects. The orchestrator feeds it data; the conductor tells the orchestrator what to do.
 
-> **Design principle** (from [crates/roko-conductor/src/lib.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/lib.rs), lines 14–15):
+> **Design principle** (from `crates/roko-conductor/src/lib.rs`, lines 14–15):
 > "Every watcher is a pure function: `&[Engram] -> Vec<Engram>`. Watchers have no side effects."
 
 ---
@@ -122,10 +122,10 @@ graph TD
 
 ### 3.2 Conductor Struct
 
-The `Conductor` struct from [crates/roko-conductor/src/conductor.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/conductor.rs) (lines 60–78) holds all the state:
+The `Conductor` struct from `crates/roko-conductor/src/conductor.rs` (lines 60–78) holds all the state:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/conductor.rs, lines 60-78
+// Source: `crates/roko-conductor/src/conductor.rs`, lines 60-78
 pub struct Conductor {
     /// The individual watchers, stored as boxed `React` impls.
     watchers: Vec<Box<dyn React>>,
@@ -149,7 +149,7 @@ pub struct Conductor {
 The default constructor registers all 10 watchers:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/conductor.rs, lines 95-108
+// Source: `crates/roko-conductor/src/conductor.rs`, lines 95-108
 fn default_watchers() -> Vec<Box<dyn React>> {
     vec![
         Box::new(GhostTurnWatcher::default()),
@@ -174,7 +174,7 @@ Every watcher implements the `React` trait from `roko-core`. This trait defines 
 
 ```rust
 // From roko-core (re-exported in roko-conductor)
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-core/src/react.rs
+// Source: `crates/roko-core/src/react.rs`
 pub trait React: Send + Sync {
     /// Examine the signal stream and produce intervention signals.
     fn decide(&self, stream: &[Engram], ctx: &Context) -> Vec<Engram>;
@@ -191,10 +191,10 @@ pub trait React: Send + Sync {
 
 Watchers scan the stream for specific `Kind` values and emit `Kind::Custom("conductor.intervention")` signals when anomalies are detected. These intervention signals carry tags for `watcher` (name), `severity` ("info", "warning", "critical"), and watcher-specific metadata.
 
-The conductor's `collect_watcher_outputs` function ([conductor.rs lines 547–570](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/conductor.rs)) runs every watcher and converts their raw `Engram` outputs into structured `WatcherOutput` values:
+The conductor's `collect_watcher_outputs` function (`crates/roko-conductor/src/conductor.rs`) runs every watcher and converts their raw `Engram` outputs into structured `WatcherOutput` values:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/conductor.rs, lines 547-570
+// Source: `crates/roko-conductor/src/conductor.rs`, lines 547-570
 fn collect_watcher_outputs(
     watchers: &[Box<dyn React>],
     stream: &[Engram],
@@ -229,7 +229,7 @@ Each watcher is a pure function with no side effects. They scan `&[Engram]` for 
 
 ### 5.1 GhostTurnWatcher (Progress Family)
 
-**File**: [crates/roko-conductor/src/watchers/ghost_turn.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/ghost_turn.rs) (300 lines)
+**File**: `crates/roko-conductor/src/watchers/ghost_turn.rs` (300 lines)
 **Signal kind scanned**: `Kind::Custom("conductor.ghost_turn")`
 **Default threshold**: 3 consecutive ghost turns (`MAX_GHOST_TURNS`)
 **Severity**: Warning
@@ -237,7 +237,7 @@ Each watcher is a pure function with no side effects. They scan `&[Engram]` for 
 Detects agent turns that consume tokens but produce zero meaningful output. A "ghost turn" is one where `output_meaningful == false` AND `net_new_changes == 0`. The watcher counts consecutive ghost turns from the end of the stream. Any non-ghost-turn signal breaks the chain.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/ghost_turn.rs, lines 19-32
+// Source: `crates/roko-conductor/src/watchers/ghost_turn.rs`, lines 19-32
 #[derive(Debug, Clone, Deserialize)]
 struct GhostTurnEvent {
     plan_id: String,
@@ -257,7 +257,7 @@ struct GhostTurnEvent {
 Full watcher implementation:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/ghost_turn.rs
+// Source: `crates/roko-conductor/src/watchers/ghost_turn.rs`
 pub struct GhostTurnWatcher {
     max_ghost_turns: usize,
 }
@@ -310,7 +310,7 @@ impl React for GhostTurnWatcher {
 
 ### 5.2 ReviewLoopWatcher (Progress Family)
 
-**File**: [crates/roko-conductor/src/watchers/review_loop.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/review_loop.rs) (228 lines)
+**File**: `crates/roko-conductor/src/watchers/review_loop.rs` (228 lines)
 **Signal kind scanned**: `Kind::PlanPhase` with `event == "ReviewRejected"`
 **Default threshold**: 3 rejections (`MAX_REVIEW_CYCLES`)
 **Severity**: Warning
@@ -318,7 +318,7 @@ impl React for GhostTurnWatcher {
 Counts consecutive review rejections for the same plan. A `ReviewApproved`, `DocRevisionDone`, or `MergeSucceeded` event resets the counter. When the agent repeatedly fails review without advancing, something is fundamentally wrong with its approach and a restart is warranted.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/review_loop.rs
+// Source: `crates/roko-conductor/src/watchers/review_loop.rs`
 pub struct ReviewLoopWatcher {
     max_review_cycles: usize,
 }
@@ -354,7 +354,7 @@ impl React for ReviewLoopWatcher {
 
 ### 5.3 IterationLoopWatcher (Progress Family)
 
-**File**: [crates/roko-conductor/src/watchers/iteration_loop.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/iteration_loop.rs) (210 lines)
+**File**: `crates/roko-conductor/src/watchers/iteration_loop.rs` (210 lines)
 **Signal kind scanned**: `Kind::PlanPhase` with `event == "GateFailed"`
 **Default threshold**: 3 gate failures (`MAX_IMPLEMENTER_ATTEMPTS`)
 **Severity**: **Critical** (triggers plan failure, not just restart)
@@ -362,7 +362,7 @@ impl React for ReviewLoopWatcher {
 Counts gate failures for a plan. A `GatePassed`, `ImplementationDone`, `ReviewApproved`, `DocRevisionDone`, `MergeSucceeded`, or `VerifyPassed` event resets the counter. This is the only watcher that fires at Critical severity by default — repeated gate failures mean the agent is fundamentally unable to complete the task with its current approach.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/iteration_loop.rs
+// Source: `crates/roko-conductor/src/watchers/iteration_loop.rs`
 const MAX_IMPLEMENTER_ATTEMPTS: usize = 3;
 
 pub struct IterationLoopWatcher {
@@ -403,7 +403,7 @@ impl React for IterationLoopWatcher {
 
 ### 5.4 TestFailureBudgetWatcher (Quality Family)
 
-**File**: [crates/roko-conductor/src/watchers/test_failure_budget.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/test_failure_budget.rs) (201 lines)
+**File**: `crates/roko-conductor/src/watchers/test_failure_budget.rs` (201 lines)
 **Signal kind scanned**: `Kind::GateVerdict` with structured test counts
 **Default threshold**: 1 additional failure (`MIN_FAILURE_INCREASE`)
 **Severity**: Warning
@@ -426,7 +426,7 @@ The watcher parses structured JSON from gate verdicts:
 ```
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/test_failure_budget.rs
+// Source: `crates/roko-conductor/src/watchers/test_failure_budget.rs`
 pub struct TestFailureBudgetWatcher {
     min_failure_increase: i64,
     // Baseline failure counts per plan_id (populated from first GateVerdict seen).
@@ -477,7 +477,7 @@ impl React for TestFailureBudgetWatcher {
 
 ### 5.5 CompileFailRepeatWatcher (Quality Family)
 
-**File**: [crates/roko-conductor/src/watchers/compile_fail_repeat.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/compile_fail_repeat.rs) (207 lines)
+**File**: `crates/roko-conductor/src/watchers/compile_fail_repeat.rs` (207 lines)
 **Signal kind scanned**: `Kind::CompileDiagnostic`
 **Default threshold**: 3 identical failures (`MAX_IDENTICAL_COMPILE_FAILURES`)
 **Severity**: Warning
@@ -485,7 +485,7 @@ impl React for TestFailureBudgetWatcher {
 Detects when the same compile error appears consecutively in the stream. The watcher extracts a normalized "diagnostic key" from each `CompileDiagnostic` signal and checks whether the last N diagnostics share the same key. Non-compile signals between compile diagnostics are filtered out, so interleaved `AgentOutput` signals do not break the chain.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/compile_fail_repeat.rs
+// Source: `crates/roko-conductor/src/watchers/compile_fail_repeat.rs`
 const MAX_IDENTICAL_COMPILE_FAILURES: usize = 3;
 
 pub struct CompileFailRepeatWatcher {
@@ -547,7 +547,7 @@ impl CompileFailRepeatWatcher {
 
 ### 5.6 ContextWindowPressureWatcher (Resource Family)
 
-**File**: [crates/roko-conductor/src/watchers/context_window_pressure.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/context_window_pressure.rs) (382 lines)
+**File**: `crates/roko-conductor/src/watchers/context_window_pressure.rs` (382 lines)
 **Signal kind scanned**: `Kind::TokenUsage`
 **Default threshold**: 80% utilization (`MAX_CONTEXT_USAGE_RATIO`)
 **Severity**: Warning
@@ -560,7 +560,7 @@ This watcher is more sophisticated than the others. It uses a lookback window of
 3. Falls back to `None` for unknown models (inert, does not fire)
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/context_window_pressure.rs, lines 190-206
+// Source: `crates/roko-conductor/src/watchers/context_window_pressure.rs`, lines 190-206
 fn context_window_tokens(&self, model: &str) -> Option<u64> {
     let model_lower = model.to_ascii_lowercase();
     // First: check configured model profiles.
@@ -581,7 +581,7 @@ fn context_window_tokens(&self, model: &str) -> Option<u64> {
 Full decide implementation:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/context_window_pressure.rs
+// Source: `crates/roko-conductor/src/watchers/context_window_pressure.rs`
 const MAX_CONTEXT_USAGE_RATIO: f64 = 0.80;
 const PRESSURE_LOOKBACK: usize = 3;
 
@@ -629,7 +629,7 @@ impl React for ContextWindowPressureWatcher {
 
 ### 5.7 SpecDriftWatcher (Quality Family)
 
-**File**: [crates/roko-conductor/src/watchers/spec_drift.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/spec_drift.rs) (263 lines)
+**File**: `crates/roko-conductor/src/watchers/spec_drift.rs` (263 lines)
 **Signal kind scanned**: `Kind::Metric` with `name == "spec_drift"`
 **Default threshold**: 25% drift (`MAX_SPEC_DRIFT_RATIO`)
 **Severity**: Warning
@@ -637,7 +637,7 @@ impl React for ContextWindowPressureWatcher {
 Monitors the ratio of files changed outside the task's declared scope. If a task declared it would write `["src/lib.rs"]` but actually changed `["src/lib.rs", "src/main.rs"]`, the drift ratio is 0.5 (50%). The watcher uses the most recent spec drift metric signal.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/spec_drift.rs
+// Source: `crates/roko-conductor/src/watchers/spec_drift.rs`
 const MAX_SPEC_DRIFT_RATIO: f64 = 0.25;
 
 pub struct SpecDriftWatcher {
@@ -686,7 +686,7 @@ impl React for SpecDriftWatcher {
 
 ### 5.8 CostOverrunWatcher (Resource Family)
 
-**File**: [crates/roko-conductor/src/watchers/cost_overrun.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/cost_overrun.rs) (170 lines)
+**File**: `crates/roko-conductor/src/watchers/cost_overrun.rs` (170 lines)
 **Signal kind scanned**: `Kind::Metric` with `name == "plan_cost"` and `name == "plan_budget"`
 **Default threshold**: $10.00 fallback budget (`DEFAULT_BUDGET`)
 **Severity**: Warning
@@ -694,7 +694,7 @@ impl React for SpecDriftWatcher {
 Compares the most recent `plan_cost` metric against the most recent `plan_budget` metric. If no budget metric exists, falls back to a configurable default. Fires when cost exceeds budget.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/cost_overrun.rs
+// Source: `crates/roko-conductor/src/watchers/cost_overrun.rs`
 const DEFAULT_BUDGET: f64 = 10.0;
 
 pub struct CostOverrunWatcher {
@@ -736,7 +736,7 @@ impl React for CostOverrunWatcher {
 
 ### 5.9 TimeOverrunWatcher (Resource Family)
 
-**File**: [crates/roko-conductor/src/watchers/time_overrun.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/time_overrun.rs) (199 lines)
+**File**: `crates/roko-conductor/src/watchers/time_overrun.rs` (199 lines)
 **Signal kind scanned**: `Kind::Custom("conductor.agent_output")`
 **Default threshold**: 80% of timeout (`ALERT_THRESHOLD`)
 **Severity**: Warning
@@ -744,7 +744,7 @@ impl React for CostOverrunWatcher {
 Checks the most recent task timing signal. If `duration_ms > timeout_secs * 1000 * 0.80`, the watcher fires. This gives the orchestrator an early warning before a task actually times out, allowing it to switch strategies proactively.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/time_overrun.rs
+// Source: `crates/roko-conductor/src/watchers/time_overrun.rs`
 const ALERT_THRESHOLD: f64 = 0.80;
 
 pub struct TimeOverrunWatcher {
@@ -791,7 +791,7 @@ impl React for TimeOverrunWatcher {
 
 ### 5.10 StuckPatternWatcher (Progress Family)
 
-**File**: [crates/roko-conductor/src/watchers/stuck_pattern.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/stuck_pattern.rs) (232 lines)
+**File**: `crates/roko-conductor/src/watchers/stuck_pattern.rs` (232 lines)
 **Signal kind scanned**: `Kind::AgentOutput` and `Kind::AgentMessage`
 **Default threshold**: 4 identical actions (`MAX_IDENTICAL_ACTIONS`)
 **Severity**: Warning
@@ -799,7 +799,7 @@ impl React for TimeOverrunWatcher {
 Walks backward through the signal stream, counting consecutive action signals with identical body text. Non-action signals (e.g., `GateVerdict`) are skipped without breaking the chain. Different action kinds (`AgentOutput` vs `AgentMessage`) are counted together if their body text matches.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/stuck_pattern.rs
+// Source: `crates/roko-conductor/src/watchers/stuck_pattern.rs`
 const MAX_IDENTICAL_ACTIONS: usize = 4;
 
 pub struct StuckPatternWatcher {
@@ -857,20 +857,20 @@ impl React for StuckPatternWatcher {
 | 9 | **TimeOverrun** | Resource | `conductor.agent_output` | 80% of timeout | Warning |
 | 10 | **StuckPattern** | Progress | `AgentOutput/AgentMessage` | 4 identical | Warning |
 
-All thresholds are configurable via `[conductor.watchers.*]` in `roko.toml`. The `configured_watchers` function in [conductor.rs lines 110–192](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/conductor.rs) reads these overrides.
+All thresholds are configurable via `[conductor.watchers.*]` in `roko.toml`. The `configured_watchers` function in `crates/roko-conductor/src/conductor.rs` reads these overrides.
 
 ---
 
 ## 6. Severity Classification and Intervention Policies
 
-**File**: [crates/roko-conductor/src/interventions.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/interventions.rs) (464 lines)
+**File**: `crates/roko-conductor/src/interventions.rs` (464 lines)
 
 ### 6.1 Three-Level Severity Model
 
 Roko uses three severity levels that map directly to `ConductorDecision` variants:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/interventions.rs, lines 31-38
+// Source: `crates/roko-conductor/src/interventions.rs`, lines 31-38
 pub enum Severity {
     /// Informational — logged, no action taken.
     Info = 0,
@@ -886,7 +886,7 @@ The mapping is:
 - `Severity::Warning` → `ConductorDecision::Restart` (restart the current phase with a new approach)
 - `Severity::Critical` → `ConductorDecision::Fail` (abort the plan entirely)
 
-> **Design reference**: The three-level model is documented in [crates/roko-conductor/src/interventions.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/interventions.rs) (doc comment, line 4): "Roko's conductor uses a simplified 3-level intervention model (SS 11.2: Continue / Restart / Fail)."
+> **Design reference**: The three-level model is documented in `crates/roko-conductor/src/interventions.rs` (doc comment, line 4): "Roko's conductor uses a simplified 3-level intervention model (SS 11.2: Continue / Restart / Fail)."
 
 ### 6.2 Severity Escalation Flow
 
@@ -910,7 +910,7 @@ flowchart TD
 ### 6.3 WatcherOutput and InterventionPolicy Trait
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/interventions.rs, lines 58-67
+// Source: `crates/roko-conductor/src/interventions.rs`, lines 58-67
 pub struct WatcherOutput {
     pub watcher: String,
     pub severity: Severity,
@@ -918,7 +918,7 @@ pub struct WatcherOutput {
     pub metric: Option<f64>,
 }
 
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/interventions.rs, lines 106-112
+// Source: `crates/roko-conductor/src/interventions.rs`, lines 106-112
 pub trait InterventionPolicy: Send + Sync {
     fn evaluate(&self, outputs: &[WatcherOutput], ctx: &Context) -> ConductorDecision;
     fn name(&self) -> &str;
@@ -928,7 +928,7 @@ pub trait InterventionPolicy: Send + Sync {
 **WorstSeverityPolicy** (default): Takes the maximum severity across all watcher outputs.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/interventions.rs, lines 118-128
+// Source: `crates/roko-conductor/src/interventions.rs`, lines 118-128
 impl InterventionPolicy for WorstSeverityPolicy {
     fn evaluate(&self, outputs: &[WatcherOutput], _ctx: &Context) -> ConductorDecision {
         let worst = outputs.iter().max_by_key(|o| o.severity);
@@ -944,7 +944,7 @@ impl InterventionPolicy for WorstSeverityPolicy {
 
 ## 7. Circuit Breaker and Predictive Tripping
 
-**File**: [crates/roko-conductor/src/circuit_breaker.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/circuit_breaker.rs) (699 lines)
+**File**: `crates/roko-conductor/src/circuit_breaker.rs` (699 lines)
 
 ### 7.1 Background: The Circuit Breaker Pattern
 
@@ -970,7 +970,7 @@ stateDiagram-v2
 ### 7.3 Circuit Breaker Struct
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/circuit_breaker.rs, lines 147-161
+// Source: `crates/roko-conductor/src/circuit_breaker.rs`, lines 147-161
 pub struct CircuitBreaker {
     /// Maximum failures before tripping.
     max_failures: u32,
@@ -990,7 +990,7 @@ pub struct CircuitBreaker {
 The circuit breaker is checked first in `evaluate_full`, before any watchers run:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/conductor.rs, lines 315-326
+// Source: `crates/roko-conductor/src/conductor.rs`, lines 315-326
 if let Some(ref pid) = plan_id {
     if self.circuit_breaker.is_tripped(pid) {
         self.update_routing_bias(stream, &[]);
@@ -1010,7 +1010,7 @@ if let Some(ref pid) = plan_id {
 Two levels of proactive signaling:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/circuit_breaker.rs, lines 108-123
+// Source: `crates/roko-conductor/src/circuit_breaker.rs`, lines 108-123
 pub enum ProactiveTripSignal {
     /// Forecast at horizon 3 exceeds threshold — early warning.
     Warning {
@@ -1029,7 +1029,7 @@ pub enum ProactiveTripSignal {
 - **ProactiveTrip** (`forecast(1) >= threshold`): The error rate will exceed the threshold on the very next step. The conductor emits `CognitiveSignal::Shutdown` and trips proactively.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/circuit_breaker.rs, lines 214-243
+// Source: `crates/roko-conductor/src/circuit_breaker.rs`, lines 214-243
 pub fn record_failure(&self, plan_id: &str, reason: impl Into<String>, now_ms: i64) -> bool {
     // ... increment failure count ...
     // Count-based trip check (fallback always active).
@@ -1051,7 +1051,7 @@ pub fn record_failure(&self, plan_id: &str, reason: impl Into<String>, now_ms: i
 ### 7.5 State Persistence
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/circuit_breaker.rs, lines 126-133
+// Source: `crates/roko-conductor/src/circuit_breaker.rs`, lines 126-133
 pub struct CircuitBreakerState {
     pub max_failures: u32,
     pub records: HashMap<String, FailureRecord>,
@@ -1064,7 +1064,7 @@ pub struct CircuitBreakerState {
 
 ## 8. Holt Exponential Smoothing — Full Mathematical Treatment
 
-**File**: [crates/roko-conductor/src/circuit_breaker.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/circuit_breaker.rs), lines 32–104
+**File**: `crates/roko-conductor/src/circuit_breaker.rs`, lines 32–104
 
 ### 8.1 Background
 
@@ -1090,7 +1090,7 @@ The level equation is a weighted average of the new observation and the one-step
 ### 8.3 Full Implementation
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/circuit_breaker.rs, lines 44-104
+// Source: `crates/roko-conductor/src/circuit_breaker.rs`, lines 44-104
 pub struct HoltForecaster {
     pub level: f64,
     pub trend: f64,
@@ -1179,7 +1179,7 @@ Holt's linear trend method does not model seasonality (periodic patterns). If pr
 
 ## 9. Compound Pattern Detection (CEP)
 
-**File**: [crates/roko-conductor/src/pattern_detector.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/pattern_detector.rs) (326 lines)
+**File**: `crates/roko-conductor/src/pattern_detector.rs` (326 lines)
 
 ### 9.1 Background: Complex Event Processing
 
@@ -1208,7 +1208,7 @@ flowchart LR
 ### 9.3 Watcher Family Classification
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/pattern_detector.rs, lines 20-27
+// Source: `crates/roko-conductor/src/pattern_detector.rs`, lines 20-27
 pub enum WatcherFamily {
     /// Cost, time, and context window pressure.
     Resource,
@@ -1250,7 +1250,7 @@ ghost-turn (Warning) + stuck-pattern (Warning)
 **2. Total Resource Exhaustion**: When ALL three resource watchers fire simultaneously:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/pattern_detector.rs, lines 151-161
+// Source: `crates/roko-conductor/src/pattern_detector.rs`, lines 151-161
 let resource_watchers = ["cost-overrun", "time-overrun", "context-window-pressure"];
 let all_resource_fired = resource_watchers.iter().all(|w| fired_watchers.contains_key(w));
 if all_resource_fired {
@@ -1265,7 +1265,7 @@ if all_resource_fired {
 **3. Progressive Degradation Sequence**: When ghost-turn, iteration-loop, AND stuck-pattern all have non-zero consecutive fire counts (tracked via the history buffer):
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/pattern_detector.rs
+// Source: `crates/roko-conductor/src/pattern_detector.rs`
 let progress_cascade = ["ghost-turn", "iteration-loop", "stuck-pattern"];
 let all_progress_nonzero = progress_cascade.iter()
     .all(|w| self.consecutive_fires.get(*w).copied().unwrap_or(0) > 0);
@@ -1285,7 +1285,7 @@ if all_progress_nonzero {
 The pattern detector maintains per-watcher consecutive fire counts. A watcher must fire for N consecutive evaluation cycles (`hysteresis_window`, default 2) before it "passes hysteresis":
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/pattern_detector.rs, lines 97-113
+// Source: `crates/roko-conductor/src/pattern_detector.rs`, lines 97-113
 pub fn record(&mut self, outputs: &[WatcherOutput]) -> Vec<CompoundPattern> {
     let fired_watchers: HashMap<&str, &WatcherOutput> = outputs
         .iter()
@@ -1321,7 +1321,7 @@ When compound patterns are detected, the conductor takes two actions:
 
 ## 10. Adaptive Threshold Learning
 
-**File**: [crates/roko-conductor/src/threshold_learner.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/threshold_learner.rs) (399 lines)
+**File**: `crates/roko-conductor/src/threshold_learner.rs` (399 lines)
 
 ### 10.1 The Problem
 
@@ -1334,7 +1334,7 @@ Static thresholds have two failure modes:
 The `ThresholdLearner` uses Exponential Moving Average (EMA) to adjust thresholds based on intervention outcomes:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/threshold_learner.rs, lines 31-40
+// Source: `crates/roko-conductor/src/threshold_learner.rs`, lines 31-40
 pub struct AdaptiveThreshold {
     pub ema: f64,
     pub observations: u64,
@@ -1346,7 +1346,7 @@ pub struct AdaptiveThreshold {
 The update rule:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/threshold_learner.rs, lines 58-79
+// Source: `crates/roko-conductor/src/threshold_learner.rs`, lines 58-79
 fn update(&mut self, alpha: f64, effective: bool) {
     self.observations += 1;
     if effective {
@@ -1395,7 +1395,7 @@ Thresholds persist to `.roko/learn/conductor-thresholds.json` via atomic write (
 
 ## 11. Thompson Sampling via BanditPolicy
 
-**File**: [crates/roko-conductor/src/interventions.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/interventions.rs), lines 130–282
+**File**: `crates/roko-conductor/src/interventions.rs`, lines 130–282
 
 ### 11.1 Background: Thompson Sampling
 
@@ -1410,7 +1410,7 @@ In the conductor's context, the "arms" are the possible intervention actions (Co
 ### 11.3 Warmup and Blending
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/interventions.rs, lines 133-136
+// Source: `crates/roko-conductor/src/interventions.rs`, lines 133-136
 const BANDIT_WARMUP_THRESHOLD: u64 = 50;
 const BANDIT_BLEND_WEIGHT: f64 = 0.65;
 ```
@@ -1418,7 +1418,7 @@ const BANDIT_BLEND_WEIGHT: f64 = 0.65;
 During warmup (fewer than 50 total observations), the bandit policy delegates entirely to `WorstSeverityPolicy`. After warmup, it blends the bandit's recommendation with the static policy at a 65/35 ratio:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/interventions.rs, lines 265-276
+// Source: `crates/roko-conductor/src/interventions.rs`, lines 265-276
 if static_decision.label() == bandit_decision.label() {
     return static_decision;
 }
@@ -1435,7 +1435,7 @@ if blend_value < BANDIT_BLEND_WEIGHT {
 ### 11.4 State Encoding
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/interventions.rs, lines 198-232
+// Source: `crates/roko-conductor/src/interventions.rs`, lines 198-232
 fn state_from_outputs(outputs: &[WatcherOutput]) -> ConductorState {
     let worst_severity = outputs.iter().map(|o| o.severity).max();
     let consecutive_failures = outputs
@@ -1483,7 +1483,7 @@ After 50+ observations, the bandit learns which actions work best for which erro
 
 ## 12. Yerkes-Dodson Pressure Framework
 
-**File**: [crates/roko-conductor/src/yerkes_dodson.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/yerkes_dodson.rs) (248 lines)
+**File**: `crates/roko-conductor/src/yerkes_dodson.rs` (248 lines)
 
 ### 12.1 Background: The Yerkes-Dodson Law
 
@@ -1512,7 +1512,7 @@ At optimal pressure (0.5 by default): performance = 1.0, aggressiveness = 0.0. F
 ### 12.4 Full Implementation
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/yerkes_dodson.rs, lines 20-28
+// Source: `crates/roko-conductor/src/yerkes_dodson.rs`, lines 20-28
 pub struct YerkesDodson {
     /// Current pressure level (0.0 = no pressure, 1.0 = maximum).
     pub pressure: f64,
@@ -1522,7 +1522,7 @@ pub struct YerkesDodson {
     pub width: f64,
 }
 
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/yerkes_dodson.rs, lines 61-74
+// Source: `crates/roko-conductor/src/yerkes_dodson.rs`, lines 61-74
 pub fn performance_multiplier(&self) -> f64 {
     let diff = self.pressure - self.optimal;
     let exponent = -(diff * diff) / (2.0 * self.width * self.width);
@@ -1533,7 +1533,7 @@ pub fn intervention_aggressiveness(&self) -> f64 {
     1.0 - self.performance_multiplier()
 }
 
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/yerkes_dodson.rs, lines 100-112
+// Source: `crates/roko-conductor/src/yerkes_dodson.rs`, lines 100-112
 pub fn compute_pressure(
     cost_pressure: f64,     // fraction of budget consumed
     time_pressure: f64,     // fraction of time budget consumed
@@ -1568,7 +1568,7 @@ The `is_danger_zone()` method returns `true` when performance drops below 50% (i
 
 ## 13. Federation: 4-Level Conductor Hierarchy
 
-**File**: [crates/roko-conductor/src/federation.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/federation.rs) (289 lines)
+**File**: `crates/roko-conductor/src/federation.rs` (289 lines)
 
 ### 13.1 Background: Beer's Viable System Model
 
@@ -1586,7 +1586,7 @@ Roko's conductor federation is inspired by Stafford Beer's Viable System Model (
 ### 13.3 L1: TurnConductor
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/federation.rs, lines 23-30
+// Source: `crates/roko-conductor/src/federation.rs`, lines 23-30
 pub struct TurnConductor {
     pub stuck_detector: StuckDetector,
     pub meta_cognition: MetaCognitionHook,
@@ -1606,7 +1606,7 @@ At default sensitivity (1.0), the threshold is 0.6. At sensitivity 2.0, the thre
 ### 13.4 L3: PlanConductor
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/federation.rs, lines 78-89
+// Source: `crates/roko-conductor/src/federation.rs`, lines 78-89
 pub struct PlanConductor {
     pub task_decisions: Vec<TaskDecisionRecord>,
     pub plan_budget_remaining: f64,
@@ -1628,7 +1628,7 @@ Currently a stub that always returns `ConductorDecision::cont()`. Designed for P
 
 ## 14. Self-Healing with Oscillation Detection
 
-**File**: [crates/roko-conductor/src/self_healing.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/self_healing.rs) (379 lines)
+**File**: `crates/roko-conductor/src/self_healing.rs` (379 lines)
 
 ### 14.1 The Oscillation Problem
 
@@ -1639,7 +1639,7 @@ Without oscillation detection, the conductor can enter pathological states:
 ### 14.2 Three Recovery Strategies
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/self_healing.rs, lines 54-68
+// Source: `crates/roko-conductor/src/self_healing.rs`, lines 54-68
 pub enum HealingAction {
     /// Reset a specific watcher that is oscillating.
     ResetWatcher(String),
@@ -1655,7 +1655,7 @@ pub enum HealingAction {
 ### 14.3 Policy Configuration
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/self_healing.rs, lines 12-23
+// Source: `crates/roko-conductor/src/self_healing.rs`, lines 12-23
 pub struct SelfHealingPolicy {
     /// Maximum oscillation count before watcher reset. Default: 5.
     pub max_oscillations: u32,
@@ -1669,7 +1669,7 @@ pub struct SelfHealingPolicy {
 ### 14.4 Oscillation Detection Algorithm
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/self_healing.rs, lines 81-126
+// Source: `crates/roko-conductor/src/self_healing.rs`, lines 81-126
 pub fn observe_watcher(
     &mut self, watcher: &str, firing: bool, policy: &SelfHealingPolicy
 ) -> HealingAction {
@@ -1703,7 +1703,7 @@ pub fn observe_watcher(
 
 ## 15. Diagnosis Engine
 
-**File**: [crates/roko-conductor/src/diagnosis.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/diagnosis.rs) (936 lines)
+**File**: `crates/roko-conductor/src/diagnosis.rs` (936 lines)
 
 ### 15.1 Purpose
 
@@ -1747,7 +1747,7 @@ Confidence is computed from three factors:
 
 ## 16. Health Monitor
 
-**File**: [crates/roko-conductor/src/health.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/health.rs) (641 lines)
+**File**: `crates/roko-conductor/src/health.rs` (641 lines)
 
 ### 16.1 System-Level Health Checks
 
@@ -1761,7 +1761,7 @@ The `HealthMonitor` runs four composable health checks against a `SystemSnapshot
 | `coverage_trend` | Test coverage trajectory | Coverage declining > 2% |
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/health.rs
+// Source: `crates/roko-conductor/src/health.rs`
 pub fn overall_status(&self, snapshot: &SystemSnapshot) -> HealthStatus {
     self.check_all(snapshot)
         .iter()
@@ -1777,7 +1777,7 @@ Three health levels: `Healthy` < `Degraded` < `Critical`.
 
 ## 17. Stuck Detection and Meta-Cognition
 
-**File**: [crates/roko-conductor/src/stuck_detection.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/stuck_detection.rs) (2,004 lines)
+**File**: `crates/roko-conductor/src/stuck_detection.rs` (2,004 lines)
 
 ### 17.1 StuckDetector
 
@@ -1823,12 +1823,12 @@ It maintains a `CooldownFilter` that prevents repeated assessments from firing t
 
 ## 18. Routing Bias and Provider Health
 
-**File**: [crates/roko-conductor/src/conductor.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/conductor.rs), lines 34–42 and 604–685
+**File**: `crates/roko-conductor/src/conductor.rs`, lines 34–42 and 604–685
 
 ### 18.1 RoutingBias
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/conductor.rs, lines 34-42
+// Source: `crates/roko-conductor/src/conductor.rs`, lines 34-42
 pub struct RoutingBias {
     pub deprioritize: Vec<String>,
     pub prefer_cheaper: bool,
@@ -1843,7 +1843,7 @@ Derivation logic:
 ### 18.2 Provider Health Integration (COND-09)
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/conductor.rs, lines 399-409
+// Source: `crates/roko-conductor/src/conductor.rs`, lines 399-409
 if let Some(ref tracker) = self.provider_health {
     if let Some(provider) = extract_provider(stream) {
         if !tracker.is_healthy(&provider) {
@@ -1857,7 +1857,7 @@ if let Some(ref tracker) = self.provider_health {
 
 ## 19. Cognitive Signals
 
-**File**: [crates/roko-conductor/src/conductor.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/conductor.rs), lines 482–543
+**File**: `crates/roko-conductor/src/conductor.rs`, lines 482–543
 
 The `evaluate_full` method returns not just a decision but also `CognitiveSignal`s — sub-critical modulations that hint at adjustments even when the primary decision is `Continue`:
 
@@ -1871,7 +1871,7 @@ The `evaluate_full` method returns not just a decision but also `CognitiveSignal
 | `Shutdown { reason }` | Circuit breaker tripped | Terminate the plan |
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/conductor.rs, lines 521-523
+// Source: `crates/roko-conductor/src/conductor.rs`, lines 521-523
 // Quality issues without being stuck -> Escalate to stronger model.
 if has_quality_issue && !has_stuck {
     signals.push(CognitiveSignal::Escalate { to_tier: 2 });
@@ -2083,6 +2083,8 @@ Accuracy increases with more observations because the trend estimate stabilizes.
 **Where**: `crates/ironclaw_llm/`
 **What**: Track per-provider health metrics and use Holt forecasting to detect degradation trends before they cause failures.
 **Why**: IronClaw supports multiple LLM backends (OpenAI, Anthropic, Bedrock, NEAR AI, Ollama). When a provider degrades, the system should automatically route to a healthier alternative.
+
+Start by instrumenting the existing circuit breaker, failover, retry, and smart-routing abstractions. Do not add a second provider-routing stack until shadow metrics show that the current signals cannot support the needed prediction.
 
 **Step 1: Create `crates/ironclaw_llm/src/health.rs`**
 
@@ -2501,25 +2503,25 @@ All phases are independently implementable. Phase 1 has the highest impact becau
 
 | Component | LOC (actual) | Source File |
 |-----------|-------------|-------------|
-| Core conductor + evaluate | 989 | [conductor.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/conductor.rs) |
-| 10 watchers | ~2,220 | [watchers/*.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/watchers/) |
-| Circuit breaker + Holt | 699 | [circuit_breaker.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/circuit_breaker.rs) |
-| Interventions + BanditPolicy | 464 | [interventions.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/interventions.rs) |
-| Pattern detector (CEP) | 326 | [pattern_detector.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/pattern_detector.rs) |
-| Threshold learner | 399 | [threshold_learner.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/threshold_learner.rs) |
-| Yerkes-Dodson | 248 | [yerkes_dodson.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/yerkes_dodson.rs) |
-| Federation | 289 | [federation.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/federation.rs) |
-| Self-healing | 379 | [self_healing.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/self_healing.rs) |
-| Diagnosis engine | 936 | [diagnosis.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/diagnosis.rs) |
-| Health monitor | 641 | [health.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/health.rs) |
-| Stuck detection | 2,004 | [stuck_detection.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/stuck_detection.rs) |
-| State machine | 218 | [state_machine.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/state_machine.rs) |
-| Module root | 89 | [lib.rs](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/lib.rs) |
+| Core conductor + evaluate | 989 | `crates/roko-conductor/src/conductor.rs` |
+| 10 watchers | ~2,220 | `crates/roko-conductor/src/watchers` |
+| Circuit breaker + Holt | 699 | `crates/roko-conductor/src/circuit_breaker.rs` |
+| Interventions + BanditPolicy | 464 | `crates/roko-conductor/src/interventions.rs` |
+| Pattern detector (CEP) | 326 | `crates/roko-conductor/src/pattern_detector.rs` |
+| Threshold learner | 399 | `crates/roko-conductor/src/threshold_learner.rs` |
+| Yerkes-Dodson | 248 | `crates/roko-conductor/src/yerkes_dodson.rs` |
+| Federation | 289 | `crates/roko-conductor/src/federation.rs` |
+| Self-healing | 379 | `crates/roko-conductor/src/self_healing.rs` |
+| Diagnosis engine | 936 | `crates/roko-conductor/src/diagnosis.rs` |
+| Health monitor | 641 | `crates/roko-conductor/src/health.rs` |
+| Stuck detection | 2,004 | `crates/roko-conductor/src/stuck_detection.rs` |
+| State machine | 218 | `crates/roko-conductor/src/state_machine.rs` |
+| Module root | 89 | `crates/roko-conductor/src/lib.rs` |
 | **Total roko-conductor** | **~10,100** | **24 files** |
 
 ### Risk Assessment
 
-- **Risk**: Low — purely additive monitoring layer with no side effects on the agent loop
+- **Risk**: Medium — start as shadow observability with no side effects on the agent loop; any intervention policy needs separate rollout gates
 - **Dependencies**: `roko-core` (for `Engram`, `React`, `ConductorDecision`), `roko-learn` (for `ConductorBandit`, `ProviderHealthTracker`, `AgentEfficiencyEvent`)
 - **Threading**: All concurrent access uses `DashMap` (lock-free) or `parking_lot::Mutex` (fast, non-async)
 - **Persistence**: Threshold learner and circuit breaker state persist to JSON files with atomic writes

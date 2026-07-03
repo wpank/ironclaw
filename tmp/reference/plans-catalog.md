@@ -1,6 +1,7 @@
 # Roko Implementation Plans Catalog
 
-Reference for all 31 implementation plans in Roko's `plans/` directory. Source plans at [https://github.com/wpank/roko/tree/main/plans/](https://github.com/wpank/roko/tree/main/plans/).
+Reference for the captured implementation plans from the `plans/` source namespace.
+Source paths are provenance labels, not links to an accessible checkout.
 
 > **Cross-references**: [architecture-overview.md](architecture-overview.md) — crate map | [v2-depth-research.md](v2-depth-research.md) — depth docs | `../implementation/` — IronClaw-native build plans | `../implementation/09-plan-runner-readiness.md` — IronClaw plan-runner contract
 
@@ -8,7 +9,7 @@ Reference for all 31 implementation plans in Roko's `plans/` directory. Source p
 
 ## What These Plans Are
 
-Machine-executable specifications consumed by Roko's plan runner to dispatch Claude agents that write, test, and verify code changes to Roko's own codebase. Each plan is a directory containing `tasks.toml` with a `[meta]` section and `[[task]]` entries.
+Captured machine-executable specifications consumed by Roko's plan runner to dispatch Claude agents that write, test, and verify code changes to the captured Roko codebase. Each plan is represented as a directory containing `tasks.toml` with a `[meta]` section and `[[task]]` entries.
 
 | Task Field | Description |
 |---|---|
@@ -63,41 +64,41 @@ Sequential execution order: P08 → P09 → P10 → P11 → P12 → P13 → P14 
 
 ## Master Summary Table
 
-| Plan | Title | GitHub | Tasks | Theme | IronClaw |
+| Plan | Title | Source path | Tasks | Theme | IronClaw |
 |---|---|---|---|---|---|
-| P08 | Search Command Fix | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P08-search-command-fix/tasks.toml) | 4 | Bug fixes | Medium |
-| P09 | Tool Alias Fix | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P09-tool-alias-fix/tasks.toml) | 3 | Bug fixes | **High** |
-| P10 | Slash Command Flags | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P10-slash-command-flags/tasks.toml) | 5 | Bug fixes | Medium |
-| P11 | Runner V2 Default | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P11-runner-v2-default/tasks.toml) | 5 | Runner infra | **High** |
-| P12 | Runner Parallelism | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P12-runner-parallelism/tasks.toml) | 5 | Runner infra | **High** |
-| P13 | Rate Limit Retry | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P13-rate-limit-retry/tasks.toml) | 4 | Resilience | **High** |
-| P14 | Gate Rung Fix | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P14-gate-rung-fix/tasks.toml) | 3 | Quality gates | Medium |
-| P15 | Error Recovery Wiring | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P15-error-recovery-wiring/tasks.toml) | 5 | Resilience | **High** |
-| P16 | Safety Contracts | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P16-safety-contracts/tasks.toml) | 5 | Safety | **High** |
-| P17 | CLI Output Format | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P17-cli-output-format/tasks.toml) | 6 | CLI/TUI | Low |
-| P18 | TUI Agent Data | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P18-tui-agent-data/tasks.toml) | 5 | CLI/TUI | Low |
-| P19 | Cascade Router ACP | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P19-cascade-router-acp/tasks.toml) | 6 | ACP/Editor | Medium |
-| P20 | Zero Config | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P20-zero-config/tasks.toml) | 5 | Provider UX | Medium |
-| P21 | ACP Streaming | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P21-acp-streaming/tasks.toml) | 5 | ACP/Editor | Medium |
-| P22 | ACP Tool Permission | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P22-acp-tool-permission/tasks.toml) | 5 | ACP/Editor | **High** |
-| P23 | PRD Pipeline Fix | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P23-prd-pipeline-fix/tasks.toml) | 6 | PRD/Workspace | Medium |
-| P24 | Workspace Paths | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P24-workspace-paths/tasks.toml) | 4 | PRD/Workspace | Low |
-| P25 | MCP-ACP Passthrough | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P25-mcp-acp-passthrough/tasks.toml) | 4 | ACP/Editor | **High** |
-| P26 | HDC Similarity Lookup | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P26-hdc-similarity-lookup/tasks.toml) | 4 | Learning | Medium |
-| P27 | Provider Error UX | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P27-provider-error-ux/tasks.toml) | 4 | Provider UX | Medium |
-| P28 | Image Support | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P28-image-support/tasks.toml) | 5 | Provider UX | Medium |
-| P29 | Develop Command Wire | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P29-develop-command-wire/tasks.toml) | 3 | ACP/Editor | Low |
-| P30 | Onboarding Doctor | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P30-onboarding-doctor/tasks.toml) | 4 | Onboarding | Medium |
-| P31 | Note and Context | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P31-note-and-context/tasks.toml) | 3 | Workflow | Low |
-| P32 | CLI Polish | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P32-cli-polish/tasks.toml) | 2 | CLI polish | Low |
-| P33 | Model UX | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P33-model-ux/tasks.toml) | 1 | Provider UX | Low |
-| P34 | Verification Sweep | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/P34-verification-sweep/tasks.toml) | 4 | Verification | Low |
-| e2e-smoke | E2E Smoke Tests | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/e2e-smoke/tasks.toml) | 2 | Side queue | Low |
-| architecture-defi-critical-path | DeFi Critical Path | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/architecture-defi-critical-path/tasks.toml) | 3 | Architecture | Low |
-| self-dev-ux | Self-Dev UX | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/self-dev-ux/tasks.toml) | 55 | Superseded | — |
-| self-dev-extras | Self-Dev Extras | [tasks.toml](https://github.com/wpank/roko/blob/main/plans/self-dev-extras/tasks.toml) | 11 | Superseded | — |
+| P08 | Search Command Fix | `plans/P08-search-command-fix/tasks.toml` | 4 | Bug fixes | Medium |
+| P09 | Tool Alias Fix | `plans/P09-tool-alias-fix/tasks.toml` | 3 | Bug fixes | **High** |
+| P10 | Slash Command Flags | `plans/P10-slash-command-flags/tasks.toml` | 5 | Bug fixes | Medium |
+| P11 | Runner V2 Default | `plans/P11-runner-v2-default/tasks.toml` | 5 | Runner infra | **High** |
+| P12 | Runner Parallelism | `plans/P12-runner-parallelism/tasks.toml` | 5 | Runner infra | **High** |
+| P13 | Rate Limit Retry | `plans/P13-rate-limit-retry/tasks.toml` | 4 | Resilience | **High** |
+| P14 | Gate Rung Fix | `plans/P14-gate-rung-fix/tasks.toml` | 3 | Quality gates | Medium |
+| P15 | Error Recovery Wiring | `plans/P15-error-recovery-wiring/tasks.toml` | 5 | Resilience | **High** |
+| P16 | Safety Contracts | `plans/P16-safety-contracts/tasks.toml` | 5 | Safety | **High** |
+| P17 | CLI Output Format | `plans/P17-cli-output-format/tasks.toml` | 6 | CLI/TUI | Low |
+| P18 | TUI Agent Data | `plans/P18-tui-agent-data/tasks.toml` | 5 | CLI/TUI | Low |
+| P19 | Cascade Router ACP | `plans/P19-cascade-router-acp/tasks.toml` | 6 | ACP/Editor | Medium |
+| P20 | Zero Config | `plans/P20-zero-config/tasks.toml` | 5 | Provider UX | Medium |
+| P21 | ACP Streaming | `plans/P21-acp-streaming/tasks.toml` | 5 | ACP/Editor | Medium |
+| P22 | ACP Tool Permission | `plans/P22-acp-tool-permission/tasks.toml` | 5 | ACP/Editor | **High** |
+| P23 | PRD Pipeline Fix | `plans/P23-prd-pipeline-fix/tasks.toml` | 6 | PRD/Workspace | Medium |
+| P24 | Workspace Paths | `plans/P24-workspace-paths/tasks.toml` | 4 | PRD/Workspace | Low |
+| P25 | MCP-ACP Passthrough | `plans/P25-mcp-acp-passthrough/tasks.toml` | 4 | ACP/Editor | **High** |
+| P26 | HDC Similarity Lookup | `plans/P26-hdc-similarity-lookup/tasks.toml` | 4 | Learning | Medium |
+| P27 | Provider Error UX | `plans/P27-provider-error-ux/tasks.toml` | 4 | Provider UX | Medium |
+| P28 | Image Support | `plans/P28-image-support/tasks.toml` | 5 | Provider UX | Medium |
+| P29 | Develop Command Wire | `plans/P29-develop-command-wire/tasks.toml` | 3 | ACP/Editor | Low |
+| P30 | Onboarding Doctor | `plans/P30-onboarding-doctor/tasks.toml` | 4 | Onboarding | Medium |
+| P31 | Note and Context | `plans/P31-note-and-context/tasks.toml` | 3 | Workflow | Low |
+| P32 | CLI Polish | `plans/P32-cli-polish/tasks.toml` | 2 | CLI polish | Low |
+| P33 | Model UX | `plans/P33-model-ux/tasks.toml` | 1 | Provider UX | Low |
+| P34 | Verification Sweep | `plans/P34-verification-sweep/tasks.toml` | 4 | Verification | Low |
+| e2e-smoke | E2E Smoke Tests | `plans/e2e-smoke/tasks.toml` | 2 | Side queue | Low |
+| architecture-defi-critical-path | DeFi Critical Path | `plans/architecture-defi-critical-path/tasks.toml` | 3 | Architecture | Low |
+| self-dev-ux | Self-Dev UX | `plans/self-dev-ux/tasks.toml` | 55 | Superseded | — |
+| self-dev-extras | Self-Dev Extras | `plans/self-dev-extras/tasks.toml` | 11 | Superseded | — |
 
-**Totals**: 27 primary plans, 148 primary tasks, 153 tasks across all active plans (148 + 2 e2e + 3 defi).
+**Captured table totals**: 27 primary plans, 148 primary tasks, 153 tasks across the listed active queues (148 + 2 e2e + 3 defi).
 
 ---
 
@@ -109,9 +110,9 @@ Highest-priority: fix concrete bugs that block already-built features.
 
 ---
 
-#### P08 — Search Command Fix — [GitHub](https://github.com/wpank/roko/blob/main/plans/P08-search-command-fix/tasks.toml)
+#### P08 — Search Command Fix — `plans/P08-search-command-fix/tasks.toml`
 
-**Root cause**: 3 bugs in the Perplexity client: (1) wraps queries in `{"queries": [...]}` but the API expects `{"query": "..."}`, (2) dates formatted as ISO 8601 but API expects MM/DD/YYYY, (3) `SearchResult.content` missing `#[serde(alias = "snippet")]`. Every search command fails silently.
+**Root cause**: Captured analysis identifies 3 Perplexity client bugs: (1) wraps queries in `{"queries": [...]}` but the API expects `{"query": "..."}`, (2) dates formatted as ISO 8601 but API expects MM/DD/YYYY, (3) `SearchResult.content` missing `#[serde(alias = "snippet")]`. Search commands fail silently in that captured path.
 
 | ID | Title | Tier | Crate |
 |----|-------|------|-------|
@@ -126,7 +127,7 @@ Anti-patterns: "Do NOT create a batch loop — the entire point is to eliminate 
 
 ---
 
-#### P09 — Tool Alias Fix — [GitHub](https://github.com/wpank/roko/blob/main/plans/P09-tool-alias-fix/tasks.toml)
+#### P09 — Tool Alias Fix — `plans/P09-tool-alias-fix/tasks.toml`
 
 **Root cause**: `parse_allowed_tools_csv()` stores tool names as-is. Claude CLI uses PascalCase (`Read`, `Write`, `Bash`); tool registry uses snake_case (`read_file`, `write_file`, `bash`). All non-Claude provider tool lookups fail.
 
@@ -144,7 +145,7 @@ Anti-patterns: "Do NOT add new mappings in parse_allowed_tools_csv — use the e
 
 ---
 
-#### P10 — Slash Command Flags — [GitHub](https://github.com/wpank/roko/blob/main/plans/P10-slash-command-flags/tasks.toml)
+#### P10 — Slash Command Flags — `plans/P10-slash-command-flags/tasks.toml`
 
 **Root cause**: 3 ACP slash command bugs: `/plan-resume` passes `--resume` but CLI expects `--resume-plan`; `/plan-run` omits `--model`; `/develop` is not registered as ACP slash command.
 
@@ -156,7 +157,7 @@ Anti-patterns: "Do NOT add new mappings in parse_allowed_tools_csv — use the e
 | T4 | Add /develop dispatch handler | mechanical | roko-acp |
 | T5 | Add flag correctness tests | mechanical | roko-acp |
 
-**IronClaw: Medium.** IronClaw's `src/channels/web/server.rs` command routing builds argument vectors similarly. The flag-correctness test pattern (assert exact CLI args vector per command) is portable.
+**IronClaw: Medium.** IronClaw's current web gateway and command-routing paths build argument vectors similarly. The flag-correctness test pattern (assert exact CLI args vector per command) is portable.
 
 ---
 
@@ -164,9 +165,9 @@ Anti-patterns: "Do NOT add new mappings in parse_allowed_tools_csv — use the e
 
 ---
 
-#### P11 — Runner V2 Default — [GitHub](https://github.com/wpank/roko/blob/main/plans/P11-runner-v2-default/tasks.toml)
+#### P11 — Runner V2 Default — `plans/P11-runner-v2-default/tasks.toml`
 
-**Status**: Partially implemented — T1 and T2 completed outside queue (commit `9423998a7`); T3–T5 remain.
+**Captured status**: T1 and T2 were recorded as completed outside the queue (commit `9423998a7`); T3–T5 were listed as remaining in the captured plan notes.
 
 **Root cause**: RunnerV2 (the working engine) was gated behind `--features legacy-runner-v2`. Without it, every `roko plan run` does nothing.
 
@@ -186,7 +187,7 @@ Anti-patterns: "Do NOT remove legacy-runner-v2 feature entirely yet." "Do NOT ad
 
 ---
 
-#### P12 — Runner Parallelism — [GitHub](https://github.com/wpank/roko/blob/main/plans/P12-runner-parallelism/tasks.toml)
+#### P12 — Runner Parallelism — `plans/P12-runner-parallelism/tasks.toml`
 
 **Root cause**: `active_agent_tasks` and `agent_handles` are both `HashMap<String, T>` keyed by `plan_id`, so only one task per plan is tracked at a time even when `max_parallel = 5`.
 
@@ -210,9 +211,9 @@ Anti-patterns: "Do NOT use a single counter for active tasks — use the HashSet
 
 ---
 
-#### P13 — Rate Limit Retry — [GitHub](https://github.com/wpank/roko/blob/main/plans/P13-rate-limit-retry/tasks.toml)
+#### P13 — Rate Limit Retry — `plans/P13-rate-limit-retry/tasks.toml`
 
-**Root cause**: All HTTP send paths in `OpenAiCompatLlmBackend` map any non-2xx response to `LlmError::Network`, discarding the status code. The retry loop only retries `LlmError::Provider`. HTTP 429 and 5xx are never retried.
+**Root cause**: Captured `OpenAiCompatLlmBackend` send paths map non-2xx responses to a generic network error, discarding the status code. The retry loop only retries provider-class errors, so HTTP 429 and 5xx are not retried in that path.
 
 | ID | Title | Tier | Crate |
 |----|-------|------|-------|
@@ -221,15 +222,15 @@ Anti-patterns: "Do NOT use a single counter for active tasks — use the HashSet
 | T3 | Classify HTTP errors in send_turn_streaming | mechanical | roko-agent |
 | T4 | Add unit tests for classify_http_error | focused | roko-agent |
 
-`classify_http_error(status, body)` returns: 429 → `LlmError::Provider(ProviderError::RateLimit { retry_after_ms })`; 500–599 → `LlmError::Provider(ProviderError::ServerError(status))`; else → `LlmError::Network(...)`. `retry_after_ms` extracted from JSON field `retry_after` when present.
+`classify_http_error(status, body)` returns: 429 → rate-limit provider error with optional `retry_after_ms`; 500–599 → server provider error with status; else → generic network/error class. `retry_after_ms` is extracted from JSON field `retry_after` when present.
 
 Anti-patterns: "Do NOT create separate classify functions per send path — one helper." "Do NOT extract retry_after if status is not 429."
 
-**IronClaw: High.** `crates/ironclaw_llm/` has the same need. All provider HTTP send paths (OpenAI, Anthropic, NEAR AI, Bedrock) likely have the same status-code-discarding pattern. `classify_http_error` is directly portable.
+**IronClaw: High.** `crates/ironclaw_llm/` should be audited for the same status-code classification issue across provider send paths. The `classify_http_error` helper shape is directly portable.
 
 ---
 
-#### P14 — Gate Rung Fix — [GitHub](https://github.com/wpank/roko/blob/main/plans/P14-gate-rung-fix/tasks.toml)
+#### P14 — Gate Rung Fix — `plans/P14-gate-rung-fix/tasks.toml`
 
 **Root cause**: `selected_gate_steps()` increments `skipped_count` in *both* branches of the `enable_advanced_rungs` conditional — the `true` branch skips the rung it should activate.
 
@@ -248,7 +249,7 @@ Anti-patterns: "Do NOT create separate classify functions per send path — one 
 
 ---
 
-#### P15 — Error Recovery Wiring — [GitHub](https://github.com/wpank/roko/blob/main/plans/P15-error-recovery-wiring/tasks.toml)
+#### P15 — Error Recovery Wiring — `plans/P15-error-recovery-wiring/tasks.toml`
 
 **Root cause**: `classify_agent_crash()` and `recovery_hint()` exist but are never called from any failure handler. `RokoConfig::from_toml().unwrap_or_default()` silently discards parse errors.
 
@@ -272,9 +273,9 @@ Anti-patterns: "Do NOT create new crash classification logic — call classify_a
 
 ---
 
-#### P16 — Safety Contracts — [GitHub](https://github.com/wpank/roko/blob/main/plans/P16-safety-contracts/tasks.toml)
+#### P16 — Safety Contracts — `plans/P16-safety-contracts/tasks.toml`
 
-**Root cause**: `AgentContract` safety enforcement exists but the dispatch path never loads or consults contracts. All contract-defined forbidden tool lists are silently ignored.
+**Root cause**: `AgentContract` safety enforcement exists, but the captured dispatch path never loads or consults contracts. Contract-defined forbidden tool lists are ignored in that path.
 
 | ID | Title | Tier | Crate |
 |----|-------|------|-------|
@@ -298,7 +299,7 @@ Roko-specific UI polish; architectural patterns worth noting.
 
 ---
 
-#### P17 — CLI Output Format — [GitHub](https://github.com/wpank/roko/blob/main/plans/P17-cli-output-format/tasks.toml)
+#### P17 — CLI Output Format — `plans/P17-cli-output-format/tasks.toml`
 
 Creates a `CliOutput` wrapper struct that routes all progress/error messages through `output_format` functions with `quiet` suppression. Quiet flag is a single control point — not per-call-site guards. 6 tasks migrating ~25 `eprintln!` call sites.
 
@@ -306,7 +307,7 @@ Creates a `CliOutput` wrapper struct that routes all progress/error messages thr
 
 ---
 
-#### P18 — TUI Agent Data — [GitHub](https://github.com/wpank/roko/blob/main/plans/P18-tui-agent-data/tasks.toml)
+#### P18 — TUI Agent Data — `plans/P18-tui-agent-data/tasks.toml`
 
 Fixes 4 bugs preventing dashboard from showing live agent data: agent_id prefix match uses `:` but runner uses `/`; efficiency events not published; `MessageDelta` not forwarded; gate failure diagnoses not published. The `DashboardEvent` enum is the clean separation point between runner and TUI.
 
@@ -320,7 +321,7 @@ ACP (Agent Client Protocol) is Roko's equivalent of IronClaw's web gateway chann
 
 ---
 
-#### P19 — Cascade Router ACP — [GitHub](https://github.com/wpank/roko/blob/main/plans/P19-cascade-router-acp/tasks.toml)
+#### P19 — Cascade Router ACP — `plans/P19-cascade-router-acp/tasks.toml`
 
 **Root cause**: `route_with_cfactor()` is never called in the ACP dispatch path. Model selection falls back to a hardcoded default instead of the router's recommendation even when the cascade router is loaded and initialized.
 
@@ -330,7 +331,7 @@ ACP (Agent Client Protocol) is Roko's equivalent of IronClaw's web gateway chann
 
 ---
 
-#### P20 — Zero Config — [GitHub](https://github.com/wpank/roko/blob/main/plans/P20-zero-config/tasks.toml)
+#### P20 — Zero Config — `plans/P20-zero-config/tasks.toml`
 
 **Root cause**: `preflight_provider_for_model()` only checks TOML entries. If `roko.toml` is absent, all model lookups fail even when API keys are in env vars.
 
@@ -340,7 +341,7 @@ ACP (Agent Client Protocol) is Roko's equivalent of IronClaw's web gateway chann
 
 ---
 
-#### P21 — ACP Streaming — [GitHub](https://github.com/wpank/roko/blob/main/plans/P21-acp-streaming/tasks.toml)
+#### P21 — ACP Streaming — `plans/P21-acp-streaming/tasks.toml`
 
 **Root cause**: `run_slash_command()` accumulates all subprocess stdout into a buffer, emitting a single `TokenChunk` at exit. Users see no output until the command finishes.
 
@@ -350,7 +351,7 @@ ACP (Agent Client Protocol) is Roko's equivalent of IronClaw's web gateway chann
 
 ---
 
-#### P22 — ACP Tool Permission — [GitHub](https://github.com/wpank/roko/blob/main/plans/P22-acp-tool-permission/tasks.toml)
+#### P22 — ACP Tool Permission — `plans/P22-acp-tool-permission/tasks.toml`
 
 **Root cause**: 3 ACP code paths use `ToolContext::testing()` in production, which sets `network: false` and bypasses all safety checks.
 
@@ -358,11 +359,11 @@ ACP (Agent Client Protocol) is Roko's equivalent of IronClaw's web gateway chann
 
 Anti-pattern: "Do NOT create a `ToolContext::for_acp()` convenience constructor — each call site has different capability requirements."
 
-**IronClaw: High.** IronClaw's `src/tools/dispatch.rs` warrants the same audit. If any path uses a test `ToolContext` in production, network tools will silently fail and safety checks will be bypassed. Worth auditing web gateway and WASM channel dispatch paths. Explicit capability construction (no convenience constructors for production) should be enforced via code review.
+**IronClaw: High.** IronClaw's `src/tools/dispatch.rs` warrants the same audit. If any production path uses a test `ToolContext`, network behavior and safety checks can diverge from intent. Audit web gateway and WASM channel dispatch paths. Explicit capability construction should be enforced via code review.
 
 ---
 
-#### P25 — MCP-ACP Passthrough — [GitHub](https://github.com/wpank/roko/blob/main/plans/P25-mcp-acp-passthrough/tasks.toml)
+#### P25 — MCP-ACP Passthrough — `plans/P25-mcp-acp-passthrough/tasks.toml`
 
 **Root cause**: `roko_core::AgentConfig` lacks `mcp_config`. MCP servers configured in `roko.toml` are never passed to agents launched via ACP.
 
@@ -372,7 +373,7 @@ Anti-pattern: "Do NOT create a `ToolContext::for_acp()` convenience constructor 
 
 ---
 
-#### P29 — Develop Command Wire — [GitHub](https://github.com/wpank/roko/blob/main/plans/P29-develop-command-wire/tasks.toml)
+#### P29 — Develop Command Wire — `plans/P29-develop-command-wire/tasks.toml`
 
 Registers `/develop` as an ACP slash command. **Overlap**: P10-T3/T4 covers the same registration; if P10 runs first (it does), P29 becomes a verification step.
 
@@ -384,7 +385,7 @@ Registers `/develop` as an ACP slash command. **Overlap**: P10-T3/T4 covers the 
 
 ---
 
-#### P23 — PRD Pipeline Fix — [GitHub](https://github.com/wpank/roko/blob/main/plans/P23-prd-pipeline-fix/tasks.toml)
+#### P23 — PRD Pipeline Fix — `plans/P23-prd-pipeline-fix/tasks.toml`
 
 **Root cause**: PRD draft agent has `allowed_tools: Some("none")`. PRDs are generated without reading the codebase.
 
@@ -396,7 +397,7 @@ Key pattern: **stage-gated tool access** — different pipeline stages get diffe
 
 ---
 
-#### P24 — Workspace Paths — [GitHub](https://github.com/wpank/roko/blob/main/plans/P24-workspace-paths/tasks.toml)
+#### P24 — Workspace Paths — `plans/P24-workspace-paths/tasks.toml`
 
 **Root cause**: `plan.rs` prefers `./plans/`; `main.rs` prefers `.roko/plans/`. Plan runner fails to locate plans when invoked from `main.rs`.
 
@@ -410,7 +411,7 @@ Key pattern: **stage-gated tool access** — different pipeline stages get diffe
 
 ---
 
-#### P26 — HDC Similarity Lookup — [GitHub](https://github.com/wpank/roko/blob/main/plans/P26-hdc-similarity-lookup/tasks.toml)
+#### P26 — HDC Similarity Lookup — `plans/P26-hdc-similarity-lookup/tasks.toml`
 
 **Root cause**: `EpisodeLogger` stores HDC fingerprints for each agent session but `query_similar_episodes()` was never implemented. Stored fingerprints cannot be queried.
 
@@ -431,7 +432,7 @@ T1: `query_similar_episodes(query_fp: &HdcFingerprint, limit: usize) -> Vec<(Epi
 
 ---
 
-#### P27 — Provider Error UX — [GitHub](https://github.com/wpank/roko/blob/main/plans/P27-provider-error-ux/tasks.toml)
+#### P27 — Provider Error UX — `plans/P27-provider-error-ux/tasks.toml`
 
 **Root cause**: `roko doctor` always runs `check_anthropic_api_key()` even when the user only configured OpenAI or Gemini.
 
@@ -441,7 +442,7 @@ T1: `query_similar_episodes(query_fp: &HdcFingerprint, limit: usize) -> Vec<(Epi
 
 ---
 
-#### P28 — Image Support — [GitHub](https://github.com/wpank/roko/blob/main/plans/P28-image-support/tasks.toml)
+#### P28 — Image Support — `plans/P28-image-support/tasks.toml`
 
 **Root cause**: ACP session `image` capability is hardcoded to `false`. The `supports_vision` flag exists in the model registry but is never consulted.
 
@@ -451,7 +452,7 @@ T1: `query_similar_episodes(query_fp: &HdcFingerprint, limit: usize) -> Vec<(Epi
 
 ---
 
-#### P33 — Model UX — [GitHub](https://github.com/wpank/roko/blob/main/plans/P33-model-ux/tasks.toml)
+#### P33 — Model UX — `plans/P33-model-ux/tasks.toml`
 
 1 task: `max_tokens` auto-recovery — detect context overflow errors and retry with reduced `max_tokens`. Already implemented: Jaro-Winkler fuzzy model name suggestions, setup wizard, `/models` ACP command.
 
@@ -463,9 +464,9 @@ T1: `query_similar_episodes(query_fp: &HdcFingerprint, limit: usize) -> Vec<(Epi
 
 ---
 
-#### P30 — Onboarding Doctor — [GitHub](https://github.com/wpank/roko/blob/main/plans/P30-onboarding-doctor/tasks.toml)
+#### P30 — Onboarding Doctor — `plans/P30-onboarding-doctor/tasks.toml`
 
-Adds OpenAI and Gemini API key checks to `roko doctor` (currently only Anthropic). Uses `Warn` severity (not `Fail`) since no single provider is mandatory. 4 tasks, max_parallel=2.
+Adds OpenAI and Gemini API key checks to `roko doctor` in the captured state where only Anthropic was checked. Uses `Warn` severity (not `Fail`) since no single provider is mandatory. 4 tasks, max_parallel=2.
 
 **IronClaw: Medium.** IronClaw's `src/cli/doctor.rs` should validate keys for every configured provider. Severity ladder: Info / Warn / Fail, with Warn for optional providers.
 
@@ -473,9 +474,9 @@ Adds OpenAI and Gemini API key checks to `roko doctor` (currently only Anthropic
 
 ### Theme 11: Note Workflow and CLI Polish (P31–P32)
 
-**P31 — Note and Context** — [GitHub](https://github.com/wpank/roko/blob/main/plans/P31-note-and-context/tasks.toml): Adds `roko plan new --prompt "..."` and plan generation from accumulated `roko note` entries. 3 tasks. **IronClaw: Low.**
+**P31 — Note and Context** — `plans/P31-note-and-context/tasks.toml`: Adds `roko plan new --prompt "..."` and plan generation from accumulated `roko note` entries. 3 tasks. **IronClaw: Low.**
 
-**P32 — CLI Polish** — [GitHub](https://github.com/wpank/roko/blob/main/plans/P32-cli-polish/tasks.toml): Verbose flag guard for debug config output; symbol consistency in `ContentBlock` enum. 2 independent tasks. **IronClaw: Low.**
+**P32 — CLI Polish** — `plans/P32-cli-polish/tasks.toml`: Verbose flag guard for debug config output; symbol consistency in `ContentBlock` enum. 2 independent tasks. **IronClaw: Low.**
 
 ---
 
@@ -483,7 +484,7 @@ Adds OpenAI and Gemini API key checks to `roko doctor` (currently only Anthropic
 
 ---
 
-#### P34 — Verification Sweep — [GitHub](https://github.com/wpank/roko/blob/main/plans/P34-verification-sweep/tasks.toml)
+#### P34 — Verification Sweep — `plans/P34-verification-sweep/tasks.toml`
 
 Final verification pass after P08–P33: T1 `cargo check`, T2 `cargo clippy` (zero warnings), T3 `cargo test`, T4 `cargo build --release`. Each task has a custom `fail_msg` explaining the regression type.
 
@@ -495,7 +496,7 @@ Final verification pass after P08–P33: T1 `cargo check`, T2 `cargo clippy` (ze
 
 ---
 
-#### e2e-smoke — E2E Smoke Tests — [GitHub](https://github.com/wpank/roko/blob/main/plans/e2e-smoke/tasks.toml)
+#### e2e-smoke — E2E Smoke Tests — `plans/e2e-smoke/tasks.toml`
 
 2 trivial tasks designed to validate the plan runner itself (not the implementation). Uses `skip_enrichment = true` (the only plan in the corpus to do so). S01: add `#[must_use]` to `generate_share_token()`. S02: add unit test for it.
 
@@ -503,7 +504,7 @@ Final verification pass after P08–P33: T1 `cargo check`, T2 `cargo clippy` (ze
 
 ---
 
-#### architecture-defi-critical-path — DeFi Critical Path — [GitHub](https://github.com/wpank/roko/blob/main/plans/architecture-defi-critical-path/tasks.toml)
+#### architecture-defi-critical-path — DeFi Critical Path — `plans/architecture-defi-critical-path/tasks.toml`
 
 3 tasks building chain-side primitives (chain registry client, registry query routes, integration verification). Requires `architecture-core-queue Q14` (not in captured plan set).
 
@@ -515,9 +516,9 @@ Notable: uses `acceptance_contract` blocks with `parity_ledger` linking formal r
 
 ### Superseded Plans
 
-**self-dev-ux** (55 tasks) — [GitHub](https://github.com/wpank/roko/blob/main/plans/self-dev-ux/tasks.toml): Original monolithic self-development UX plan. Originally `max_parallel = 20`; revised downward in P08–P34 after the feedback audit found high parallelism caused dependency conflicts and harder-to-diagnose failures. Tasks completed before supersession: H07–H09, L05, L09–L10, M01, M10–M11, V01.
+**self-dev-ux** (55 tasks) — `plans/self-dev-ux/tasks.toml`: Original monolithic self-development UX plan. Originally `max_parallel = 20`; revised downward in P08–P34 after the feedback audit found high parallelism caused dependency conflicts and harder-to-diagnose failures. Tasks completed before supersession: H07–H09, L05, L09–L10, M01, M10–M11, V01.
 
-**self-dev-extras** (11 tasks) — [GitHub](https://github.com/wpank/roko/blob/main/plans/self-dev-extras/tasks.toml): Additional tasks consolidated into P08–P34.
+**self-dev-extras** (11 tasks) — `plans/self-dev-extras/tasks.toml`: Additional tasks consolidated into P08–P34.
 
 ---
 
@@ -527,7 +528,7 @@ Notable: uses `acceptance_contract` blocks with `parity_ledger` linking formal r
 
 | Pattern | Plans | IronClaw Target |
 |---------|-------|----------------|
-| HTTP error classification by status code | P13 | `crates/ironclaw_llm/` all providers |
+| HTTP error classification by status code | P13 | `crates/ironclaw_llm/` provider send paths |
 | Tool name alias canonicalization | P09 | `src/tools/registry.rs` |
 | Per-role forbidden tool enforcement | P16 | `src/skills/mod.rs` attenuate_tools |
 | MCP config passthrough to all dispatch paths | P25 | `src/tools/mcp/` |

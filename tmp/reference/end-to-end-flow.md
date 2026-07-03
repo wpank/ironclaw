@@ -33,8 +33,8 @@ encounter. Each row links to the canonical concept document.
 |-----------|--------------|-----------------|
 | **Cognitive Speed Classifier** | Classifies every incoming tick as Gamma (reactive, 5-15s), Theta (reflective, 75s-3min), or Delta (consolidation, hours) — determines inference tier T0/T1/T2 | [Cognitive Architecture](../core-concepts/cognitive-architecture.md) |
 | **Affect Engine (Daimon)** | Maintains a PAD (Pleasure-Arousal-Dominance) vector + ALMA temporal layers; appraises emotional significance of events; modulates dispatch strategy | [Affect Engine](../agent-intelligence/affect-engine.md) |
-| **VCG Auction / Budget Composer** | Allocates token budget across competing context sources (identity, memory, tools, history, skills, pheromones) using Vickrey-Clarke-Groves mechanism | [Budget Composition](../context-memory/budget-composition.md) |
-| **Cascade Router (LinUCB)** | Contextual bandit that selects LLM provider and model tier using an 18-dimensional feature vector; updates online after each reward signal | [Online Learning](../agent-intelligence/online-learning.md) |
+| **Budget Composer** | Allocates token budget across competing context sources (identity, memory, tools, history, skills, code) using density scoring plus VCG-inspired displacement diagnostics | [Budget Composition](../context-memory/budget-composition.md) |
+| **Cascade Router (LinUCB)** | Contextual bandit that selects LLM provider and model tier using a 14-dimensional IronClaw context vector; updates online after each reward signal | [Online Learning](../agent-intelligence/online-learning.md) |
 | **DAG Engine** | Executes tool calls and multi-step plans as a directed acyclic graph; handles parallelism, conditional edges, budget tracking | [DAG Execution](../execution-verification/dag-execution.md) |
 | **Gate Pipeline** | 7-rung progressive verification: Parse → Compile → Lint → Unit → Property → Integration → LLM-Judge; each rung catches a different error class | [Gate Verification](../execution-verification/gate-verification.md) |
 | **Conductor** | 10-watcher ensemble using Holt exponential smoothing and Thompson Sampling; fires circuit breakers and intervention policies on anomalies | [Conductor Anomaly](../execution-verification/conductor-anomaly.md) |
@@ -170,7 +170,7 @@ recalled memories are:
 
 ### Step 4 — Cascade Router Selects LLM Provider
 
-**What happens**: The Cascade Router receives an 18-dimensional context vector:
+**What happens**: The Cascade Router receives a 14-dimensional IronClaw context vector:
 
 ```
 [task_complexity: 0.82, code_file_count: 3, test_generation: 1.0,
@@ -539,7 +539,7 @@ User message
     ↓
 [3] Affect appraisal → PAD delta → DispatchStrategy
     ↓
-[4] VCG auction → ComposedPrompt (10,000 tokens)
+[4] Budget allocation → ComposedPrompt (10,000 tokens)
     ↓
 [5] Cascade Router → Provider::AnthropicSonnet
     ↓
@@ -674,7 +674,7 @@ graph TB
 
     subgraph ROUTING ["Model Routing"]
         direction TB
-        CASCADE["Cascade Router (LinUCB)\n18D context vector\nOnline learning\nagent-intelligence/online-learning.md"]
+        CASCADE["Cascade Router (LinUCB)\n14D context vector\nOnline learning\nagent-intelligence/online-learning.md"]
         PROVIDERS["LLM Providers\ncrates/ironclaw_llm/\nAnthropicSonnet / Haiku / NEAR AI\nOllama / Bedrock / OpenAI"]
         CASCADE --> PROVIDERS
     end
@@ -757,9 +757,9 @@ in IronClaw today.
 | 2 | Submission parser | `IncomingMessage` | `SubmissionKind` (current) | `NaturalLanguage(String)` \| `Command(...)` |
 | 3 | Cognitive Speed | `SubmissionKind` | `CognitiveTick { speed: Speed, tier: InferenceTier }` (future) | `speed: Gamma\|Theta\|Delta`, `tier: T0\|T1\|T2` |
 | 4 | Affect appraisal | `AffectEvent` | `DaimonState` (future) | `pad: PadVector { p, a, d }`, `dispatch: DispatchStrategy` |
-| 5 | VCG auction | `BudgetConfig`, `BidderSet` | `ComposedPrompt` (future) | `sections: Vec<PromptSection>`, `total_tokens: usize` |
+| 5 | Budget allocation | `BudgetConfig`, `BidderSet` | `ComposedPrompt` (future) | `sections: Vec<PromptSection>`, `total_tokens: usize` |
 | 6 | HDC search | `HdcVector` (query) | `Vec<(Engram, f64)>` (future) | sorted by Hamming similarity |
-| 7 | Cascade Router | `ContextVector([f64;18])` | `RoutingDecision` (future) | `provider`, `model`, `episode_id: Uuid` |
+| 7 | Cascade Router | `ContextVector([f64;14])` | `RoutingDecision` (future) | `provider`, `model`, `episode_id: Uuid` |
 | 8 | LLM call | `ComposedPrompt`, `RoutingDecision` | `LlmResponse` (current) | `content`, `tool_calls: Vec<ToolCall>`, `usage: TokenUsage` |
 | 9 | Conductor tick | `ConductorSignal` stream | `ConductorDecision` (future) | `Continue \| Intervene { policy: Policy }` |
 | 10 | DAG execution | `PlanDefinition` | `PlanOutcome` (future) | `success: bool`, `artifacts: Vec<Artifact>` |
@@ -905,7 +905,7 @@ As agents complete tasks, they deposit pheromones:
 
 Agent-Endpoints (Wave 2) reads these pheromones during its T0 probe
 (`pheromone_detected: true`), escalates to T1, and includes both pheromone
-payloads in its VCG auction bid — it now knows the schema and types without
+payloads in its budget-allocation bid — it now knows the schema and types without
 reading any files. This reduces its context budget consumption by ~30%.
 
 Agent-Tests (Wave 3) reads Agent-Endpoints's pheromone
@@ -1338,7 +1338,7 @@ understanding the full system:
 1. [Cognitive Architecture](../core-concepts/cognitive-architecture.md) — Three speeds, five layers, pheromones, VSM
 2. [Universal Engram](../core-concepts/universal-engram.md) — The universal data type
 3. [Online Learning](../agent-intelligence/online-learning.md) — Cascade Router, LinUCB, reward signals
-4. [Budget Composition](../context-memory/budget-composition.md) — VCG auction, attention curves
+4. [Budget Composition](../context-memory/budget-composition.md) — density allocation, VCG-style diagnostics, attention placement
 5. [DAG Execution](../execution-verification/dag-execution.md) — Workflow engine
 6. [Gate Verification](../execution-verification/gate-verification.md) — 7-rung pipeline
 7. [Conductor Anomaly](../execution-verification/conductor-anomaly.md) — 10-watcher ensemble

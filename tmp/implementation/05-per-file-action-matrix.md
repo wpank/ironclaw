@@ -6,10 +6,10 @@ companion to the 28 numbered documents: read the deep dive for theory and source
 context, then use this file to decide what code to write, what caller path to
 test, and what metric must move before the feature is considered useful.
 
-All Roko paths named in the numbered documents are captured source identifiers.
-They are provenance labels, not required external files. The implementation
-targets below should be built inside IronClaw-owned modules, crates, database
-traits, runtime paths, or extension APIs.
+Any external source-path labels in older analysis notes are provenance only.
+They are not required files, live links, or implementation inputs. The targets
+below should be built inside IronClaw-owned modules, crates, database traits,
+runtime paths, or extension APIs.
 
 ## Acceptance Pattern
 
@@ -36,7 +36,7 @@ feature_result =
 | Doc | IronClaw target | First shippable artifact | Caller-level test | Quantification gate |
 |---|---|---|---|---|
 | [01 - HDC](../core-concepts/hyperdimensional-computing/README.md) | `src/workspace/` hybrid retrieval and dedup scoring | `HdcFingerprint` plus `HdcIndex` facade behind memory search config | Drive `memory_search` and `memory_write` through the workspace tool boundary with repeated and near-duplicate inputs | p95 HDC candidate generation < 10 ms for 100k fingerprints; duplicate write rate down 20% without relevance loss > 2 pp |
-| [02 - Dreams](../agent-intelligence/dream-consolidation.md) | heartbeat/background runtime plus workspace memory promotion | idle-time consolidation job that samples recent turns, proposes summaries, and writes staged memories | Run heartbeat cycle against a fixture workspace and verify promoted memories are searchable and attributed | useful-memory hit rate +10%; background token spend within daily budget; no secret or private channel leakage |
+| [02 - Dreams](../agent-intelligence/dream-consolidation.md) | heartbeat/background runtime plus workspace memory promotion | idle-time consolidation job that samples recent turns, proposes summaries, and writes staged memories | Run heartbeat cycle against a fixture workspace and verify promoted memories are searchable and attributed | useful-memory hit rate +10pp; background token spend within daily budget; no secret or private channel leakage |
 | [03 - Affect](../agent-intelligence/affect-engine.md) | agent policy hints and response-style modulation | `AgentAffectState` with PAD updates from task outcomes, exposed only as low-weight routing metadata | Submit tasks through the agent loop and verify PAD affects policy metadata without changing approval rules | user correction rate non-increasing; no safety bypasses; p95 update cost < 1 ms |
 | [04 - DAG](../execution-verification/dag-execution.md) | product workflow and Reborn runner path | minimal DAG executor for deterministic, typed workflow steps and dependency ordering | Drive a representative product workflow through plan parsing -> runner -> executor, not just graph helper tests | parallel wall-clock improvement >= 15% on independent steps; identical final state versus serial baseline |
 | [05 - Gates](../execution-verification/gate-verification.md) | tool execution, code-edit verification, CI-style checks | progressive gate runner for compile, lint, test, and smoke checks with rung selection | Trigger a code-edit workflow and assert the real caller blocks submission on failing gates | escaped defect rate down; p95 gate overhead bounded by complexity tier; false block rate < 5% |
@@ -117,9 +117,8 @@ Use these definitions when a matrix row says "down", "unchanged", or "bounded".
 | `p95 latency no worse than +10%` | `candidate_p95 <= baseline_p95 * 1.10` |
 | `escaped defect rate down` | defects reaching user review or CI after feature / total generated-code fixtures decreases by at least the stated threshold |
 | `false block rate < 5%` | valid changes blocked / total valid-change fixtures is below 0.05 |
-| `useful-memory hit rate +10%` | later tasks where retrieved memory is judged useful increases by at least 10 percentage points |
+| `useful-memory hit rate +10pp` | later tasks where retrieved memory is judged useful increases by at least 10 percentage points |
 | `duplicate storage down 30%` | canonical memory records per repeated-fact fixture decreases by at least 30% without false merges above 2% |
 | `bounded background spend` | background cost stays below configured daily microusd cap in every fixture and canary day |
 | `event loss zero` | reconnect fixture observes every event id exactly once after dedupe |
 | `backend parity` | the shared DB contract suite passes against PostgreSQL and libSQL with the same expected records |
-

@@ -1,7 +1,7 @@
 # Phase 3 & 4 Implementation Checklists
 
 > **Scope**: Actionable implementation checklists for Phase 3 (Architecture
-> Evolution) and Phase 4 (Advanced Features) of the IronClaw × Roko
+> Evolution) and Phase 4 (Advanced Features) of the IronClaw concept
 > integration roadmap. Each item includes file targets, phase dependencies,
 > success criteria, and risk notes.
 >
@@ -120,7 +120,6 @@ graph TD
 ### 3.1 DAG Execution Engine
 
 **Concept doc**: [../execution-verification/dag-execution.md](../execution-verification/dag-execution.md)
-**Roko source**: `crates/roko-graph/src/executor.rs`
 **New crate**: `crates/ironclaw_graph/`
 **Hard deps**: None (soft: Phase 2.3 `ironclaw_gate/` for a `GateCell` type)
 **Estimated effort**: 12-18 developer-days
@@ -235,18 +234,17 @@ and LLM calls from 4 to 2.
 ### 3.2 Conductor Anomaly Detection
 
 **Concept doc**: [../execution-verification/conductor-anomaly.md](../execution-verification/conductor-anomaly.md)
-**Roko source**: `crates/roko-conductor/src/conductor.rs`
 **Target files**: `crates/ironclaw_llm/src/conductor.rs` (new),
 `crates/ironclaw_llm/src/holt.rs` (new), `crates/ironclaw_llm/src/circuit_breaker.rs` (extend)
 **Hard deps**: Phase 2.1 (CascadeRouter must be live to provide signal stream)
 **Estimated effort**: 10-14 developer-days
-**Feature flag**: `experimental.provider_conductor` with modes `off` / `observe` / `active` (default: `observe`)
+**Feature flag**: `experimental.provider_conductor` (default `off`) with modes
+`observe` and `active` after explicit enablement
 
-**What this delivers**: Predictive circuit breaking using Holt double
-exponential smoothing to detect provider degradation 1+ request before the
-reactive breaker trips. A degrading provider (latency rising 800 ms → 1200 ms
-→ 1800 ms) is caught after 2 observations rather than 5 failures, eliminating
-3 wasted API calls at $0.50 each.
+**What this delivers**: Predictive circuit-breaking signals using Holt double
+exponential smoothing. The fixture goal is to warn at least one request before
+the reactive breaker would trip on a latency/error ramp, then hold in observe
+mode until false positives are measured.
 
 #### Implementation Checklist
 
@@ -271,7 +269,7 @@ reactive breaker trips. A degrading provider (latency rising 800 ms → 1200 ms
       at 90% spent. Connects to Phase 1.2 cost-runaway projection.
 
 - [ ] **Implement `ContextWindowPressureWatcher`**: tracks token usage from
-      `CompletionResponse.usage`. Emits `Warning` at 70% of context limit,
+      the current provider response usage metadata. Emits `Warning` at 70% of context limit,
       `Critical` at 85%.
 
 - [ ] **Implement `CompoundPatternDetector`** (CEP-inspired): if `>=2` of
@@ -294,7 +292,7 @@ reactive breaker trips. A degrading provider (latency rising 800 ms → 1200 ms
       latency and error status into `SignalStream`. The stream is
       `Arc<Mutex<SignalStream>>` held by `CascadeRouter`.
 
-- [ ] **Implement `observe` mode** (default): `SignalStream` collects data and
+- [ ] **Implement `observe` mode**: `SignalStream` collects data and
       logs `debug!` events for all watcher outputs but does not change
       provider routing. Log format: `conductor: watcher={name}
       severity={severity} provider={name}`.
@@ -321,19 +319,19 @@ reactive breaker trips. A degrading provider (latency rising 800 ms → 1200 ms
   trip (test with mock provider increasing latency linearly).
 - False positive rate: in 100 stable-provider observations, zero spurious
   `Warning` outputs.
-- `observe` mode default: no routing changes, only `debug!` log output.
+- `observe` mode: no routing changes, only `debug!` log output.
 - `active` mode: rerouting confirmed in integration test.
 
 #### Risk Notes
 
 - The Holt smoothing parameters (`alpha=0.3`, `beta=0.1`) are heuristic
-  starting points from the Roko source. They will likely need empirical
-  tuning once real provider data is available. Add an env var
+  starting points from the captured concept notes. They need empirical tuning
+  once real provider data is available. Add an env var
   `CONDUCTOR_HOLT_ALPHA` / `CONDUCTOR_HOLT_BETA` from day one.
 - Start in `observe` mode; do not enable `active` mode until the false
   positive rate is measured at < 5% in a production shadow run.
-- The 10-watcher ensemble from Roko is the full design; this checklist
-  implements the 3 most impactful watchers first
+- The full watcher ensemble is deferred; this checklist implements the three
+  most actionable watchers first
   (`GhostTurnWatcher`, `CostOverrunWatcher`, `ContextWindowPressureWatcher`).
   Add `StuckPatternWatcher`, `TestFailureBudgetWatcher`, etc. as follow-on
   work once the signal stream plumbing is validated.
@@ -343,13 +341,13 @@ reactive breaker trips. A degrading provider (latency rising 800 ms → 1200 ms
 ### 3.3 Cognitive Speed Classification
 
 **Concept doc**: [../core-concepts/cognitive-architecture.md](../core-concepts/cognitive-architecture.md)
-**Roko source**: `crates/roko-agent/src/speed.rs`
 **New file**: `src/agent/cognitive_speed.rs`
 **Modified files**: `src/agent/dispatcher.rs`, `crates/ironclaw_llm/src/smart_routing.rs`
 **Hard deps**: Phase 2.1 (CascadeRouter must exist to consume the tier hint)
 **Estimated effort**: 3-5 developer-days
-**Feature flag**: Always compiled; the classifier output is advisory until
-`CASCADE_ROUTER_ENABLED=true` activates the routing override.
+**Feature flag**: `experimental.cognitive_speeds` (default `off`). The
+classifier can compile unconditionally, but routing overrides stay advisory
+until this flag and the cascade router are both enabled.
 
 **What this delivers**: Three cognitive speeds (Gamma, Theta, Delta) mapped to
 LLM tiers (Flash/Standard, Pro, Frontier). Background and heartbeat tasks use
@@ -413,7 +411,8 @@ latency improves ~10%; background task quality improves.
 - 10 labeled unit test inputs all classify to expected `CognitiveSpeed`.
 - Heartbeat runs in integration tests confirm `CognitiveSpeed::Delta` is
   classified and `Frontier` tier preference is set.
-- With `CASCADE_ROUTER_ENABLED=true`, a simple greeting request never routes
+- With `experimental.cognitive_speeds` and `experimental.cascade_router` enabled,
+  a simple greeting request never routes
   to a Frontier-tier model (confirmed by routing episode log).
 - `cargo test` passes; zero new `clippy` warnings.
 
@@ -431,18 +430,17 @@ latency improves ~10%; background task quality improves.
 ### 3.4 Full Dream Consolidation
 
 **Concept doc**: [../agent-intelligence/dream-consolidation.md](../agent-intelligence/dream-consolidation.md)
-**Roko source**: `crates/roko-dreams/src/rem.rs`, `crates/roko-dreams/src/hypnagogic.rs`
 **New crate**: `crates/ironclaw_dreams/`
 **Hard deps**: Phase 2.4 (ConsolidationEngine framework), Phase 2.2 (HDC for
 hypnagogic cross-domain detection)
 **Estimated effort**: 10-14 developer-days
-**Feature flags**: `CONSOLIDATION_REM_ENABLED=true` (REM imagination),
-`CONSOLIDATION_CREATIVITY_ENABLED=true` (hypnagogic)
+**Feature flag**: `experimental.full_dream_consolidation` (default `off`) with
+sub-modes for REM imagination and hypnagogic pairing.
 
-**What this delivers**: Offline counterfactual reasoning (REM imagination)
-over recent failed experiences and cross-domain insight discovery
-(hypnagogic creativity) using HDC fingerprint similarity. Target: 1+
-actionable insight per week; < $1/day operating cost.
+**What this delivers**: Offline counterfactual reasoning over recent failed
+experiences and cross-domain insight discovery using HDC fingerprint
+similarity. Local fixtures should produce at least one reviewable insight while
+staying inside the configured background budget.
 
 #### Implementation Checklist
 
@@ -530,7 +528,7 @@ actionable insight per week; < $1/day operating cost.
 - Total daily budget gate enforced: >10 LLM calls per cycle aborted.
 - Prompt templates loaded via `include_str!()` (no inline multi-line Rust
   strings in the crate).
-- `CONSOLIDATION_REM_ENABLED=false` leaves Phase 2.4 heartbeat behavior
+- `experimental.full_dream_consolidation.enabled=false` leaves Phase 2.4 heartbeat behavior
   unchanged (confirmed by running heartbeat test suite with the env var unset).
 
 #### Risk Notes
@@ -614,8 +612,9 @@ well-represented in the workspace).
       `CodeFingerprinter`, `ToolSelector`, `AntiKnowledge`, `RoleFillerEncoder`.
       No `pub use *` glob; list each re-export explicitly.
 
-- [ ] **Add feature flag `hdc_code_fingerprint`** to `crates/ironclaw_hdc/Cargo.toml`.
-      `CodeFingerprinter` only compiles under this feature flag.
+- [ ] **Add runtime flag `experimental.hdc_code_fingerprint`** to the flag
+      inventory. If optional parser dependencies are introduced later, use a
+      Cargo feature only for dependency footprint, not rollout control.
 
 #### Success Criteria
 
@@ -626,7 +625,8 @@ well-represented in the workspace).
 - `ToolSelector` returns top-3 results in correct order on a 20-tool
   synthetic benchmark.
 - `cargo bench` confirms < 500 μs per KB for `CodeFingerprinter`.
-- All new code under `experimental.hdc_code_fingerprint` feature flag.
+- Runtime behavior gated by `experimental.hdc_code_fingerprint`; any Cargo
+  feature is dependency-only.
 
 #### Risk Notes
 
@@ -642,7 +642,6 @@ well-represented in the workspace).
 ### 4.2 Affect Engine
 
 **Concept doc**: [../agent-intelligence/affect-engine.md](../agent-intelligence/affect-engine.md)
-**Roko source**: `crates/roko-daimon/`
 **New crate or module**: Start as `src/profile.rs` extension
   (engagement tracker only); graduate to `crates/ironclaw_affect/` for full
   PAD engine.
@@ -745,19 +744,20 @@ it never appears in user-facing output.
 ### 4.3 Budget-Constrained Prompt Composition
 
 **Concept doc**: [../context-memory/budget-composition.md](../context-memory/budget-composition.md)
-**Roko source**: `crates/roko-compose/`
 **New crate**: `crates/ironclaw_compose/`
 **Hard deps**: Phase 3.3 (Gamma/Theta/Delta tier signals used to select
 composition strategy)
 **Estimated effort**: 8-12 developer-days (cache-aware ordering);
-+15-25 developer-days (VCG auction)
++15-25 developer-days (learning-backed budget diagnostics)
 **Feature flag**: `experimental.prompt_composition` (default `off`)
 
 **What this delivers**: Cache-aware prompt assembly placing static content
 (identity, safety rules) before the Anthropic prompt-caching breakpoint, and
 dynamic content (memory, tool results) after it. Reduces prompt cost by
-10-30% for repeated system prompt patterns. Full VCG auction (Phase 4.3b)
-allocates token budget across competing content sources via mechanism design.
+an expected 10-30% for repeated system prompt patterns if provider cache
+behavior matches the fixture assumptions. A later budget-diagnostics phase
+can record displacement payments across competing content sources, but the MVP
+uses deterministic density allocation.
 
 #### Implementation Checklist
 
@@ -837,9 +837,9 @@ allocates token budget across competing content sources via mechanism design.
 
 #### Risk Notes
 
-- The VCG auction (Phase 4.3b) requires measuring `value` per bidder, which
+- Budget diagnostics require measuring `value` per bidder, which
   requires online feedback (was this memory actually cited? was this skill
-  referenced?). Do not implement the auction until the feedback signal
+  referenced?). Do not enable adaptive allocation until the feedback signal
   infrastructure from Phase 2.1 (reward computation) is stable.
 - Token counting accuracy matters: an undercount causes the prompt to exceed
   the context window at inference time. Use an off-by-10% upper bound for
@@ -891,8 +891,8 @@ enables trust propagation.
       in the audit trail.
 
 - [ ] **Persist `ReputationRecord` in both backends**: add migration for
-      PostgreSQL (`src/db/migrations/`), matching libSQL schema in
-      `src/db/libsql.rs`. Follow the dual-backend rule: both must work.
+      PostgreSQL (`migrations/`), matching libSQL schema in
+      `src/db/libsql_migrations.rs`. Follow the dual-backend rule: both must work.
       Read `src/db/CLAUDE.md` before writing any migration.
 
 - [ ] **Add `reputation_check` built-in tool**: given a tool name and domain,
@@ -972,8 +972,6 @@ enables trust propagation.
 ### 4.5 Swarm Coordination
 
 **Concept doc**: [../execution-verification/orchestrator-swarm.md](../execution-verification/orchestrator-swarm.md)
-**Roko source**: `crates/roko-orchestrator/src/coordination.rs`,
-`crates/roko-orchestrator/src/mesh_relay.rs`
 **Target files**: `src/orchestrator/coordination.rs` (new),
 `src/orchestrator/mesh_relay.rs` (new)
 **Hard deps**: Phase 3.1 (DAG engine as workflow backbone for agent tasks)
@@ -1113,8 +1111,8 @@ After Phase 4 milestones (item-by-item):
 | 3.2 Conductor | `crates/ironclaw_llm/src/conductor.rs`, `crates/ironclaw_llm/src/holt.rs` | `crates/ironclaw_llm/src/circuit_breaker.rs`, `crates/ironclaw_llm/src/cascade_router.rs` |
 | 3.3 Cognitive Speeds | `src/agent/cognitive_speed.rs` | `src/agent/dispatcher.rs`, `crates/ironclaw_llm/src/routing_features.rs` |
 | 3.4 Full Dreams | `crates/ironclaw_dreams/` (new crate), `crates/ironclaw_dreams/prompts/*.md` | `src/agent/consolidation.rs`, `src/config/heartbeat.rs` |
-| 4.1 HDC Extended | `crates/ironclaw_hdc/src/code.rs`, `src/tool_selector.rs`, `src/anti.rs`, `src/role_filler.rs` | `crates/ironclaw_hdc/src/lib.rs` |
+| 4.1 HDC Extended | `crates/ironclaw_hdc/src/code.rs`, `crates/ironclaw_hdc/src/tool_selector.rs`, `crates/ironclaw_hdc/src/anti.rs`, `crates/ironclaw_hdc/src/role_filler.rs` | `crates/ironclaw_hdc/src/lib.rs` |
 | 4.2 Affect Engine | `crates/ironclaw_affect/` (eventually) | `src/profile.rs`, `src/agent/dispatcher.rs` |
 | 4.3 Budget Composition | `crates/ironclaw_compose/` (new crate) | `src/agent/dispatcher.rs` |
-| 4.4 On-Chain Reputation | `src/registry/reputation.rs`, `contracts/near/` | `src/registry/installer.rs`, `src/db/migrations/` |
+| 4.4 On-Chain Reputation | `src/registry/reputation.rs`, `contracts/near/` | `src/registry/installer.rs`, `migrations/`, `src/db/libsql_migrations.rs` |
 | 4.5 Swarm Coordination | `src/orchestrator/coordination.rs`, `src/orchestrator/event_log.rs`, `src/orchestrator/mesh_relay.rs` | `src/orchestrator/api.rs`, `Cargo.toml` |

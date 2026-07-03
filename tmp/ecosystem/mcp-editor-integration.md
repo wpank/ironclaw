@@ -1,6 +1,6 @@
-# MCP and Editor Integration: Complete Technical Reference
+# MCP and Editor Integration: Practical Technical Reference
 
-This document is a complete technical reference to the Model Context Protocol (MCP), the Agent Client Protocol (ACP), and how both integrate with IronClaw's existing `src/tools/mcp/` implementation. It covers every protocol type, state machine, wire format, transport variant, OAuth flow, session management invariant, editor integration workflow, and integration opportunity with verified code from IronClaw's codebase and links to the Roko reference implementation at https://github.com/wpank/roko.
+This document explains the Model Context Protocol (MCP), the Agent Client Protocol (ACP), and how selected pieces map to IronClaw's existing `src/tools/mcp/` implementation. It focuses on the tool-client surface IronClaw has today, the server-exposure work that would be needed, and protocol areas that should remain compatibility-only or future work.
 
 **Protocol boundary**: This document covers the **MCP JSON-RPC 2.0 tool protocol** between AI editors/agents and tool servers — not the REST HTTP operator API. The REST/SSE/WebSocket operator surface is documented in [control-plane.md](./control-plane.md). Both involve HTTP and SSE but serve different audiences: MCP serves AI editors (VS Code, Zed) and agent-to-agent communication; the control plane serves human operators and dashboards.
 
@@ -61,9 +61,9 @@ The MCP ecosystem has grown from roughly 100 servers at launch in November 2024 
 
 There are two different protocols with the abbreviation ACP, and they serve different purposes:
 
-**ACP-1: The Zed/Google Agent Client Protocol** (August 2025) is an open standard, governed at https://github.com/agentclientprotocol, that defines how AI coding agents communicate with code editors. Created by Zed Industries, it uses JSON-RPC 2.0 over stdin/stdout. It is "the LSP for AI coding agents" — the same way Language Server Protocol (LSP) standardized editor-language integration, ACP standardizes editor-agent integration. Gemini CLI supports it natively via `--acp`, Claude Code participates through a `claude-agent-acp` adapter, and JetBrains announced partnership with Zed in October 2025 to bring it to IntelliJ, PyCharm, and WebStorm.
+**ACP-1: The Agent Client Protocol** is an editor-agent protocol for AI coding agents. Treat transport and client-support details as version-specific: local stdio is the simplest integration path, while remote HTTP/WebSocket support depends on the ACP revision and editor client. Avoid hard-coding editor support claims; check the ACP client registry when implementing.
 
-**ACP-2: The Roko Agent Communication Protocol** is the higher-level workflow layer used by Roko (https://github.com/wpank/roko) to coordinate multi-agent workflows. Where MCP defines tool discovery and invocation, Roko's ACP defines session lifecycle, workflow pipeline orchestration, streaming event delivery, and permission gates between agents and human operators.
+**ACP-2: The captured workflow communication layer** is the higher-level protocol from the captured source corpus for coordinating multi-agent workflows. Where MCP defines tool discovery and invocation, this layer defines session lifecycle, workflow pipeline orchestration, streaming event delivery, and permission gates between agents and human operators.
 
 This document covers both. The relationship across all three layers:
 
@@ -79,14 +79,14 @@ This document covers both. The relationship across all three layers:
 ├──────────────────────────────────────────────────────────────┤
 │                   MCP Layer                                   │
 │  Tool discovery · Tool invocation · Resources · Prompts      │
-│  Sampling · Roots · JSON-RPC 2.0 · OAuth 2.1                 │
+│  Tools · Resources · Prompts · JSON-RPC 2.0 · OAuth 2.1      │
 ├──────────────────────────────────────────────────────────────┤
 │              Transport Layer                                  │
 │  HTTP Streamable · stdio · Unix socket                       │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-IronClaw currently implements the full MCP layer and transport layer. The ACP layers are integration opportunities described in Sections 11, 12, and 22.
+IronClaw currently implements an MCP tools-client surface over the supported transports. Full MCP resources, prompts, logging/completion, broad client-feature handling, and MCP server mode are separate work. The ACP layers are integration opportunities described in Sections 11, 12, and 22.
 
 ---
 
@@ -954,9 +954,9 @@ The 2025-11-25 specification (current stable, at https://modelcontextprotocol.io
 }
 ```
 
-**Roots** (supported, not advertised by IronClaw): The server can query what filesystem roots the client is operating in. IronClaw's `initialize` already includes `"roots": { "listChanged": false }` in capabilities but does not currently serve roots queries.
+**Roots**: Servers can query client filesystem roots in protocol versions that support the feature. IronClaw should not advertise roots unless it serves them correctly and scopes paths to the current workspace/user.
 
-**Sampling** (supported in capabilities, not implemented): Servers can ask the client to invoke an LLM. IronClaw's `initialize` includes `"sampling": {}` in capabilities. The actual `sampling/createMessage` handler is a Phase 1 implementation target (see Section 22).
+**Sampling**: Servers can ask the client to invoke an LLM in protocol versions that support the feature. Because this crosses the LLM/auth/approval boundary, keep it compatibility-only and do not advertise it until policy, budget, user attribution, and audit behavior are implemented.
 
 ### Server Features IronClaw Implements
 
@@ -1261,7 +1261,7 @@ The editor passes available MCP server endpoints so the agent can use them witho
 
 ## 12. Roko ACP: Multi-Agent Workflow Layer
 
-ACP (Agent Communication Protocol) as used by Roko (https://github.com/wpank/roko) is a higher-level workflow protocol distinct from the Zed/Google ACP above. It extends MCP's tool invocation model with session lifecycle, workflow state, streaming events, and permission gates.
+ACP (Agent Communication Protocol) in the captured workflow source is a higher-level workflow protocol distinct from the editor ACP above. It extends MCP's tool invocation model with session lifecycle, workflow state, streaming events, and permission gates.
 
 ### Roko ACP Core Concepts
 
@@ -1314,7 +1314,7 @@ ACP uses JSON-RPC 2.0 with extended method names:
 ### Roko ACP JSON-RPC Request Types
 
 ```rust
-// Roko reference: https://github.com/wpank/roko/blob/main/crates/roko-acp/src/types.rs
+// Roko reference: `crates/roko-acp/src/types.rs`
 
 pub struct AcpRequest {
     pub jsonrpc: String,           // "2.0"
@@ -1356,7 +1356,7 @@ Roko ACP workflows are directed graphs of steps. Each step has a type, inputs, a
 ### Step Types
 
 ```rust
-// Roko reference: https://github.com/wpank/roko/blob/main/crates/roko-acp/src/workflow.rs
+// Roko reference: `crates/roko-acp/src/workflow.rs`
 
 pub enum StepType {
     ToolCall {
@@ -1479,7 +1479,7 @@ Roko ACP uses Server-Sent Events (SSE) for real-time streaming from agent to cli
 ### SSE Event Types
 
 ```rust
-// Roko reference: https://github.com/wpank/roko/blob/main/crates/roko-acp/src/events.rs
+// Roko reference: `crates/roko-acp/src/events.rs`
 
 pub enum AcpEventType {
     SessionCreated,
@@ -1541,7 +1541,7 @@ Gates are the mechanism by which Roko ACP enforces human-in-the-loop control ove
 ### Gate Classification
 
 ```rust
-// Roko reference: https://github.com/wpank/roko/blob/main/crates/roko-acp/src/gates.rs
+// Roko reference: `crates/roko-acp/src/gates.rs`
 
 pub enum GatePolicy {
     /// Always require human approval
@@ -1595,13 +1595,13 @@ IronClaw's tool annotations already carry this information via `McpToolAnnotatio
 
 ## 16. The Five Roko MCP Crates
 
-Roko's MCP implementation is split across five crates at https://github.com/wpank/roko:
+The captured MCP implementation is split across five source identifiers:
 
 ### Crate 1: roko-mcp-types
 
 Shared protocol types used across all crates.
 
-Reference: https://github.com/wpank/roko/blob/main/crates/roko-mcp-types/src/lib.rs
+Reference: `crates/roko-mcp-types/src/lib.rs`
 
 ```rust
 // Mirrors IronClaw's protocol.rs but with additional types:
@@ -1634,7 +1634,7 @@ pub struct CreateMessageRequest {
 
 Full MCP client with automatic retry, connection pooling, and capability negotiation.
 
-Reference: https://github.com/wpank/roko/blob/main/crates/roko-mcp-client/src/lib.rs
+Reference: `crates/roko-mcp-client/src/lib.rs`
 
 ```rust
 pub struct McpClientPool {
@@ -1661,7 +1661,7 @@ impl McpClientPool {
 
 MCP server implementation that exposes Roko's tools to external clients.
 
-Reference: https://github.com/wpank/roko/blob/main/crates/roko-mcp-server/src/lib.rs
+Reference: `crates/roko-mcp-server/src/lib.rs`
 
 ```rust
 pub struct McpServer {
@@ -1690,7 +1690,7 @@ pub enum ServerTransport {
 
 The Agent Communication Protocol implementation built on top of MCP.
 
-Reference: https://github.com/wpank/roko/blob/main/crates/roko-acp/src/lib.rs
+Reference: `crates/roko-acp/src/lib.rs`
 
 ```rust
 pub struct AcpServer {
@@ -1713,7 +1713,7 @@ pub struct AcpSession {
 
 Editor-specific adapters for VS Code Language Server Protocol and Zed extension API.
 
-Reference: https://github.com/wpank/roko/blob/main/crates/roko-editor-bridge/src/lib.rs
+Reference: `crates/roko-editor-bridge/src/lib.rs`
 
 ```rust
 pub trait EditorBridge: Send + Sync {
@@ -2026,7 +2026,7 @@ sequenceDiagram
 
 ## 20. Exposing IronClaw Tools as an MCP Server
 
-IronClaw can expose its tool system to any MCP-compatible client by implementing an MCP server endpoint. The server receives `tools/list` and `tools/call` requests and delegates to `ToolDispatcher::dispatch()`.
+IronClaw can expose selected tools to MCP-compatible clients by implementing an MCP server endpoint. Every request must authenticate a user/session, enforce tool permissions, preserve approval gates, and delegate to `ToolDispatcher::dispatch()` with the correct `user_id` and dispatch source. Server mode must not bypass the existing audit, sandbox, or approval paths.
 
 ### MCP Server Endpoint Design
 
@@ -2044,13 +2044,15 @@ use crate::tools::mcp::protocol::{
 pub struct McpServerState {
     dispatcher: Arc<ToolDispatcher>,
     tool_registry: Arc<ToolRegistry>,
-    user_id: String,
+    auth: Arc<McpServerAuth>,
 }
 
 async fn mcp_handler(
     State(state): State<Arc<McpServerState>>,
+    auth: McpAuthContext,
     Json(request): Json<McpRequest>,
 ) -> Json<McpResponse> {
+    let user_id = state.auth.require_user(&auth)?;
     match request.method.as_str() {
         "initialize" => {
             let result = InitializeResult {
@@ -2345,9 +2347,9 @@ pub async fn handle_notification(&self, notification: &McpRequest) -> Result<(),
 }
 ```
 
-#### 1.3 Sampling / LLM Proxy Support
+#### 1.3 Sampling / LLM Proxy Compatibility
 
-MCP 2025-11-25 supports `sampling/createMessage` — the server requests the client to invoke an LLM. IronClaw can proxy this through its own LLM providers (from `crates/ironclaw_llm/`):
+Some MCP revisions support `sampling/createMessage` — the server requests the client to invoke an LLM. For IronClaw this is not a near-term default because it lets an external server spend model budget and influence prompts. Implement only if a compatibility partner requires it, and only after adding explicit user approval, budget checks, provider attribution, and audit records.
 
 ```rust
 // src/tools/mcp/client.rs addition
@@ -2373,7 +2375,7 @@ pub async fn handle_sampling_request(
 }
 ```
 
-Note: `sampling` is deprecated in the 2026 spec release candidate. Implement for 2025-11-25 compatibility but plan removal when 2026 spec stabilizes.
+Do not advertise `sampling` in `initialize` until the handler exists and all approval/budget/audit checks are enforced.
 
 #### 1.4 Server-Name Newtype Hardening
 
@@ -2732,11 +2734,11 @@ graph TB
 
 | Crate | URL |
 |-------|-----|
-| roko-mcp-types | https://github.com/wpank/roko/blob/main/crates/roko-mcp-types/ |
-| roko-mcp-client | https://github.com/wpank/roko/blob/main/crates/roko-mcp-client/ |
-| roko-mcp-server | https://github.com/wpank/roko/blob/main/crates/roko-mcp-server/ |
-| roko-acp | https://github.com/wpank/roko/blob/main/crates/roko-acp/ |
-| roko-editor-bridge | https://github.com/wpank/roko/blob/main/crates/roko-editor-bridge/ |
+| roko-mcp-types | `crates/roko-mcp-types` |
+| roko-mcp-client | `crates/roko-mcp-client` |
+| roko-mcp-server | `crates/roko-mcp-server` |
+| roko-acp | `crates/roko-acp` |
+| roko-editor-bridge | `crates/roko-editor-bridge` |
 
 ---
 
@@ -2748,7 +2750,7 @@ The following documents in this repository provide context and complementary cov
 
 | Document | Relevance |
 |----------|-----------|
-| [`control-plane.md`](control-plane.md) | How Roko's control plane aggregates data from MCP-enabled agent sidecars, exposes 100+ HTTP API routes, and bridges agents to a relay bus. IronClaw's `src/channels/web/server.rs` maps to Roko's `roko-serve`. The gateway's SSE and WebSocket infrastructure described there is what IronClaw would extend for Roko ACP event streaming (Phase 3). The two protocols — MCP tool calls and control-plane operator events — are independent layers sharing the same HTTP server. |
+| [`control-plane.md`](control-plane.md) | How the captured control-plane design aggregates data from agent sidecars and bridges agents to a relay bus. IronClaw's `src/channels/web/` gateway is the analogous operator/API surface. The two protocols — MCP tool calls and control-plane operator events — are independent layers that may share HTTP infrastructure. |
 | [`plugin-extension.md`](plugin-extension.md) | Roko's plugin SDK (`roko-plugin`) defines push-based event injection and feedback collection for extensions. IronClaw's WASM extension system (`src/channels/wasm/`) is the analogous layer. Declarative TOML tools and the 5-tier extensibility model described there apply to IronClaw MCP server tool registration (Phase 2). Local WASM/TOML tool loading and remote MCP server tool loading both feed into `ToolRegistry` through different code paths. |
 
 ### In `/tmp/agent-intelligence/`
@@ -2766,4 +2768,4 @@ The following documents in this repository provide context and complementary cov
 | `src/channels/web/` | Existing SSE and WebSocket infrastructure to extend for ACP event streaming in Phase 3 |
 | `src/agent/` | The agent loop that ACP workflow orchestration (Phase 3) would sit above |
 | `src/secrets/` | The `SecretsStore` where OAuth tokens are persisted under `mcp_{name}_access_token` |
-| `crates/ironclaw_llm/` | The `LlmProvider` trait used for `sampling/createMessage` proxy support (Phase 1.3) |
+| `crates/ironclaw_llm/` | LLM provider boundary relevant only if compatibility requires `sampling/createMessage` support |

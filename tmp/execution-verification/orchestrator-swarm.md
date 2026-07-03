@@ -1,7 +1,7 @@
 # Orchestrator & Swarm Coordination
 
 **Source reference**: `roko-orchestrator`, `roko-runtime` (reference implementation)
-**GitHub reference**: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/
+**GitHub reference**: `crates/roko-orchestrator/src`
 **Priority**: MEDIUM -- multi-job orchestration, event sourcing, swarm coordination
 **IronClaw integration target**: `src/orchestrator/`
 
@@ -59,7 +59,7 @@ The runtime harness performs the I/O (spawning agents, running tests, merging br
 The orchestrator crate is organized into modules, each handling a distinct concern. Understanding the full module layout is essential before diving into any single subsystem.
 
 ```
-https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/
+`crates/roko-orchestrator/src`
   lib.rs              -- Crate root: ParallelExecutor, ExecutorConfig, ResourceBudget
   dag.rs              -- UnifiedTaskDag: cross-plan DAG, wave scheduling, file-overlap
   event_log.rs        -- EventLog: append-only BLAKE3 hash-chained event journal
@@ -224,7 +224,7 @@ stateDiagram-v2
 Every transition is triggered by an `ExecutorEvent`. This is the complete enum from the source -- 17 variants covering every scenario including operator-initiated actions and unrecoverable failures:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/executor/state_machine.rs
+// Source: `crates/roko-orchestrator/src/executor/state_machine.rs`
 
 pub enum ExecutorEvent {
     /// Plan has been dispatched -- start enrichment.
@@ -273,7 +273,7 @@ The transition function is the heart of the state machine. It takes the current 
 The bounded retry loops are the most important detail: `MAX_AUTO_FIX_ITERATIONS` (default 5, from `roko_core::defaults::DEFAULT_MAX_AUTO_FIX_ITERATIONS`) caps the Gating/AutoFixing cycle. `MAX_MERGE_ATTEMPTS = 3` caps merge retries. Without these bounds, a failing agent could cause infinite loops.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/executor/state_machine.rs
+// Source: `crates/roko-orchestrator/src/executor/state_machine.rs`
 
 pub fn transition(
     plan_state: &PlanState,
@@ -384,7 +384,7 @@ pub fn transition(
 After each transition, `PlanStateMachine::next_action()` maps the new `PlanPhase` to the action the runtime should perform. The executor never performs I/O; it only names the action:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/executor/action.rs
+// Source: `crates/roko-orchestrator/src/executor/action.rs`
 
 pub enum ExecutorAction {
     /// Start enrichment (Strategist agent) for a freshly queued plan.
@@ -459,7 +459,7 @@ Phase-to-action mapping from `next_action()`:
 Every plan in the executor gets a `PlanState` struct. The state machine reads it as input and the executor mutates it on each `apply_event()`:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/executor/plan_state.rs
+// Source: `crates/roko-orchestrator/src/executor/plan_state.rs`
 
 pub struct PlanState {
     pub plan_id: String,
@@ -483,7 +483,7 @@ The `files_changed` field is critical for file-conflict inference (section 7): a
 `ParallelExecutor` is the main orchestration engine. It owns all plan state and provides a pure `tick()` / `apply_event()` interface:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/executor/mod.rs
+// Source: `crates/roko-orchestrator/src/executor/mod.rs`
 
 pub struct ParallelExecutor {
     config: ExecutorConfig,
@@ -544,7 +544,7 @@ pub fn apply_event(
 ### Configuration
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/executor/mod.rs
+// Source: `crates/roko-orchestrator/src/executor/mod.rs`
 
 pub struct ExecutorConfig {
     pub max_concurrent_plans: usize,           // default: 4
@@ -565,7 +565,7 @@ pub struct ExecutorConfig {
 When a task has been running for longer than `expected_minutes * speculative_threshold_multiplier`, the executor registers a speculative execution -- a backup agent working on the same task in parallel. Whichever finishes first wins; the other is cancelled. The budget check prevents runaway cost:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/executor/mod.rs
+// Source: `crates/roko-orchestrator/src/executor/mod.rs`
 
 pub struct SpeculativeExecution {
     pub plan_id: String,
@@ -603,7 +603,7 @@ pub fn resolve_speculative_execution(
 The `ResourceBudget` is a composite budget covering token spend, USD cost, and rate limits -- replacing the deprecated flat `budget_usd` field:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/executor/resource_budget.rs
+// Source: `crates/roko-orchestrator/src/executor/resource_budget.rs`
 
 pub struct ResourceBudget {
     /// Maximum total LLM input tokens across all plans.
@@ -686,7 +686,7 @@ The `EventLog` is an append-only, BLAKE3 hash-chained journal. It serves three p
 3. **Tamper detection**: Each entry's hash includes the previous entry's hash. Any mutation, deletion, insertion, or reordering of historical entries is detectable by walking the chain and recomputing hashes.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/event_log.rs
+// Source: `crates/roko-orchestrator/src/event_log.rs`
 
 pub enum EventKind {
     PlanStarted,
@@ -707,7 +707,7 @@ pub enum EventKind {
 ### Event Entry Structure
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/event_log.rs
+// Source: `crates/roko-orchestrator/src/event_log.rs`
 
 pub struct EventEntry {
     /// Monotonically increasing sequence number (0-based).
@@ -734,7 +734,7 @@ H(entry_n) = BLAKE3("eventv1|" || seq_be || ts_be || H(entry_{n-1}) || LP(kind) 
 where `LP(data)` means a 4-byte big-endian length prefix followed by the data, and `||` denotes concatenation. The version tag `"eventv1|"` future-proofs the encoding: changing the hash schema increments the version and makes old and new entries incompatible rather than silently producing wrong hashes.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/event_log.rs
+// Source: `crates/roko-orchestrator/src/event_log.rs`
 
 fn compute_hash(
     seq: u64,
@@ -789,7 +789,7 @@ graph LR
 ### Integrity Verification
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/event_log.rs
+// Source: `crates/roko-orchestrator/src/event_log.rs`
 
 pub fn verify_integrity(&self) -> Result<(), IntegrityError> {
     let guard = self.inner.lock();
@@ -835,7 +835,7 @@ Thread safety: `Arc<Mutex<LogInner>>` using `parking_lot::Mutex`. Concurrent app
 The event log supports snapshot/restore for crash recovery:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/event_log.rs
+// Source: `crates/roko-orchestrator/src/event_log.rs`
 
 pub fn snapshot(&self) -> EventLogSnapshot {
     let guard = self.inner.lock();
@@ -900,7 +900,7 @@ It constructs edges from four sources:
 Tasks are identified globally by a `GlobalTaskId` -- a `(plan_id, task_id)` pair:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/dag.rs
+// Source: `crates/roko-orchestrator/src/dag.rs`
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GlobalTaskId {
@@ -958,7 +958,7 @@ Plan C runs entirely in parallel with Plan A: total wall-clock = 36 minutes.
 Before returning the DAG, `build()` runs `detect_cycle_nodes()` to eagerly reject cyclic dependencies. It uses a DFS-based algorithm with 3-state coloring:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/dag.rs
+// Source: `crates/roko-orchestrator/src/dag.rs`
 
 pub fn detect_cycle_nodes<N>(deps: &BTreeMap<N, BTreeSet<N>>) -> Vec<N>
 where
@@ -1009,7 +1009,7 @@ where
 ### Critical Path Method (CPM) Analysis
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/dag.rs
+// Source: `crates/roko-orchestrator/src/dag.rs`
 
 /// Earliest start time = length of longest path from any root to this task.
 pub fn earliest_start(&self, task: &GlobalTaskId) -> Duration {
@@ -1042,7 +1042,7 @@ pub fn stats(&self) -> DagStats {
 Each task in the DAG tracks fine-grained execution status, supporting backoff and retry at the task level independently of the plan-level state machine:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/dag.rs
+// Source: `crates/roko-orchestrator/src/dag.rs`
 
 pub enum DagTaskExecutionStatus {
     Pending,       // waiting for dependencies to complete
@@ -1094,7 +1094,7 @@ flowchart TD
 ### Full Algorithm Implementation
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/dag.rs
+// Source: `crates/roko-orchestrator/src/dag.rs`
 
 pub fn waves(&self) -> Result<Vec<ExecutionWave>, DagError> {
     let topo = self.topological_sort()?;  // Kahn's BFS, error if cycle
@@ -1218,7 +1218,7 @@ File-conflict inference is opt-in via `DagConfig::infer_file_overlap` (default: 
 2. **Add serialization edges**: For each file touched by more than one task, add edges between all pairs. The task with the lexicographically earlier `GlobalTaskId` becomes the predecessor (runs first).
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/dag.rs
+// Source: `crates/roko-orchestrator/src/dag.rs`
 
 fn rebuild_file_overlap_edges(&mut self) {
     if !self.config.infer_file_overlap { return; }
@@ -1274,7 +1274,7 @@ Result: task_a → task_b → task_c (fully serialized via transitive deps). Wit
 ### Disabling Inference
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/dag.rs (tests)
+// Source: `crates/roko-orchestrator/src/dag.rs` (tests)
 
 #[test]
 fn file_overlap_can_be_disabled() {
@@ -1354,7 +1354,7 @@ graph TD
 The simplest recovery: retry the same task with the same agent role. `PlanState.iteration` is bounded by `MAX_AUTO_FIX_ITERATIONS`:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/executor/plan_state.rs
+// Source: `crates/roko-orchestrator/src/executor/plan_state.rs`
 
 pub fn reset_for_retry(&mut self) {
     self.gate_results.clear();
@@ -1366,7 +1366,7 @@ pub fn reset_for_retry(&mut self) {
 The gate results also support "mostly passing" detection. If more than 90% of tests pass (with at least 20 total and at least 1 failure), the system classifies this as a targeted test failure rather than a broad problem, enabling more focused retry context for the AutoFixer agent:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/executor/plan_state.rs
+// Source: `crates/roko-orchestrator/src/executor/plan_state.rs`
 
 pub fn is_mostly_passing(results: &[GateResult]) -> bool {
     let mut passed = 0u32;
@@ -1394,7 +1394,7 @@ pub fn is_mostly_passing(results: &[GateResult]) -> bool {
 When retries are exhausted or the failure pattern indicates a structural problem (wrong task decomposition, missing dependency, wrong model tier), the orchestrator escalates to re-planning:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/replan.rs
+// Source: `crates/roko-orchestrator/src/replan.rs`
 
 pub enum FailureDisposition {
     Retry,       // retry or deterministic remediation first
@@ -1427,7 +1427,7 @@ Only `Decompose` and `RegeneratePlan` require a plan restart (re-queuing from `Q
 When escalating to a re-plan, the system constructs a `PlanRevisionRequest` with structured evidence so the planner agent has full context:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/replan.rs
+// Source: `crates/roko-orchestrator/src/replan.rs`
 
 pub struct PlanRevisionRequest {
     pub request_id: String,                  // "replan-{hash}" for deduplication
@@ -1454,7 +1454,7 @@ When the orchestrator process crashes entirely, the `RecoveryEngine` reconstruct
 2. **Event Log** -- the append-only hash-chained journal. Always up to date because events are written before side-effects.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/executor/recovery.rs
+// Source: `crates/roko-orchestrator/src/executor/recovery.rs`
 
 // Module doc (lines 1-12):
 // After a crash, the orchestrator can recover its state from two sources:
@@ -1503,7 +1503,7 @@ pub fn merge_recovery(
 After recovery, each plan is classified into a resume directive:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/executor/plan_state.rs
+// Source: `crates/roko-orchestrator/src/executor/plan_state.rs`
 
 pub enum PlanResumeDirective {
     ContinueActive,               // non-terminal phase: resume execution
@@ -1526,7 +1526,7 @@ The `RecoveryResumePlan` groups recovered plans into five buckets: `active` (Con
 The recovery engine validates recovered state for inconsistencies and surfaces non-fatal warnings with three severity levels:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/executor/recovery.rs
+// Source: `crates/roko-orchestrator/src/executor/recovery.rs`
 
 pub enum WarningSeverity {
     Info,     // informational; recovery can proceed
@@ -1566,7 +1566,7 @@ BLAKE3 [OConnor2020] is significantly faster than SHA-256 (~14 GB/s vs ~400 MB/s
 ### AuditEntry Structure
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/safety/audit_chain.rs
+// Source: `crates/roko-orchestrator/src/safety/audit_chain.rs`
 
 pub struct AuditEntry {
     /// Hash of the preceding entry. Zeroed for the genesis entry.
@@ -1589,7 +1589,7 @@ pub struct AuditEntry {
 The entry hash is computed over a hand-rolled canonical encoding (not serde_json, to guarantee stability across serde versions and serialization settings):
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/safety/audit_chain.rs
+// Source: `crates/roko-orchestrator/src/safety/audit_chain.rs`
 
 pub fn content_hash(&self) -> [u8; 32] {
     let mut buf: Vec<u8> = Vec::with_capacity(256);
@@ -1622,7 +1622,7 @@ fn push_field(buf: &mut Vec<u8>, tag: &[u8], body: &[u8]) {
 ### AuditChain: Append-Only Container
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/safety/audit_chain.rs
+// Source: `crates/roko-orchestrator/src/safety/audit_chain.rs`
 
 pub struct AuditChain {
     inner: Arc<Mutex<ChainInner>>,  // parking_lot::Mutex for performance
@@ -1681,7 +1681,7 @@ Snapshot files use a BLAKE3 binary envelope to detect corruption or tampering:
 ```
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/executor/snapshot.rs
+// Source: `crates/roko-orchestrator/src/executor/snapshot.rs`
 
 const MAGIC: &[u8; 4]   = b"ROKO";
 const TRAILER: &[u8; 4] = b"END!";
@@ -1736,7 +1736,7 @@ impl SnapshotVerifier {
 To reduce write amplification, the system supports delta snapshots. A `DeltaSnapshot` records only which plan IDs changed between two full snapshots:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/executor/snapshot.rs
+// Source: `crates/roko-orchestrator/src/executor/snapshot.rs`
 
 pub struct DeltaSnapshot {
     pub base_hash: [u8; 32],        // BLAKE3 hash of the base full snapshot
@@ -1767,7 +1767,7 @@ The DAG must support mutations while execution is in progress, subject to safety
 Five mutation operations are supported:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/dag.rs
+// Source: `crates/roko-orchestrator/src/dag.rs`
 
 pub enum DagMutation {
     /// Add a new task node with explicit upstream dependencies.
@@ -1811,7 +1811,7 @@ pub enum DagMutation {
 All mutations are validated before application:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/dag.rs
+// Source: `crates/roko-orchestrator/src/dag.rs`
 
 pub enum DagMutationError {
     #[error("unknown task: {0}")]
@@ -1859,7 +1859,7 @@ pub fn apply_mutation(&mut self, mutation: DagMutation) -> Result<(), DagMutatio
 `cull()` removes tasks not required to produce a set of target task IDs. This uses backward BFS from targets to collect all transitive dependencies, then removes everything else:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/dag.rs
+// Source: `crates/roko-orchestrator/src/dag.rs`
 
 pub fn cull(&mut self, targets: &[String]) -> usize {
     // 1. Parse target strings to GlobalTaskIds
@@ -1895,7 +1895,7 @@ pub fn cull(&mut self, targets: &[String]) -> usize {
 `fuse_linear_chains()` collapses eligible chains (A → B → C where each interior node has exactly one predecessor and one successor) into compound tasks. This reduces scheduling overhead for trivially sequential work:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/dag.rs
+// Source: `crates/roko-orchestrator/src/dag.rs`
 
 pub fn fuse_linear_chains(&mut self) -> usize {
     // Find all nodes with exactly one predecessor and one successor
@@ -1921,7 +1921,7 @@ The `safety/` directory contains six modules providing defense-in-depth around a
 `loop_guard.rs` detects cases where an agent appears to be in an infinite loop -- repeating the same tool calls, producing the same output, or cycling through states without progress:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/safety/loop_guard.rs
+// Source: `crates/roko-orchestrator/src/safety/loop_guard.rs`
 
 pub struct LoopGuard {
     /// Maximum number of identical consecutive tool call sequences before triggering.
@@ -1962,7 +1962,7 @@ impl LoopGuard {
 `capability_tokens.rs` implements a capability-based access control system where each agent holds an unforgeable token enumerating exactly what operations it is permitted to perform:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/safety/capability_tokens.rs
+// Source: `crates/roko-orchestrator/src/safety/capability_tokens.rs`
 
 pub struct CapabilityToken {
     /// Unique token ID (BLAKE3 of agent ID + role + capabilities + issue time).
@@ -2008,7 +2008,7 @@ impl CapabilityToken {
 `taint_propagation.rs` tracks untrusted data as it flows through agent outputs. If an agent produces output that was derived from untrusted external data (e.g., scraped web content, user-supplied input), that taint propagates to downstream tool calls. Tainted data cannot be used in privileged operations without explicit sanitization:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/safety/taint_propagation.rs
+// Source: `crates/roko-orchestrator/src/safety/taint_propagation.rs`
 
 pub enum TaintLevel {
     Clean,     // no untrusted data
@@ -2046,7 +2046,7 @@ impl TaintedValue {
 `sandboxing.rs` defines the policy that determines what a given agent role is permitted to do inside a sandboxed container:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/safety/sandboxing.rs
+// Source: `crates/roko-orchestrator/src/safety/sandboxing.rs`
 
 pub struct SandboxPolicy {
     pub role: AgentRole,
@@ -2070,7 +2070,7 @@ pub enum NetworkAccess {
 `priority_ceiling.rs` implements the Priority Ceiling Protocol (PCP) [Sha1990] for preventing priority inversion when multiple plans compete for shared resources. When a lower-priority plan holds a resource (e.g., a worktree slot or API rate limit), a higher-priority plan that needs that resource inherits the lower plan's priority ceiling to prevent unbounded wait:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/executor/priority_ceiling.rs
+// Source: `crates/roko-orchestrator/src/executor/priority_ceiling.rs`
 
 pub struct PriorityCeiling {
     /// Map from resource ID to its ceiling priority (max priority of any plan that uses it).
@@ -2105,14 +2105,14 @@ Git worktrees give each plan its own isolated filesystem view of the repository 
 ### WorktreeConfig
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/worktree.rs
+// Source: `crates/roko-orchestrator/src/worktree.rs`
 
 pub struct WorktreeConfig {
-    /// Path to the main git repository checkout.
+    /// Path to the main git working tree.
     pub repo_root: PathBuf,
     /// Branch to fork each worktree from.
     pub base_branch: String,
-    /// Directory where worktree checkouts are created.
+    /// Directory where temporary worktrees are created.
     pub worktrees_root: PathBuf,
     /// Maximum number of live concurrent worktrees (None = unlimited).
     pub max_live: Option<usize>,
@@ -2128,7 +2128,7 @@ pub struct WorktreeConfig {
 The `WorktreeManager` handles the full lifecycle of git worktrees:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/worktree.rs
+// Source: `crates/roko-orchestrator/src/worktree.rs`
 
 pub struct WorktreeManager {
     config: WorktreeConfig,
@@ -2337,7 +2337,7 @@ graph LR
 Seven built-in pheromone kinds provide the coordination vocabulary:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/coordination.rs
+// Source: `crates/roko-orchestrator/src/coordination.rs`
 
 pub enum PheromoneKind {
     /// Something dangerous or harmful detected (compile error, security issue, deadlock pattern).
@@ -2363,7 +2363,7 @@ pub enum PheromoneKind {
 ### Pheromone Signal Structure
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/coordination.rs
+// Source: `crates/roko-orchestrator/src/coordination.rs`
 
 pub struct Pheromone {
     pub kind: PheromoneKind,
@@ -2401,7 +2401,7 @@ The `MeshRelay` distributes pheromones across agents using three mechanisms:
 3. **Store-and-forward**: When a target agent is offline, pheromones are queued and delivered when it reconnects.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/mesh_relay.rs
+// Source: `crates/roko-orchestrator/src/mesh_relay.rs`
 
 pub struct MeshRelay {
     inner: Arc<Mutex<Inner>>,        // parking_lot::Mutex
@@ -3014,6 +3014,7 @@ impl MultiJobOrchestrator {
     async fn dispatch_action(
         &self,
         action: &ExecutorAction,
+        ctx: &WorkflowDispatchContext,
     ) -> Result<(), crate::error::OrchestratorError> {
         match action {
             ExecutorAction::SpawnAgent { plan_id, role, task } => {
@@ -3024,7 +3025,12 @@ impl MultiJobOrchestrator {
                     "task": task,
                 });
                 self.tool_dispatcher
-                    .dispatch("spawn_agent", params)
+                    .dispatch(
+                        "spawn_agent",
+                        params,
+                        &ctx.user_id,
+                        DispatchSource::Workflow { workflow_name: ctx.workflow_name.clone() },
+                    )
                     .await
                     .map_err(|e| OrchestratorError::DispatchFailed {
                         tool: "spawn_agent".into(),
@@ -3130,39 +3136,15 @@ impl PersistentEventLog {
         // 1. Append to in-memory log (fast, gets hash-chained)
         let entry = self.in_memory.append(kind, payload.clone())?;
 
-        // 2. Persist to DB (write-ahead)
-        self.db.execute(
-            "INSERT INTO orchestrator_events (sequence_number, timestamp_ms, event_kind, payload, content_hash)
-             VALUES ($1, $2, $3, $4, $5)",
-            &[
-                &(entry.sequence_number as i64),
-                &entry.timestamp_ms,
-                &entry.event_kind.to_string(),
-                &serde_json::to_string(&entry.payload)?,
-                &entry.content_hash.as_slice(),
-            ],
-        ).await?;
+        // 2. Persist through typed DB facade methods implemented for both
+        // PostgreSQL and libSQL. Avoid raw SQL at orchestration call sites.
+        self.db.append_orchestrator_event(&entry).await?;
 
         Ok(entry.sequence_number)
     }
 
     pub async fn load_from_db(db: Arc<dyn Database>) -> Result<Self, EventLogError> {
-        let rows = db.query(
-            "SELECT sequence_number, timestamp_ms, event_kind, payload, content_hash
-             FROM orchestrator_events
-             ORDER BY sequence_number ASC",
-            &[],
-        ).await?;
-
-        let entries: Vec<EventEntry> = rows.iter().map(|r| {
-            EventEntry {
-                sequence_number: r.get::<i64>(0) as u64,
-                timestamp_ms: r.get::<i64>(1),
-                event_kind: EventKind::from_str(r.get::<&str>(2))?,
-                payload: serde_json::from_str(r.get::<&str>(3))?,
-                content_hash: r.get::<Vec<u8>>(4).try_into()?,
-            }
-        }).collect::<Result<_, _>>()?;
+        let entries = db.list_orchestrator_events_ordered().await?;
 
         let snapshot = EventLogSnapshot {
             entries,
@@ -3516,13 +3498,12 @@ New files:
 ```toml
 # Cargo.toml additions for orchestrator integration
 [dependencies]
-blake3 = "1.5"         # BLAKE3 hashing for audit chain and snapshot verification
-                       # (not currently in IronClaw; add to workspace Cargo.toml)
+blake3 = "1.5"         # already present in IronClaw; reuse existing workspace dependency
 # Already present in IronClaw:
 # chrono, parking_lot, serde, serde_json, thiserror, tokio, uuid
 ```
 
-Note: `blake3` is the only new dependency needed for Phases 1-3. IronClaw already has all other required crates. The `petgraph` crate is optional -- cycle detection is implemented as a self-contained DFS function without it.
+Note: do not add dependencies until the implementation proves they are needed. `blake3` is already present. `petgraph` is optional; cycle detection can start as a small self-contained DFS function.
 
 ### Key Risks
 

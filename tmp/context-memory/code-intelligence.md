@@ -1,8 +1,8 @@
 # Code Intelligence: Multi-Modal Source Indexing, Graph Ranking, and Hybrid Search
 
-**Source reference**: [wpank/roko](https://github.com/wpank/roko) — crates `roko-index`, `roko-lang-rust`, `roko-lang-typescript`, `roko-lang-go`, `roko-core`
+**Source reference**: captured source crates `roko-index`, `roko-lang-rust`, `roko-lang-typescript`, `roko-lang-go`, `roko-core`
 
-**Priority**: HIGH — multi-modal code indexing, PageRank, HDC fingerprints, hybrid search. This is one of the most directly applicable systems to IronClaw's code-aware tool execution. The structural context assembly eliminates the agent's dependence on raw grep-style search and gives it the same kind of architectural understanding that a senior engineer has when navigating an unfamiliar codebase.
+**Priority**: HIGH — multi-modal code indexing, PageRank, HDC fingerprints, hybrid search. This is one of the most directly applicable systems to IronClaw's code-aware tool execution. The goal is to give the agent structural context — symbols, callers, dependencies, and ranked slices — instead of raw text matches alone.
 
 ---
 
@@ -73,8 +73,8 @@ graph TB
     BUDGET --> CTX[AssembledContext\nCodeSlice list]
 
     subgraph "Symbol Index"
-        K --> SN[symbols_by_name\nO of 1]
-        K --> SF[functions_by_name\nO of 1]
+        K --> SN[symbols_by_name\nO(1)]
+        K --> SF[functions_by_name\nO(1)]
         K --> SS[structural filter\nmin_pagerank / has_callers]
     end
 
@@ -100,23 +100,23 @@ graph TB
 
 ## 2. Architecture Overview
 
-The code intelligence system spans five crates, all accessible via their canonical GitHub paths:
+The code intelligence system spans five captured-source crates:
 
 | Crate / File | Role |
 |---|---|
-| [`roko-core/src/language.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/language.rs) | Core trait definitions: `LanguageProvider`, `BuildSystem`, `Symbol`, `SymbolKind`, `Import`, `ImportKind`, `Visibility` |
-| [`roko-core/src/build.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/build.rs) | `BuildSystem` trait and `BuildCommand` type |
-| [`roko-lang-rust/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-lang-rust/src/lib.rs) | `RustLanguageProvider` (heuristic), `CargoBuildSystem` |
-| [`roko-lang-rust/src/tree_sitter_parser.rs`](https://github.com/wpank/roko/blob/main/crates/roko-lang-rust/src/tree_sitter_parser.rs) | `TreeSitterRustProvider` (AST-based, feature-gated) |
-| [`roko-lang-typescript/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-lang-typescript/src/lib.rs) | `TypeScriptLanguageProvider`, `NpmBuildSystem`, `PnpmBuildSystem`, `YarnBuildSystem` |
-| [`roko-lang-go/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-lang-go/src/lib.rs) | `GoLanguageProvider`, `GoBuildSystem` |
-| [`roko-index/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/lib.rs) | Public API, convenience re-exports |
-| [`roko-index/src/parser.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/parser.rs) | Language-agnostic `SourceFile` + `parse_source()` |
-| [`roko-index/src/symbol.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/symbol.rs) | `SymbolId`, `SymbolRef`, `find_symbol()` |
-| [`roko-index/src/graph.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/graph.rs) | `SymbolGraph`, `EdgeKind`, `build_graph()`, `pagerank()`, `weighted_pagerank()`, `personalized_pagerank()` |
-| [`roko-index/src/hdc.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/hdc.rs) | `HdcFingerprint`, `fingerprint_symbol()`, `fingerprint_file()`, `similarity()` |
-| [`roko-index/src/sqlite.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/sqlite.rs) | `SqliteIndex` — persistent storage (feature-gated) |
-| [`roko-index/src/workspace.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/workspace.rs) | `WorkspaceIndex`, `CodeIndex` trait, `SearchStrategy`, RRF merge, context assembly, overlays, privacy |
+| `crates/roko-core/src/language.rs` | Core trait definitions: `LanguageProvider`, `BuildSystem`, `Symbol`, `SymbolKind`, `Import`, `ImportKind`, `Visibility` |
+| `crates/roko-core/src/build.rs` | `BuildSystem` trait and `BuildCommand` type |
+| `crates/roko-lang-rust/src/lib.rs` | `RustLanguageProvider` (heuristic), `CargoBuildSystem` |
+| `crates/roko-lang-rust/src/tree_sitter_parser.rs` | `TreeSitterRustProvider` (AST-based, feature-gated) |
+| `crates/roko-lang-typescript/src/lib.rs` | `TypeScriptLanguageProvider`, `NpmBuildSystem`, `PnpmBuildSystem`, `YarnBuildSystem` |
+| `crates/roko-lang-go/src/lib.rs` | `GoLanguageProvider`, `GoBuildSystem` |
+| `crates/roko-index/src/lib.rs` | Public API, convenience re-exports |
+| `crates/roko-index/src/parser.rs` | Language-agnostic `SourceFile` + `parse_source()` |
+| `crates/roko-index/src/symbol.rs` | `SymbolId`, `SymbolRef`, `find_symbol()` |
+| `crates/roko-index/src/graph.rs` | `SymbolGraph`, `EdgeKind`, `build_graph()`, `pagerank()`, `weighted_pagerank()`, `personalized_pagerank()` |
+| `crates/roko-index/src/hdc.rs` | `HdcFingerprint`, `fingerprint_symbol()`, `fingerprint_file()`, `similarity()` |
+| `crates/roko-index/src/sqlite.rs` | `SqliteIndex` — persistent storage (feature-gated) |
+| `crates/roko-index/src/workspace.rs` | `WorkspaceIndex`, `CodeIndex` trait, `SearchStrategy`, RRF merge, context assembly, overlays, privacy |
 
 The separation is deliberate: `roko-index` contains zero language-specific logic. All language knowledge lives in `roko-lang-*` crates that implement the `LanguageProvider` trait from `roko-core`. Adding Python support means implementing `PythonLanguageProvider`; every downstream module (graph, HDC, search, context assembly) works unchanged.
 
@@ -126,7 +126,7 @@ The separation is deliberate: `roko-index` contains zero language-specific logic
 
 ### Symbol
 
-A symbol is a named entity extracted from source code ([`roko-core/src/language.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/language.rs) lines 43–106):
+A symbol is a named entity extracted from source code (`crates/roko-core/src/language.rs` lines 43–106):
 
 ```rust
 pub enum SymbolKind {
@@ -170,7 +170,7 @@ This uniform mapping means the graph, PageRank, HDC fingerprints, and search all
 
 ### SymbolId
 
-A unique identifier for a symbol within an index, composed of three fields ([`roko-index/src/symbol.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/symbol.rs) lines 20–66):
+A unique identifier for a symbol within an index, composed of three fields (`crates/roko-index/src/symbol.rs` lines 20–66):
 
 ```rust
 pub struct SymbolId {
@@ -196,7 +196,7 @@ pub struct SymbolRef {
 
 ### SourceFile
 
-The parsed representation of a single source file ([`roko-index/src/parser.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/parser.rs)):
+The parsed representation of a single source file (`crates/roko-index/src/parser.rs`):
 
 ```rust
 pub struct SourceFile {
@@ -210,7 +210,7 @@ pub struct SourceFile {
 
 ### Import
 
-An import statement extracted from source ([`roko-core/src/language.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/language.rs)):
+An import statement extracted from source (`crates/roko-core/src/language.rs`):
 
 ```rust
 pub enum ImportKind {
@@ -241,7 +241,7 @@ Supported languages: **Rust** (dual-mode: heuristic regex and tree-sitter), **Ty
 The `parse_source` function in `roko-index` is the boundary where language-specific knowledge ends:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-index/src/parser.rs
+// `crates/roko-index/src/parser.rs`
 pub fn parse_source(path: &str, content: &str, provider: &dyn LanguageProvider) -> SourceFile {
     let symbols = provider.extract_symbols(content);
     let imports = provider.parse_imports(content);
@@ -301,19 +301,19 @@ Note: `tree-sitter-rust` (the grammar crate) and `tree-sitter` (the runtime) fol
 
 Handles ES module imports (`import ... from`, `import '...'`), CommonJS `require()` calls, and type-only imports (`import type`). Extracts `function`, `class`, `interface`, `type`, `const`, `enum`, and `export default` symbols. Maps `class` to `SymbolKind::Struct`, `interface` to `SymbolKind::Trait`.
 
-Source: [`roko-lang-typescript/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-lang-typescript/src/lib.rs)
+Source: `crates/roko-lang-typescript/src/lib.rs`
 
 ### Go Provider
 
 Parses single and grouped `import` statements (including aliased, dot, and blank imports). Extracts `func` (including methods with receivers), `type ... struct`, `type ... interface`, `const`, `var`, and grouped `const`/`var` blocks. Uses Go's capitalization convention for visibility.
 
-Source: [`roko-lang-go/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-lang-go/src/lib.rs)
+Source: `crates/roko-lang-go/src/lib.rs`
 
 ---
 
 ## 5. Indexing Mode 1: Symbol Index
 
-The symbol index is a traditional symbol table. For every source file, it stores the symbol name, kind, visibility, file path, line number, and language. The `WorkspaceIndex` maintains multiple hash maps for fast lookup ([`roko-index/src/workspace.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/workspace.rs) lines 26–41):
+The symbol index is a traditional symbol table. For every source file, it stores the symbol name, kind, visibility, file path, line number, and language. The `WorkspaceIndex` maintains multiple hash maps for fast lookup (`crates/roko-index/src/workspace.rs` lines 26–41):
 
 ```rust
 pub struct WorkspaceIndex {
@@ -366,7 +366,7 @@ pub struct StructuralQuery {
 
 ### Data Structure
 
-The dependency graph uses dual adjacency lists for O(1) lookup in either direction ([`roko-index/src/graph.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/graph.rs) lines 1–42):
+The dependency graph uses dual adjacency lists for O(1) lookup in either direction (`crates/roko-index/src/graph.rs` lines 1–42):
 
 ```rust
 pub struct SymbolGraph {
@@ -436,7 +436,7 @@ flowchart LR
     PR --> SCORES[HashMap of SymbolId to f64]
 ```
 
-Construction algorithm (verbatim from [`roko-index/src/graph.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/graph.rs) lines 279–465):
+Construction algorithm (verbatim from `crates/roko-index/src/graph.rs` lines 279–465):
 
 ```
 Phase 1: Register all symbols as graph nodes.
@@ -497,7 +497,7 @@ PR(v) = (1 - d) / N  +  d × SUM( PR(u) / out_degree(u) )
 
 Where `d = 0.85` (damping factor) and `N` = total nodes. The damping factor models the "random surfer": with probability `d` (85%) the surfer follows an edge; with probability `1-d` (15%) the surfer teleports to a uniformly random node.
 
-Full implementation ([`roko-index/src/graph.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/graph.rs) lines 589–622):
+Full implementation (`crates/roko-index/src/graph.rs` lines 589–622):
 
 ```rust
 pub fn pagerank(
@@ -551,7 +551,7 @@ Weighted PageRank assigns different weights to each edge type:
 WPR(v) = (1 - d) / N  +  d × SUM( WPR(u) × w(u,v) / weighted_out_degree(u) )
 ```
 
-Where `weighted_out_degree(u) = SUM(w(u, target))` for all outgoing edges from u ([`roko-index/src/graph.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/graph.rs) lines 624–693).
+Where `weighted_out_degree(u) = SUM(w(u, target))` for all outgoing edges from u (`crates/roko-index/src/graph.rs` lines 624–693).
 
 ### Personalized PageRank
 
@@ -598,7 +598,7 @@ Hyperdimensional computing (HDC), also known as Vector Symbolic Architectures (V
 | **Permute** | Bit rotation | `rotate_left(n)` | Creates ordered sequences |
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-index/src/hdc.rs
+// `crates/roko-index/src/hdc.rs`
 const WORDS: usize = 160;           // 10,240 / 64 = 160 u64 words
 const TOTAL_BITS: usize = WORDS * 64;  // 10,240 bits
 
@@ -688,7 +688,7 @@ Properties:
 let ctx_vec = vector_from_seed(context);  // context = file content bytes
 ```
 
-**Final composition** ([`roko-index/src/hdc.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/hdc.rs)):
+**Final composition** (`crates/roko-index/src/hdc.rs`):
 
 ```rust
 pub fn fingerprint_symbol(symbol: &Symbol, context: &[u8]) -> HdcFingerprint {
@@ -764,7 +764,7 @@ Range [0.0, 1.0]: 1.0 = identical, ~0.5 = unrelated (random), 0.0 = maximally di
 | Model dependency | None | Requires embedding model |
 | Incremental update | ~5 µs per symbol | ~10 ms per symbol |
 
-HDC is 200x–20,000x faster than neural embeddings and requires no GPU. Neural embeddings capture semantic meaning that HDC misses. The design uses both: HDC for fast structural matching (always on), embeddings for semantic refinement (feature-gated).
+HDC avoids model inference and can be much cheaper than neural embedding calls for structural fingerprints. Neural embeddings still capture semantic meaning that HDC misses. The design should use both: HDC for fast structural matching (always on), embeddings for semantic refinement (feature-gated), with local benchmarks before making speedup claims.
 
 ---
 
@@ -775,7 +775,7 @@ The SQLite-backed persistent index provides FTS5 full-text search over symbol na
 ### Schema
 
 ```sql
--- https://github.com/wpank/roko/blob/main/crates/roko-index/src/sqlite.rs
+-- `crates/roko-index/src/sqlite.rs`
 
 CREATE TABLE files (
     path     TEXT PRIMARY KEY,
@@ -826,7 +826,7 @@ FTS5 uses BM25 ranking by default. The `rank` hidden column contains the BM25 re
 
 ### Incremental Updates
 
-The `incremental_update` method checks file modification times and only re-indexes changed files ([`roko-index/src/sqlite.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/sqlite.rs)):
+The `incremental_update` method checks file modification times and only re-indexes changed files (`crates/roko-index/src/sqlite.rs`):
 
 ```rust
 pub fn incremental_update<F>(
@@ -844,7 +844,7 @@ For each file: check `mtime_ns` against stored value; if unchanged, skip; if cha
 
 ## 9. Hybrid Search with RRF
 
-When a query comes in, multiple search strategies run in parallel. The `SearchStrategy` enum defines the options ([`roko-index/src/workspace.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/workspace.rs) lines 600–634):
+When a query comes in, multiple search strategies run in parallel. The `SearchStrategy` enum defines the options (`crates/roko-index/src/workspace.rs` lines 600–634):
 
 ```rust
 pub enum SearchStrategy {
@@ -889,7 +889,7 @@ flowchart LR
     TRUNC --> OUT[Merged Vec of SearchResult]
 ```
 
-Full implementation ([`roko-index/src/workspace.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/workspace.rs) lines 1430–1464):
+Full implementation (`crates/roko-index/src/workspace.rs` lines 1430–1464):
 
 ```rust
 fn rrf_merge(lists: &[Vec<SearchResult>], k: f64, limit: usize) -> Vec<SearchResult> {
@@ -1002,7 +1002,7 @@ Result order: A > D > C > B = E
 
 ### Context Overlay
 
-Per-agent customization of what symbols are included in assembled context ([`roko-index/src/workspace.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/workspace.rs) lines 200–222):
+Per-agent customization of what symbols are included in assembled context (`crates/roko-index/src/workspace.rs` lines 200–222):
 
 ```rust
 pub struct ContextOverlay {
@@ -1031,11 +1031,11 @@ Privacy redaction happens after search/ranking but before context assembly. Sens
 
 ## 11. Context Assembly Pipeline
 
-> **Boundary note**: This section describes code-intelligence's own assembly step — ranking and budget-fitting code slices into `AssembledContext`. This is a *pre-budget* operation: it selects the most relevant code fragments within a per-slice token limit. The downstream prompt assembly (VCG auction, U-shaped placement, Thompson Sampling learning bidders) is a separate layer described in [Budget Composition](budget-composition.md). `AssembledContext` is one bidder in that auction, competing with memory Engrams, skills, and conversation history for space in the final prompt.
+> **Boundary note**: This section describes code-intelligence's own assembly step — ranking and budget-fitting code slices into `AssembledContext`. This is a *pre-budget* operation: it selects the most relevant code fragments within a per-slice token limit. The downstream prompt assembly layer (density allocation, position-aware placement, and optional learning/diagnostic bidders) is described in [Budget Composition](budget-composition.md). `AssembledContext` is one bidder competing with memory Engrams, skills, and conversation history for space in the final prompt.
 
 ### The CodeIndex Trait
 
-The `WorkspaceIndex` implements the `CodeIndex` trait, which provides the full suite of code intelligence queries ([`roko-index/src/workspace.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/workspace.rs) lines 350–410):
+The `WorkspaceIndex` implements the `CodeIndex` trait, which provides the full suite of code intelligence queries (`crates/roko-index/src/workspace.rs` lines 350–410):
 
 ```rust
 pub trait CodeIndex {
@@ -1112,10 +1112,10 @@ The `AssembledContext` produced here feeds directly into the budget-constrained 
 
 - Each `CodeSlice` becomes a `PromptSection` bidding for space in the LLM context window
 - `token_estimate` is the bid's declared cost
-- The VCG auction in `roko-compose` allocates the remaining token budget across code slices, memory entries, skill content, and conversation history
+- The budget allocator chooses among code slices, memory entries, skill content, and conversation history under the remaining token limit
 - The U-shaped attention placement algorithm then positions the winning slices at the primacy and recency zones of the assembled prompt
 
-This means the code intelligence pipeline does not stand alone: it produces ranked, budget-estimated fragments that the composition pipeline then places optimally. A code slice with high `score` but large `token_estimate` may lose the auction to a smaller, slightly lower-ranked slice — exactly the tradeoff the auction mechanism is designed to navigate.
+This means the code intelligence pipeline does not stand alone: it produces ranked, budget-estimated fragments that the composition pipeline then places. A code slice with high `score` but large `token_estimate` may lose to a smaller, slightly lower-ranked slice — exactly the tradeoff the allocator is designed to navigate.
 
 ### Semantic Search
 
@@ -1168,7 +1168,7 @@ pub struct SymbolContext {
 
 ## 12. Workspace Index Construction
 
-The `WorkspaceIndex::load()` method builds a complete index from a directory ([`roko-index/src/workspace.rs`](https://github.com/wpank/roko/blob/main/crates/roko-index/src/workspace.rs) lines 435–445):
+The `WorkspaceIndex::load()` method builds a complete index from a directory (`crates/roko-index/src/workspace.rs` lines 435–445):
 
 ```rust
 pub fn load(root: impl AsRef<Path>) -> Result<Self> {
@@ -1269,7 +1269,7 @@ The numbers below quantify how much code the agent must read today (using `grep_
 | "What breaks if I change type Y?" | ~150,000 | ~2,000 | 75× |
 | "Find all callers of Z" | ~80,000 | ~3,000 | 27× |
 | "Understand architecture of module M" | ~200,000 | ~8,000 (top-PR symbols) | 25× |
-| "Detect duplicate implementations" | grep: impossible | HDC: < 1 ms scan | N/A |
+| "Detect duplicate implementations" | grep: poor fit | HDC: benchmark target < 1 ms scan | N/A |
 
 For IronClaw specifically, the most impactful scenario is the refactoring case: "what breaks if I change type Y?" The agent today must read every file that could possibly import the type. With structural context, it issues a single graph traversal from the type's `SymbolId` and gets the complete reverse-neighbor chain — all direct dependents and their callers — in under 5 ms.
 
@@ -1582,7 +1582,7 @@ pub trait Tool: Send + Sync {
 
 Code intelligence tools are read-only (`ToolDomain::Orchestrator`, `ApprovalRequirement::Never`) and compatible with both engine versions (`EngineCompatibility::Both`).
 
-### New Crate: `crates/ironclaw_code_index/`
+### Proposed Crate Or Module: `crates/ironclaw_code_index/`
 
 ```
 crates/ironclaw_code_index/
@@ -1607,7 +1607,7 @@ crates/ironclaw_code_index/
     privacy.rs      # CodePrivacyConfig, apply_privacy()
 ```
 
-The crate has zero IronClaw dependencies in its core modules. It depends only on `ironclaw_code_index::*` from within IronClaw — parallel to how `ironclaw_safety` and `ironclaw_llm` are extracted crates.
+If extracted, the crate should keep core indexing modules independent from the host and expose integration through IronClaw-owned facades. This is a proposal, not an existing crate in the current workspace.
 
 ### New Tools
 

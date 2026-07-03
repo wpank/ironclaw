@@ -2,7 +2,7 @@
 
 This directory catalogs every academic and technical reference found across the Roko codebase — a cognitive AI agent framework for autonomous software development. Roko draws from neuroscience, economics, topology, cybernetics, and philosophy to build agents that learn, feel, forget, dream, and cooperate. Every architectural decision traces to published research.
 
-> **Source note**: Roko implementation references in this document point to the public GitHub repository at `https://github.com/wpank/roko/blob/main/`. These are provenance identifiers, not local filesystem paths.
+> **Source note**: Roko implementation references in this document point to the public GitHub repository at ```.` These are provenance identifiers, not local filesystem paths.
 
 ---
 
@@ -15,7 +15,7 @@ This directory catalogs every academic and technical reference found across the 
 | [affect-and-cognition.md](affect-and-cognition.md) | PAD model, somatic markers, ALMA, cognitive architectures, dual-process, cybernetics, IIT, philosophy |
 | [verification-and-safety.md](verification-and-safety.md) | SPC (CUSUM/EWMA/BOCPD), process reward models, capability security, information flow control, calibration |
 | [agents-and-orchestration.md](agents-and-orchestration.md) | Agent harnesses, stigmergy, FIPA lifecycle, biological analogues, evolutionary dynamics, temporal reasoning |
-| [blockchain-and-economics.md](blockchain-and-economics.md) | VCG auctions, mechanism design, Gesellian demurrage, protocol standards (MCP/A2A), market microstructure |
+| [blockchain-and-economics.md](blockchain-and-economics.md) | Mechanism-design diagnostics, density allocation, Gesellian demurrage, protocol standards (MCP/A2A), market microstructure |
 | [context-and-search.md](context-and-search.md) | Prompt composition, RAG, attention patterns, information theory, predictive processing |
 | [math-and-statistics.md](math-and-statistics.md) | TDA/persistent homology, Johnson-Lindenstrauss, submodularity, ergodicity, changepoint detection, control theory |
 
@@ -105,7 +105,7 @@ The diagram reveals three major intellectual lineages:
 
 1. **Neuroscience lineage** (HDC -> Memory -> Dream -> FEP -> Decision): Kanerva's distributed representations flow into McClelland's memory theory, which grounds the dream consolidation system, which connects to Friston's free energy principle for routing.
 
-2. **Economics lineage** (Mechanism Design -> Market Microstructure -> Prospect Theory): VCG auction for context allocation, Kelly criterion for budget sizing, and Kahneman-Tversky loss aversion in affective appraisal.
+2. **Economics lineage** (Mechanism Design -> Market Microstructure -> Prospect Theory): budget-allocation diagnostics, Kelly criterion for budget sizing, and Kahneman-Tversky loss aversion in affective appraisal.
 
 3. **Cybernetics lineage** (VSM -> Cognitive Architectures -> Verification): Beer's Viable System Model shapes the conductor hierarchy, which CoALA extends for language agents, verified by process reward models.
 
@@ -161,7 +161,7 @@ These 20 papers are the most foundational to understanding the Roko architecture
 
 1. **Cognitive architecture**: Sumers et al. (2023), Kahneman (2011) — the 9-step pipeline and T0/T1/T2 tiers
 2. **Process control**: Page (1954), Roberts (1959), Adams & MacKay (2007) — CUSUM/EWMA/BOCPD for monitoring
-3. **Resource allocation**: Vickrey (1961), Nemhauser et al. (1978), Simon (1971) — VCG auction for context tokens
+3. **Resource allocation**: Vickrey (1961), Nemhauser et al. (1978), Simon (1971) — context-token allocation and displacement diagnostics
 4. **Coordination**: Grasse (1959), Dorigo & Gambardella (1997) — pheromone-based multi-agent coordination
 5. **Security**: Dennis & Van Horn (1966), Denning (1976), Debenedetti et al. (2025) — capability security and IFC
 6. **Cybernetics**: Beer (1972), Wiener (1948), Ashby (1956) — VSM and requisite variety
@@ -208,4 +208,4 @@ These 20 papers are the most foundational to understanding the Roko architecture
 
 ---
 
-*Generated 2026-07-03. All Roko implementation references point to `https://github.com/wpank/roko/blob/main/` — no local filesystem paths are used in this document.*
+*Generated 2026-07-03. All Roko implementation references point to ```` — no local filesystem paths are used in this document.*

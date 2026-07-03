@@ -1,21 +1,19 @@
-# IronClaw × Roko Implementation Tracker
+# IronClaw Implementation Tracker
 
-Master implementation tracker for integrating research-grade agent intelligence
-from the Roko framework into IronClaw's production codebase. This document is
-the single authoritative entry point for scheduling, status, dependencies, and
-definition of done across all four phases.
+Master implementation tracker for adapting the captured agent-intelligence
+concept notes into IronClaw's production codebase. This document is the entry
+point for scheduling, status, dependencies, and definition of done across all
+four phases.
 
 ---
 
 ## Executive Summary
 
-This plan adapts 25 concepts from the Roko agent framework into IronClaw — a
-secure personal AI assistant written in Rust. Roko is a research-grade
-autonomous agent system (~727K LOC, 30 crates, 8,300 tests) with a proven set
-of algorithms for memory management, LLM cost reduction, agent self-regulation,
-and code verification. The integration is **clean-room**: no Roko source code
-is imported. Every feature is reimplemented inside IronClaw-owned modules using
-the captured concept documentation as the specification.
+This plan adapts 25 captured research concepts into IronClaw, a secure personal
+AI assistant written in Rust. The implementation is clean-room: no external
+source tree, crate, or copied implementation is required. Every feature is
+reimplemented inside IronClaw-owned modules using the captured concept
+documentation, subsystem specs, and current code as the specification.
 
 **Total scope:**
 
@@ -25,22 +23,28 @@ the captured concept documentation as the specification.
 | Phases | 4 |
 | Estimated calendar time (2 devs) | ~14 weeks (vs. 26 weeks serial) |
 | Estimated LOC (top 10 features) | ~5,250–5,950 |
-| New crates to be created | 4 (`ironclaw_hdc`, `ironclaw_gate`, `ironclaw_graph`, `ironclaw_dreams`) |
+| New crates to be created | 4-5 planned (`ironclaw_hdc`, `ironclaw_gate`, `ironclaw_graph`, `ironclaw_dreams`, optionally `ironclaw_compose`) |
 | Existing files touched | ~25 across `src/` and `crates/ironclaw_llm/` |
 | Feature flags required | 1 per feature, all default-off |
-| DB migrations required | 2 (Phase 2: HDC fingerprint column; Phase 3: DAG run table) |
+| DB migrations required | feature-specific; any durable schema change must support PostgreSQL and libSQL together |
 
-**Primary expected outcomes:**
+**Primary measurable hypotheses:**
 
-- 30–50% LLM cost reduction (Cascade Router, Phase 2)
-- Memory workspace stays "sharp" as it scales (Ebbinghaus Decay, Phase 1)
-- Runaway agent spend and stuck loops detected and corrected (Metacognitive Monitor, Phase 1)
-- Generated code verified before submission (Gate Pipeline, Phase 2)
-- Agent learns which LLM provider wins for each task class (Cascade Router, Phase 2+3)
+- Cascade Router reduces median cost/request for eligible low-risk traffic by
+  at least 20% after warmup, without quality dropping more than 2 percentage
+  points.
+- Memory decay and dedup reduce duplicate/stale memory retrieval without losing
+  useful current facts.
+- Metacognitive monitoring catches repeated low-diversity loops and projected
+  cost overruns before hard limits fire.
+- Progressive gates catch seeded generated-code defects while keeping false
+  blocks under the configured budget.
+- Provider health signals warn before repeated degraded-provider failures in
+  fixture and canary windows.
 
 **Source documents**: [`tmp/strategy/integration-roadmap.md`](../strategy/integration-roadmap.md)
-and [`tmp/strategy/priority-matrix/README.md`](../strategy/priority-matrix/README.md). No
-access to the Roko source tree is required to implement any feature.
+and [`tmp/strategy/priority-matrix/README.md`](../strategy/priority-matrix/README.md).
+The local documents contain the implementation context needed for each feature.
 
 ---
 
@@ -48,7 +52,7 @@ access to the Roko source tree is required to implement any feature.
 
 ```mermaid
 gantt
-    title IronClaw × Roko Integration — 2-Developer Parallel Schedule
+    title IronClaw Concept Integration — 2-Developer Parallel Schedule
     dateFormat YYYY-MM-DD
     axisFormat %b %d
 
@@ -275,7 +279,7 @@ are parallel; 2.3 begins after 2.2; 2.4 begins after 1.3 lands.
 
 ### 2.1 Cascade Router (LinUCB)
 - [ ] Create `crates/ironclaw_llm/src/cascade_router.rs` with `CascadeRouter`, `LinUcbBandit`
-- [ ] 18-dimensional context vector (task type, token count, complexity, history, etc.)
+- [ ] 14-dimensional IronClaw context vector (task type, token count, complexity, history, etc.)
 - [ ] Three-stage cascade: static rules → confidence check → UCB selection
 - [ ] Audit log: every routing decision records context vector + selected provider + outcome
 - [ ] Feature flag `experimental.cascade_router` defaults off; static router remains authoritative when off
@@ -390,8 +394,8 @@ long-tail. Tackle in priority order as resources allow.
 - [ ] Feature flag `experimental.workspace_code_search` defaults off
 - [ ] Test: fixture repo indexed; top-5 symbol recall > previous FTS-only baseline by +15pp
 
-### 4.4 Budget Composition (VCG)
-- [ ] VCG auction: skills, memory, tools, history bid for context window tokens
+### 4.4 Budget Composition
+- [ ] Density allocator: skills, memory, tools, history bid for context window tokens; VCG-style diagnostics are optional
 - [ ] U-shaped placement: critical items at start and end of context window
 - [ ] Feature flag `experimental.vcg_budget_composition` defaults off
 - [ ] Test: input tokens/request down 15%; answer quality within -2pp of baseline

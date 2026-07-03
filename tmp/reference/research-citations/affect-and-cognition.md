@@ -20,7 +20,7 @@ Affective computing studies how emotions influence cognition, decision-making, a
 - **Concept**: Three continuous dimensions (Pleasure, Arousal, Dominance) capture more emotional variance than discrete emotion labels. The 8 PAD octants map to behavioral states.
 - **Roko adaptation**: Daimon state vector. Every Signal carries an optional PAD stamp. The 8 octants map to: Exuberant, Dependent, Relaxed, Docile, Hostile, Anxious, Disdainful, Depressed.
 - **Crate**: `roko-daimon`, `roko-core`
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2/26-CROSS-CUTS.md`](https://github.com/wpank/roko/blob/main/docs/v2/26-CROSS-CUTS.md) (line 226), [`https://github.com/wpank/roko/blob/main/docs/v2-depth/07-agent-runtime/18-affect-as-functor.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/07-agent-runtime/18-affect-as-functor.md), [`https://github.com/wpank/roko/blob/main/docs/v2/05-AGENT.md`](https://github.com/wpank/roko/blob/main/docs/v2/05-AGENT.md) (line 969)
+- **Roko source**: `docs/v2/26-CROSS-CUTS.md` (line 226), `docs/v2-depth/07-agent-runtime/18-affect-as-functor.md`, `docs/v2/05-AGENT.md` (line 969)
 - **tmp/ cross-refs**: `03-affect-engine.md`, `13-cognitive-architecture.md`
 
 ---
@@ -29,7 +29,7 @@ Affective computing studies how emotions influence cognition, decision-making, a
 [DOI: 10.1016/0092-6566(77)90037-X](https://doi.org/10.1016/0092-6566(77)90037-X)
 
 - **Concept**: Empirical validation of the three-dimensional affect model through factor analysis of emotional self-reports across multiple populations and cultures.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/02-affective-computing.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/02-affective-computing.md)
+- **Roko source**: `docs/v1/21-references/02-affective-computing.md`
 - **tmp/ cross-refs**: `03-affect-engine.md`
 
 ---
@@ -41,7 +41,7 @@ Affective computing studies how emotions influence cognition, decision-making, a
 - **Concept**: Somatic markers: patients without emotional capacity (vmPFC damage) make consistently worse decisions under uncertainty despite intact reasoning. Emotional signals from body-mapped memories guide decision-making before deliberation.
 - **Roko adaptation**: SomaticLandscape implemented as a k-d tree over 8-dimensional strategy space. Past emotional experiences bias future decisions before analytical reasoning begins.
 - **Crate**: `roko-daimon` (`somatic_ta.rs`), `roko-core`
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/somatic_ta.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/somatic_ta.rs) (line 15), [`https://github.com/wpank/roko/blob/main/docs/v2/05-AGENT.md`](https://github.com/wpank/roko/blob/main/docs/v2/05-AGENT.md) (line 969)
+- **Roko source**: `crates/roko-daimon/src/somatic_ta.rs` (line 15), `docs/v2/05-AGENT.md` (line 969)
 - **tmp/ cross-refs**: `03-affect-engine.md`, `13-cognitive-architecture.md`
 
 ---
@@ -63,7 +63,7 @@ Affective computing studies how emotions influence cognition, decision-making, a
 - **Concept**: OCC emotion model: cognitive appraisal-based emotion taxonomy organizing 22 basic emotions by their cognitive antecedent conditions. Emotions arise from evaluating events against goals (desirability), standards (praiseworthiness), and attitudes (appealingness).
 - **Roko adaptation**: Complements PAD with structural-of-emotion framework. The 8-step appraisal pipeline is OCC-Scherer.
 - **Crate**: `roko-daimon`
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/21-references/02-affective-computing.md`](https://github.com/wpank/roko/blob/main/docs/v1/21-references/02-affective-computing.md), [`https://github.com/wpank/roko/blob/main/docs/v2-depth/07-agent-runtime/18-affect-as-functor.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/07-agent-runtime/18-affect-as-functor.md) (line 126)
+- **Roko source**: `docs/v1/21-references/02-affective-computing.md`, `docs/v2-depth/07-agent-runtime/18-affect-as-functor.md` (line 126)
 - **tmp/ cross-refs**: `03-affect-engine.md`
 
 ---
@@ -85,7 +85,7 @@ Affective computing studies how emotions influence cognition, decision-making, a
 - **Concept**: Three-layer temporal affect: emotion (seconds), mood (hours), personality (lifetime). Each layer operates at different timescale with different time constants, preventing short-term events from corrupting personality baselines.
 - **Roko adaptation**: Three nested loops. Emotion: tau=0.1. Mood: tau=0.5, fires every 10 ticks. Personality: tau=0.9, fires every 100 ticks. Effective PAD = 0.5*emotion + 0.3*mood + 0.2*personality.
 - **Crate**: `roko-daimon`
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2-depth/07-agent-runtime/18-affect-as-functor.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/07-agent-runtime/18-affect-as-functor.md) (line 480)
+- **Roko source**: `docs/v2-depth/07-agent-runtime/18-affect-as-functor.md` (line 480)
 - **tmp/ cross-refs**: `03-affect-engine.md`
 
 ---
@@ -98,7 +98,7 @@ Affective computing studies how emotions influence cognition, decision-making, a
 - **Concept**: Emotional states bias memory retrieval via associative network activation. Happy moods preferentially retrieve positive memories; the effect is stronger for autobiographical than semantic memories.
 - **Roko adaptation**: Emotional factor (0.15 weight) in four-factor retrieval scoring. Mandatory 15% contrarian retrieval prevents echo chambers.
 - **Crate**: `roko-daimon`, `roko-neuro`
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/somatic_ta.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/somatic_ta.rs) (line 20)
+- **Roko source**: `crates/roko-daimon/src/somatic_ta.rs` (line 20)
 - **tmp/ cross-refs**: `03-affect-engine.md`
 
 ---
@@ -137,7 +137,7 @@ Kahneman and Tversky's Prospect Theory replaced Expected Utility Theory as the d
 - **Concept**: Value function: concave for gains (v(x) = x^0.88), convex for losses (v(-x) = -2.25 * x^0.88). Losses hurt more than equivalent gains feel good; lambda ≈ 2.25.
 - **Roko adaptation**: Daimon appraisal pipeline uses prospect theory with lambda=2.25. Gate failures produce 2x the affect delta of gate passes. `v(delta) = delta^0.88` for gains, `-2.25 * (-delta)^0.88` for losses.
 - **Crate**: `roko-daimon`
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2/05-AGENT.md`](https://github.com/wpank/roko/blob/main/docs/v2/05-AGENT.md) (lines 985-993), [`https://github.com/wpank/roko/blob/main/docs/v2-depth/07-agent-runtime/18-affect-as-functor.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/07-agent-runtime/18-affect-as-functor.md) (lines 240, 261)
+- **Roko source**: `docs/v2/05-AGENT.md` (lines 985-993), `docs/v2-depth/07-agent-runtime/18-affect-as-functor.md` (lines 240, 261)
 - **tmp/ cross-refs**: `03-affect-engine.md`
 
 ---
@@ -171,7 +171,7 @@ Cognitive architectures are comprehensive models of the information processing s
 
 - **Concept**: ACT-R: declarative/procedural memory distinction. Production rules as computational substrate for cognition. 50+ years of experimental validation.
 - **Roko adaptation**: NeuroStore knowledge types map to ACT-R memory categories. Declarative = stored knowledge. Procedural = heuristics/playbook rules.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2-depth/07-agent-runtime/dual-process-and-efe-routing.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/07-agent-runtime/dual-process-and-efe-routing.md) (line 100)
+- **Roko source**: `docs/v2-depth/07-agent-runtime/dual-process-and-efe-routing.md` (line 100)
 - **tmp/ cross-refs**: `13-cognitive-architecture.md`
 
 ---
@@ -197,7 +197,7 @@ Cognitive architectures are comprehensive models of the information processing s
 
 - **Concept**: Consciousness as a broadcast mechanism. Multiple specialized processors compete for access to a shared global workspace; the "winner" broadcasts to all other processors.
 - **Roko adaptation**: Broadcast on Bus = global workspace. CognitiveWorkspace VCG = competitive access. The context window is the "workspace" that multiple subsystems compete to fill.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2/05-AGENT.md`](https://github.com/wpank/roko/blob/main/docs/v2/05-AGENT.md) (line 1625)
+- **Roko source**: `docs/v2/05-AGENT.md` (line 1625)
 - **tmp/ cross-refs**: `13-cognitive-architecture.md`, `09-budget-composition.md`
 
 ---
@@ -214,7 +214,7 @@ Dual-process theories distinguish between automatic, fast, low-effort processing
 
 - **Concept**: Neural oscillation bands serve distinct cognitive functions: gamma (30-100 Hz, perception/attention), theta (4-8 Hz, memory/navigation/learning), delta (0.5-4 Hz, deep sleep/consolidation).
 - **Roko adaptation**: Three cognitive speeds named after oscillation bands. Gamma (~5-15 seconds, reactive), Theta (~75 seconds, reflection), Delta (hours, consolidation).
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/00-architecture/10-three-cognitive-speeds.md`](https://github.com/wpank/roko/blob/main/docs/v1/00-architecture/10-three-cognitive-speeds.md) (line 7)
+- **Roko source**: `docs/v1/00-architecture/10-three-cognitive-speeds.md` (line 7)
 - **tmp/ cross-refs**: `13-cognitive-architecture.md`
 
 ---
@@ -291,7 +291,7 @@ Cognitive resources — attention, working memory, self-control — are limited 
 
 - **Concept**: Attention as a scarce resource drawn from a limited "effort supply" that replenishes over time.
 - **Roko adaptation**: The cognitive energy pool. Energy is Kahneman's "effort supply" made explicit and computable.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v1/00-architecture/29-cognitive-energy-model.md`](https://github.com/wpank/roko/blob/main/docs/v1/00-architecture/29-cognitive-energy-model.md) (lines 16, 20)
+- **Roko source**: `docs/v1/00-architecture/29-cognitive-energy-model.md` (lines 16, 20)
 - **tmp/ cross-refs**: `13-cognitive-architecture.md`
 
 ---
@@ -361,7 +361,7 @@ The inverted-U relationship between arousal/pressure and performance was establi
 - **Concept**: Inverted-U relationship between arousal/pressure and performance. Performance peaks at moderate pressure and degrades at both extremes.
 - **Roko adaptation**: Conductor uses Yerkes-Dodson to adjust intervention aggressiveness. Modeled as Gaussian: `exp(-((pressure - optimal)^2) / (2 * width^2))` with default optimal=0.5, width=0.25.
 - **Crate**: `roko-conductor` (`yerkes_dodson.rs`)
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/yerkes_dodson.rs`](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/yerkes_dodson.rs)
+- **Roko source**: `crates/roko-conductor/src/yerkes_dodson.rs`
 - **tmp/ cross-refs**: `06-conductor-anomaly.md`
 
 ---
@@ -395,7 +395,7 @@ Cybernetics — the science of control and communication in animals and machines
 - **Concept**: Viable System Model (VSM): five recursively nested subsystems (S1 implementation, S2 coordination, S3 control, S4 intelligence, S5 policy).
 - **Roko adaptation**: S1-5 mapping to conductor hierarchy. L1 TurnConductor (S1), L2 TaskConductor, L3 PlanConductor, L4 FleetConductor (S5).
 - **Crate**: `roko-conductor` (`federation.rs`)
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/federation.rs`](https://github.com/wpank/roko/blob/main/crates/roko-conductor/src/federation.rs) (line 4)
+- **Roko source**: `crates/roko-conductor/src/federation.rs` (line 4)
 - **tmp/ cross-refs**: `06-conductor-anomaly.md`, `13-cognitive-architecture.md`, `15-orchestrator-swarm.md`
 
 ---
@@ -433,7 +433,7 @@ Cybernetics — the science of control and communication in animals and machines
 - **Concept**: Integrated Information Theory (IIT): Phi measures how much a system is "more than the sum of its parts" via irreducible causal interactions.
 - **Roko adaptation**: IitPhiMetric computes Phi over N subsystems from a mutual information matrix, estimating irreducible information integration as a system health indicator.
 - **Crate**: `roko-daimon` (`somatic_ta.rs`)
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/somatic_ta.rs`](https://github.com/wpank/roko/blob/main/crates/roko-daimon/src/somatic_ta.rs) (lines 8, 27-28)
+- **Roko source**: `crates/roko-daimon/src/somatic_ta.rs` (lines 8, 27-28)
 - **tmp/ cross-refs**: `03-affect-engine.md`
 
 ---
@@ -449,7 +449,7 @@ Cybernetics — the science of control and communication in animals and machines
 
 - **Concept**: Autotelic agents set their own goals based on intrinsic motivation (curiosity, competence progress, surprise). Goal representation and goal-conditioned policy learning enable open-ended development.
 - **Roko adaptation**: Goal emergence engine synthesizes goals from affect (what the agent wants), knowledge (what it knows), and experience (what it has done).
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2/05-AGENT.md`](https://github.com/wpank/roko/blob/main/docs/v2/05-AGENT.md) (lines 1318, 1334)
+- **Roko source**: `docs/v2/05-AGENT.md` (lines 1318, 1334)
 - **tmp/ cross-refs**: `13-cognitive-architecture.md`
 
 ---
@@ -458,7 +458,7 @@ Cybernetics — the science of control and communication in animals and machines
 [DOI: 10.1109/TAMD.2010.2056368](https://doi.org/10.1109/TAMD.2010.2056368)
 
 - **Concept**: Intrinsic motivation from compression progress. Curiosity as a drive to compress experience into more efficient representations.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2/05-AGENT.md`](https://github.com/wpank/roko/blob/main/docs/v2/05-AGENT.md) (line 1318)
+- **Roko source**: `docs/v2/05-AGENT.md` (line 1318)
 - **tmp/ cross-refs**: `13-cognitive-architecture.md`
 
 ---
@@ -467,7 +467,7 @@ Cybernetics — the science of control and communication in animals and machines
 
 - **Concept**: Zone of Proximal Development (ZPD): the distance between what a learner can do independently and what they can do under guidance. Optimal learning occurs at the ZPD boundary.
 - **Roko adaptation**: ZPD score peaks when goals are challenging enough to learn from but achievable enough to avoid frustration.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2/05-AGENT.md`](https://github.com/wpank/roko/blob/main/docs/v2/05-AGENT.md) (lines 1334, 1629)
+- **Roko source**: `docs/v2/05-AGENT.md` (lines 1334, 1629)
 - **tmp/ cross-refs**: `13-cognitive-architecture.md`
 
 ---

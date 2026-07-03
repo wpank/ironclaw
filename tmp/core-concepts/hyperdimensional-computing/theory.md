@@ -43,7 +43,7 @@ The core insight: **in sufficiently high-dimensional spaces (thousands of bits),
 1. **Capacity**: A space of D-bit vectors can represent an exponential number of distinct concepts without interference.
 2. **Composability**: Vectors can be combined with algebraic operations (XOR binding, majority-vote bundling, cyclic-shift permutation) that produce new vectors while preserving the ability to detect component parts.
 3. **Robustness**: Similarity is distributed across many bits, so small perturbations do not destroy the overall structure.
-4. **Efficiency**: All operations reduce to bitwise CPU instructions (XOR, popcount, shift). No floating-point arithmetic. No GPU. No model inference. ~13 ns per similarity comparison.
+4. **Efficiency**: All operations reduce to bitwise CPU instructions (XOR, popcount, shift). No floating-point arithmetic, GPU, or model inference is required for comparison. Captured-source benchmarks report ~13 ns per fixed-width similarity comparison; IronClaw should remeasure this on target hardware.
 
 ### The VSA Family
 
@@ -155,7 +155,7 @@ The 10,240-bit choice balances three engineering concerns:
 
 2. **Precision**: ±1.0% noise band (2-sigma) means a similarity threshold of 0.526 (just 2.6% above the 0.5 baseline) is statistically meaningful at p < 10^-7 per comparison, remaining significant even after Bonferroni correction against 100K comparisons.
 
-3. **Performance**: 160 words × 8 bytes = 1,280 bytes per fingerprint. The entire vector fits in L1 cache (typically 32–64 KB). XOR + popcount over 160 words completes in ~13 ns on modern x86 hardware with auto-vectorized SIMD.
+3. **Performance**: 160 words × 8 bytes = 1,280 bytes per fingerprint. The vector is small enough for cache-friendly scans. XOR + popcount over 160 words is the fixed-cost inner loop; the ~13 ns figure is a captured benchmark target, not an IronClaw guarantee.
 
 The number 10,240 = 160 × 64 is chosen for alignment: it maps exactly to 160 machine words with no padding or waste.
 
@@ -252,13 +252,13 @@ sim(A, B) = 1 - hamming_distance(A, B) / D
 | Similarity range | Meaning |
 |---|---|
 | 1.0 | Identical vectors |
-| > 0.526 | Statistically meaningful relationship (< 1% FP rate against 100K comparisons) |
+| > 0.526 | Candidate relationship; target threshold for <1% random-pair FP rate against 100K comparisons after local validation |
 | > 0.52 | Meaningful relationship (single-pair check, p < 3×10^-5) |
 | 0.485–0.515 | Noise band (quasi-orthogonal, no relationship, 99.7% of random pairs) |
 | < 0.48 | Meaningful dissimilarity (anti-correlated) |
 | 0.0 | Bitwise complement |
 
-**Performance**: 160 XOR + POPCNT operations: ~13 ns on x86 with SIMD auto-vectorization.
+**Performance**: 160 XOR + POPCNT operations per pair. Treat the captured ~13 ns x86 result as a local benchmark target.
 
 ### 5.5 The HDC Pipeline
 

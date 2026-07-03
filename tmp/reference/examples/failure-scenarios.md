@@ -1,7 +1,7 @@
 # Failure Scenarios
 
 These are expected failure modes for the proposed features. Each one includes a
-detection signal, mitigation, and regression test idea.
+detection signal, mitigation, and a caller-level regression test idea.
 
 ## 1. False Positive HDC Memory Merge
 
@@ -15,20 +15,23 @@ Bad outcome:
 
 Detection signal:
 
-- user correction after dedupe.
-- low lexical overlap despite high HDC similarity.
-- duplicate candidate later split manually.
+- User correction after dedupe.
+- Low lexical overlap despite high HDC similarity.
+- Duplicate candidate later split manually.
 
 Mitigation:
 
 - Use soft dedupe first.
-- Require exact hash match or high HDC plus metadata agreement for hard dedupe.
+- Require exact hash match or high HDC similarity plus metadata agreement for
+  hard dedupe.
 - Keep lineage so split is possible.
 
 Regression test:
 
-- Fixture with two similar but contradictory preferences.
-- Assert hard dedupe does not merge them.
+- Use or extend [`memory-dedup.yaml`](../../implementation/benchmarking/scenarios/memory-dedup.yaml)
+  with two similar but contradictory preferences.
+- Drive the memory-write caller, not only the similarity helper.
+- Assert hard dedupe does not merge them and search can still return both.
 
 ## 2. Cheap Model Selected Incorrectly
 
@@ -42,9 +45,9 @@ Bad outcome:
 
 Detection signal:
 
-- static safety rule and bandit decision disagree.
-- quality pass rate drops by more than 2 percentage points.
-- fallback-to-primary rises.
+- Static safety rule and bandit decision disagree.
+- Quality pass rate drops by more than 2 percentage points.
+- Fallback-to-primary rises.
 
 Mitigation:
 
@@ -54,8 +57,10 @@ Mitigation:
 
 Regression test:
 
-- Fixture with private summary request.
-- Assert bandit is shadow-only and trusted provider remains authoritative.
+- Add a private-summary case to [`cascade-router.yaml`](../../implementation/benchmarking/scenarios/cascade-router.yaml).
+- Drive the routing provider boundary.
+- Assert bandit output is shadow-only and the trusted provider remains
+  authoritative.
 
 ## 3. Gate Pipeline Blocks A Valid Change
 
@@ -69,9 +74,9 @@ Bad outcome:
 
 Detection signal:
 
-- false block rate above 5%.
-- same remediation repeated twice.
-- blocked run passes when gate is disabled.
+- False block rate above 5%.
+- Same remediation repeated twice.
+- Blocked run passes when only the high-risk gate is disabled.
 
 Mitigation:
 
@@ -82,6 +87,8 @@ Mitigation:
 Regression test:
 
 - Drive production caller, not only gate helper.
+- Use [`gate-pipeline.yaml`](../../implementation/benchmarking/scenarios/gate-pipeline.yaml)
+  as the initial fixture shape.
 - Assert the low-risk change is allowed after compile/lint/unit tests.
 
 ## 4. Dream Writes Hallucinated Memory
@@ -96,9 +103,9 @@ Bad outcome:
 
 Detection signal:
 
-- derived memory has no source turn support.
-- user correction after retrieval.
-- contradiction with user-authored memory.
+- Derived memory has no source turn support.
+- User correction after retrieval.
+- Contradiction with user-authored memory.
 
 Mitigation:
 
@@ -108,7 +115,8 @@ Mitigation:
 
 Regression test:
 
-- Fixture with ambiguous session transcript.
+- Use or extend [`dream-consolidation.yaml`](../../implementation/benchmarking/scenarios/dream-consolidation.yaml)
+  with an ambiguous session transcript.
 - Assert derived memory remains low confidence and does not outrank source facts.
 
 ## 5. Conductor Oscillates Between Providers
@@ -123,9 +131,9 @@ Bad outcome:
 
 Detection signal:
 
-- provider selection alternates repeatedly within cooldown window.
-- fallback rate doubles.
-- healthy-provider false positive rate exceeds 3%.
+- Provider selection alternates repeatedly within cooldown window.
+- Fallback rate doubles.
+- Healthy-provider false positive rate exceeds 3%.
 
 Mitigation:
 
@@ -135,7 +143,8 @@ Mitigation:
 
 Regression test:
 
-- Alternating latency fixture.
+- Extend [`provider-degradation.yaml`](../../implementation/benchmarking/scenarios/provider-degradation.yaml)
+  with an alternating latency sequence.
 - Assert at most one provider switch per cooldown window.
 
 ## 6. DAG Branch Skipped Unexpectedly
@@ -151,7 +160,7 @@ Bad outcome:
 Detection signal:
 
 - `DagNodeSnapshot` remains `Skipped` with missing predicate evidence.
-- final run succeeds with required artifact absent.
+- Final run succeeds with required artifact absent.
 
 Mitigation:
 
@@ -161,6 +170,33 @@ Mitigation:
 
 Regression test:
 
-- Fixture graph with typo in edge predicate.
+- Adaptation sketch: fixture graph with a typo in an edge predicate.
 - Assert graph validation fails before effects run.
 
+## 7. SSE Or WebSocket Reconnect Replays Incorrectly
+
+Trigger:
+
+- Browser reconnects after the server has emitted a terminal event.
+
+Bad outcome:
+
+- The dashboard misses completion or shows the same terminal event twice.
+
+Detection signal:
+
+- Event-stream gap count is non-zero.
+- Duplicate terminal event count is non-zero.
+- Browser state disagrees with the API's session state.
+
+Mitigation:
+
+- Require cursor-based replay in reconnect tests.
+- Deduplicate terminal events by run id and event type.
+- Keep HTTP, SSE, and WebSocket auth paths equivalent.
+
+Regression test:
+
+- Drive the real web stream handler with start/progress/end events.
+- Disconnect before the end event is read, reconnect with the last cursor, and
+  assert exactly one terminal event.

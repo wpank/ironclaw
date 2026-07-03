@@ -1,6 +1,6 @@
 # Glossary of Terms
 
-> **Quick-reference guide.** This glossary defines every domain-specific term used across the 31 canonical documents and supplemental files in this knowledge base. Each entry is one or two precise sentences; the linked document contains the full explanation, implementation code, and academic references. Use this file to decode unfamiliar vocabulary before or while reading the main documents.
+> **Quick-reference guide.** This glossary defines the main domain terms used across this knowledge base. Each entry is one or two precise sentences; linked documents contain fuller explanations, implementation notes, and references.
 
 ---
 
@@ -43,7 +43,7 @@ A cryptographic proof attached to an Engram: the producer signs the canonical by
 → [Universal Engram](../core-concepts/universal-engram.md)
 
 **Attention Bidder**
-One of eight subsystems (skills, memory, tools, history, context, identity, pheromones, code) that competes in the VCG auction to win token budget in the assembled prompt. Each bidder submits a value-per-token score for its candidate sections.
+A prompt-content source (skills, memory, tools, history, context, identity, code) that offers candidate sections with token costs and value scores. The budget composer uses those bids for density allocation and optional VCG-style displacement diagnostics.
 → [Budget Composition](../context-memory/budget-composition.md)
 
 ---
@@ -87,7 +87,7 @@ The specific HDC variant used in this system: binary vectors with XOR binding, m
 → [Hyperdimensional Computing](../core-concepts/hyperdimensional-computing/README.md)
 
 **Budget Composition**
-The full process of assembling a prompt under a token budget constraint, including VCG auction allocation, U-shaped position assignment, and per-section cost attribution.
+The full process of assembling a prompt under a token budget constraint, including density allocation, position-aware placement, and per-section cost attribution.
 → [Budget Composition](../context-memory/budget-composition.md)
 
 **Bundle (Majority Vote)**
@@ -154,7 +154,7 @@ An Engram's primary identifier: the BLAKE3 hash of its kind, body, author, and t
 → [Universal Engram](../core-concepts/universal-engram.md)
 
 **Context Tier**
-One of three prompt assembly modes (Surgical: 4K tokens, Focused: 12K tokens, Full: entire window) selected based on request type and complexity. The system selects a tier automatically using a composition strategy, then runs the VCG auction within that token budget.
+One of three prompt assembly modes (Surgical: 4K tokens, Focused: 12K tokens, Full: entire window) selected based on request type and complexity. The system selects a tier automatically using a composition strategy, then runs budget allocation within that token limit.
 → [Budget Composition](../context-memory/budget-composition.md)
 
 **Contrarian Blending**
@@ -388,10 +388,6 @@ See HdcVector. The generic term for a vector with thousands of dimensions used i
 **IIT Phi Metric**
 An approximation of Integrated Information Theory's Φ (phi) measure, used in the Somatic TA integration to quantify the degree to which a multi-agent system acts as an integrated whole rather than a collection of independent parts.
 → [Affect Engine](../agent-intelligence/affect-engine.md)
-
-**ISFR Oracle**
-Interquartile Stratified Fee Rate oracle: a weighted-median aggregator that combines fee-rate reports from multiple data sources (agents, off-chain monitors) to produce a tamper-resistant reference rate for micropayment pricing.
-→ [Chain Reputation](../ecosystem/chain-reputation/README.md)
 
 **ItemMemory**
 An HDC structure that stores a set of named concepts (strings mapped to hypervectors) and supports nearest-neighbor lookup: given a query vector, find the stored concept with the highest Hamming similarity.
@@ -718,7 +714,7 @@ The Dream Consolidation subsystem that enumerates likely failure modes using Fai
 A human-readable, TOML-format declarative workflow definition specifying DAG nodes (Cells), dependencies, edge conditions, budget limits, and retry policies. The plan-to-graph converter instantiates these as runnable Graphs.
 → [DAG Execution Engine](../execution-verification/dag-execution.md)
 
-**TopologicaI Sort (Kahn's Algorithm)**
+**Topological Sort (Kahn's Algorithm)**
 Kahn's (1962) BFS-based algorithm that produces a valid execution order for a DAG by repeatedly removing nodes with no remaining dependencies. Used in the graph engine to determine which Cells can run next.
 → [DAG Execution Engine](../execution-verification/dag-execution.md)
 
@@ -761,8 +757,8 @@ The empirically observed pattern (Liu et al. 2024, "Lost in the Middle") that LL
 
 ## V
 
-**VCG Auction (Vickrey-Clarke-Groves)**
-A mechanism-design framework (Vickrey 1961, Clarke 1971, Groves 1973) guaranteeing truthful bidding: each participant's dominant strategy is to report their true value. Used in Budget Composition to allocate token budget — attention bidders reveal their true value-per-token and cannot benefit from strategic overbidding.
+**VCG-Inspired Diagnostics**
+Vickrey-Clarke-Groves auctions are a mechanism-design framework for truthful allocation under strict assumptions. The budget-composition plan does not implement a full proof-carrying VCG mechanism; it uses greedy density allocation and can record displacement payments as calibration diagnostics.
 → [Budget Composition](../context-memory/budget-composition.md)
 
 **Verdict**
@@ -819,4 +815,4 @@ An architectural aspiration for Gamma-speed processing: T0 checks (regex, thresh
 
 ---
 
-*This glossary covers 130+ terms. For the full document index, see the [knowledge base README](../README.md). For the academic sources behind these terms, see [Research Citations](./research-citations/README.md). For the Roko-to-IronClaw naming bridge (Engram → Signal, Substrate → Store, etc.), see [Terminology Bridge](terminology-glossary.md).*
+*For the full document index, see the [knowledge base README](../README.md). For academic sources, see [Research Citations](./research-citations/README.md). For the Roko-to-IronClaw naming bridge (Engram → Signal, Substrate → Store, etc.), see [Terminology Bridge](terminology-glossary.md).*

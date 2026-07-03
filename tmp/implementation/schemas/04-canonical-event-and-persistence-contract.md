@@ -140,6 +140,50 @@ CREATE INDEX idx_feature_exposure_feature_time
     ON feature_exposure_events(feature, created_at_ms DESC);
 ```
 
+### Gate Verdicts
+
+```sql
+CREATE TABLE gate_verdicts (
+    verdict_id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL,
+    rung TEXT NOT NULL,
+    status TEXT NOT NULL,
+    confidence REAL NOT NULL,
+    duration_ms INTEGER NOT NULL,
+    artifact_refs_json TEXT NOT NULL,
+    remediation TEXT,
+    redaction_applied INTEGER NOT NULL DEFAULT 0,
+    created_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX idx_gate_verdicts_run_id
+    ON gate_verdicts(run_id);
+```
+
+### Signal Records
+
+```sql
+CREATE TABLE signal_records (
+    signal_id TEXT PRIMARY KEY,
+    content_hash_blake3 TEXT NOT NULL,
+    workspace_path TEXT NOT NULL,
+    title TEXT,
+    content_type TEXT NOT NULL,
+    parent_signal_ids_json TEXT NOT NULL,
+    confidence REAL NOT NULL,
+    utility REAL NOT NULL,
+    novelty REAL NOT NULL,
+    half_life_seconds INTEGER,
+    taints_json TEXT NOT NULL,
+    created_at_ms INTEGER NOT NULL,
+    last_accessed_ms INTEGER NOT NULL,
+    UNIQUE(workspace_path, content_hash_blake3)
+);
+
+CREATE INDEX idx_signal_records_workspace_access
+    ON signal_records(workspace_path, last_accessed_ms DESC);
+```
+
 ### DAG Run Records
 
 ```sql
@@ -203,7 +247,10 @@ CREATE TABLE rollout_decisions (
 ```
 
 PostgreSQL and libSQL migrations should share numeric prefixes and semantic
-names. Rollback should disable callers before any data cleanup.
+names where both systems use versioned migrations. In the current repo,
+PostgreSQL migrations live under `migrations/`; libSQL incremental migrations
+are appended in `src/db/libsql_migrations.rs`. Rollback should disable callers
+before any data cleanup.
 
 ## 4. Retention Policy
 

@@ -43,7 +43,7 @@ Context engineering addresses how to select, arrange, and compress information w
 [arXiv:2302.00093](https://arxiv.org/abs/2302.00093)
 
 - **Concept**: Irrelevant context actively degrades LLM performance — not merely dilutes attention but actively misleads reasoning. Filtering is not optional.
-- **Roko adaptation**: Quality filtering is mandatory. VCG auction prevents irrelevant subsystems from dominating the prompt.
+- **Captured adaptation**: Quality filtering is mandatory. Budget allocation should prevent irrelevant subsystems from dominating the prompt.
 - **tmp/ cross-refs**: `09-budget-composition.md`
 
 ---
@@ -53,7 +53,7 @@ Context engineering addresses how to select, arrange, and compress information w
 
 - **Concept**: Tests whether retrieved snippets alone could plausibly answer the query. Uncovers new RAG failure modes and lifts selective accuracy by 2-10 points.
 - **Roko adaptation**: Validates context quality assessment: including wrong context is worse than no context.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2-depth/02-block/distributed-and-affect-composition.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/02-block/distributed-and-affect-composition.md) (line 31)
+- **Roko source**: `docs/v2-depth/02-block/distributed-and-affect-composition.md` (line 31)
 - **tmp/ cross-refs**: `09-budget-composition.md`
 
 ---
@@ -84,7 +84,7 @@ Shannon's mathematical theory of communication provides the quantitative vocabul
 
 - **Concept**: Surprise = KL(posterior || prior). Formally identical to the epistemic EFE component. Human attention is captured by high-surprise stimuli.
 - **Roko adaptation**: Active inference agents naturally seek knowledge with the highest Bayesian surprise in context selection scoring.
-- **Roko source**: [`https://github.com/wpank/roko/blob/main/docs/v2-depth/02-block/active-inference-context-selection.md`](https://github.com/wpank/roko/blob/main/docs/v2-depth/02-block/active-inference-context-selection.md) (line 32)
+- **Roko source**: `docs/v2-depth/02-block/active-inference-context-selection.md` (line 32)
 
 ---
 

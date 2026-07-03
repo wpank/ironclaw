@@ -1,11 +1,11 @@
 # DAG Execution Engine
 
 **Source crate**: `roko-graph` (captured corpus at `crates/roko-graph/`)
-**GitHub reference**: https://github.com/wpank/roko/blob/main/crates/roko-graph/
+**GitHub reference**: `crates/roko-graph`
 **Priority**: HIGH — replaces ad-hoc job chaining with declarative, observable, budget-enforced workflows
 **Roko doc references**: `docs/v2/03-GRAPH.md`, `docs/v2/04-EXECUTION.md`, `docs/v1/01-orchestration/02-unified-task-dag.md`, `docs/v2-depth/05-execution-engine/cognitive-loop-as-graph.md`
 
-> **Self-contained implementation note**: GitHub path references in this document point to the captured Roko source corpus for provenance. Use [implementation/README.md](../implementation/README.md) and [implementation/05-per-file-action-matrix.md](../implementation/05-per-file-action-matrix.md) for IronClaw-native build plans.
+> **Self-contained implementation note**: Captured path references in this document are provenance labels from the source corpus. Use [implementation/README.md](../implementation/README.md) and [implementation/05-per-file-action-matrix.md](../implementation/05-per-file-action-matrix.md) for IronClaw-native build plans.
 
 > **Companion artifacts**: [implementation/02-runtime-workflow-blueprints.md](../implementation/02-runtime-workflow-blueprints.md) for runnable graph shapes; [implementation/09-plan-runner-readiness.md](../implementation/09-plan-runner-readiness.md) for TOML plan adaptation.
 
@@ -205,7 +205,7 @@ The `roko-graph` crate is the implementation of the DAG execution engine. It liv
 ### Module Map
 
 ```
-crates/roko-graph/                      (https://github.com/wpank/roko/blob/main/crates/roko-graph/)
+crates/roko-graph/                      (`crates/roko-graph`)
 ├── Cargo.toml
 └── src/
     ├── lib.rs              # Crate root, re-exports all public types
@@ -284,13 +284,13 @@ flowchart TB
 
 ### Dependencies
 
-Source: https://github.com/wpank/roko/blob/main/crates/roko-graph/Cargo.toml
+Source: `crates/roko-graph/Cargo.toml`
 
 ```toml
 [dependencies]
 # roko-core provides Engram/Kind/Body/error types.
 # IronClaw ports define local equivalents (serde_json::Value) instead.
-petgraph = { workspace = true }        # DiGraph + toposort algorithm
+petgraph = "0.6"                       # optional; a small DFS/toposort can avoid this dependency
 toml = { workspace = true }            # TOML parsing for graph definitions
 serde = { workspace = true }           # Serialization/deserialization
 serde_json = { workspace = true }      # JSON for node output data
@@ -308,7 +308,7 @@ features = ["process", "time", "rt", "macros"]
 
 ### Crate-level re-exports
 
-Source: https://github.com/wpank/roko/blob/main/crates/roko-graph/src/lib.rs
+Source: `crates/roko-graph/src/lib.rs`
 
 ```rust
 pub use cell::{Cell, CellContext, CellVersion};
@@ -331,7 +331,7 @@ pub use hot::{HotGraphHandle, HotPolicy, start_hot};
 
 The `Cell` trait is the fundamental abstraction in roko-graph. **Every node in a graph is backed by a Cell implementation.** Cells are the units of work — they receive input, perform computation, and produce output.
 
-Source: https://github.com/wpank/roko/blob/main/crates/roko-graph/src/cell.rs
+Source: `crates/roko-graph/src/cell.rs`
 
 ### Full Cell Trait Definition
 
@@ -435,7 +435,7 @@ In the IronClaw port, `CellContext` is extended to `WorkflowContext` carrying `A
 
 The `CellRegistry` maps cell type name strings to factory functions. When the engine encounters a node with `cell_type = "gate.compile"`, it looks up `"gate.compile"` in the registry, calls its factory with the node's TOML config, and gets back a `Box<dyn Cell>`.
 
-Source: https://github.com/wpank/roko/blob/main/crates/roko-graph/src/registry.rs
+Source: `crates/roko-graph/src/registry.rs`
 
 ### Full CellRegistry Implementation
 
@@ -505,7 +505,7 @@ Cell factories take a `toml::Value` and return `Box<dyn Cell>`. This means:
 
 ### The Default Registry
 
-Source: https://github.com/wpank/roko/blob/main/crates/roko-graph/src/engine.rs (`default_registry` function)
+Source: `crates/roko-graph/src/engine.rs` (`default_registry` function)
 
 | Cell Type | Implementation | Purpose |
 |-----------|---------------|---------|
@@ -523,7 +523,7 @@ Source: https://github.com/wpank/roko/blob/main/crates/roko-graph/src/engine.rs 
 | `store-writer` | `PassthroughCell` | Cognitive loop stub |
 | `event-publisher` | `PassthroughCell` | Cognitive loop stub |
 
-The cognitive loop stubs are registered so that TOML definitions referencing these cell types can load and validate without error. Real implementations replace them as they are built. The names are defined in https://github.com/wpank/roko/blob/main/crates/roko-graph/src/cells/stubs.rs:
+The cognitive loop stubs are registered so that TOML definitions referencing these cell types can load and validate without error. Real implementations replace them as they are built. The names are defined in `crates/roko-graph/src/cells/stubs.rs:`
 
 ```rust
 pub const COGNITIVE_LOOP_STUBS: &[&str] = &[
@@ -541,7 +541,7 @@ pub const COGNITIVE_LOOP_STUBS: &[&str] = &[
 
 ## 7. Graph Types and Data Model
 
-Source: https://github.com/wpank/roko/blob/main/crates/roko-graph/src/types.rs
+Source: `crates/roko-graph/src/types.rs`
 
 ### Core Graph Type
 
@@ -842,7 +842,7 @@ The TOML loader uses `#[serde(tag = "type")]` with lowercase aliases so `type = 
 
 ## 9. Condition System: Deep-Path Field Evaluation
 
-Beyond the type-level `EdgeCondition` on edges, roko-graph has a richer `Condition` system in https://github.com/wpank/roko/blob/main/crates/roko-graph/src/condition.rs with field-path resolution, comparison operators, and cross-type value comparison (JSON output vs. TOML expected values).
+Beyond the type-level `EdgeCondition` on edges, roko-graph has a richer `Condition` system in `crates/roko-graph/src/condition.rs` with field-path resolution, comparison operators, and cross-type value comparison (JSON output vs. TOML expected values).
 
 ### Condition Enum
 
@@ -974,7 +974,7 @@ fn evaluate_when(
 
 ## 10. TOML Loader: Declarative Graph Definitions
 
-Source: https://github.com/wpank/roko/blob/main/crates/roko-graph/src/loader.rs
+Source: `crates/roko-graph/src/loader.rs`
 
 ### TOML Schema
 
@@ -1080,7 +1080,7 @@ Cycle detection is the engine's responsibility and runs on the fully constructed
 
 ## 11. Topological Sort and Dependency Resolution
 
-Source: https://github.com/wpank/roko/blob/main/crates/roko-graph/src/topo.rs
+Source: `crates/roko-graph/src/topo.rs`
 
 ### Topological Sort
 
@@ -1163,7 +1163,7 @@ pub fn leaf_nodes(graph: &Graph) -> Vec<NodeId> {
 
 ## 12. The GraphEngine: Sequential Execution
 
-Source: https://github.com/wpank/roko/blob/main/crates/roko-graph/src/engine.rs
+Source: `crates/roko-graph/src/engine.rs`
 
 ### Execution Flow
 
@@ -1362,7 +1362,7 @@ Status: SUCCESS   Duration: 4.2s   Nodes: 4
 
 ## 13. Budget Tracking System
 
-Source: https://github.com/wpank/roko/blob/main/crates/roko-graph/src/budget.rs
+Source: `crates/roko-graph/src/budget.rs`
 
 ### Budget Tracking Flow
 
@@ -1531,7 +1531,7 @@ flowchart TD
 
 ### HotPolicy Configuration
 
-Source: https://github.com/wpank/roko/blob/main/crates/roko-graph/src/hot.rs
+Source: `crates/roko-graph/src/hot.rs`
 
 ```rust
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -1681,7 +1681,7 @@ pub fn start_hot(
 
 > **See also**: This pipeline converts a single plan's tasks into a `Graph`. The [Orchestrator & Swarm](./orchestrator-swarm.md) then merges multiple per-plan graphs into a `UnifiedTaskDag` for cross-plan wave scheduling. See [Orchestrator: Unified Cross-Plan Task DAG](./orchestrator-swarm.md#5-unified-cross-plan-task-dag) for the higher-level scheduling layer that consumes these per-plan graphs.
 
-Source: https://github.com/wpank/roko/blob/main/crates/roko-graph/src/convert.rs
+Source: `crates/roko-graph/src/convert.rs`
 
 ### Conversion Functions
 
@@ -1780,7 +1780,7 @@ fn convert_diamond_dependencies() {
 
 ### AgentCell: LLM Dispatch
 
-Source: https://github.com/wpank/roko/blob/main/crates/roko-graph/src/cells/agent.rs
+Source: `crates/roko-graph/src/cells/agent.rs`
 
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1824,7 +1824,7 @@ pub struct AgentResponse {
 
 ### ComposeCell: Template Substitution
 
-Source: https://github.com/wpank/roko/blob/main/crates/roko-graph/src/cells/compose.rs
+Source: `crates/roko-graph/src/cells/compose.rs`
 
 ```rust
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -1854,7 +1854,7 @@ project = "IronClaw"
 
 ### GraduationCell: Pulse-to-Signal Promotion
 
-Source: https://github.com/wpank/roko/blob/main/crates/roko-graph/src/cells/graduation.rs
+Source: `crates/roko-graph/src/cells/graduation.rs`
 
 Evaluates Bus Pulses against `GraduationPolicy` entries and promotes qualifying ones to durable Signals (Engrams). Key behaviors:
 
@@ -1866,7 +1866,7 @@ Evaluates Bus Pulses against `GraduationPolicy` entries and promotes qualifying 
 
 ### TaskExecutorCell: Plan Task Stub
 
-Source: https://github.com/wpank/roko/blob/main/crates/roko-graph/src/cells/task_executor.rs
+Source: `crates/roko-graph/src/cells/task_executor.rs`
 
 ```rust
 pub struct TaskExecutorCell {
@@ -1878,7 +1878,7 @@ In dry-run mode (current default): extracts a task label from the first input en
 
 ### ShellCell: Command Execution
 
-Defined directly in https://github.com/wpank/roko/blob/main/crates/roko-graph/src/engine.rs:
+Defined directly in `crates/roko-graph/src/engine.rs:`
 
 ```rust
 struct ShellCell {
@@ -1893,7 +1893,7 @@ Runs via `tokio::process::Command`. Success = exit code 0. On failure, uses stde
 
 ### PassthroughCell: Stubs
 
-Source: https://github.com/wpank/roko/blob/main/crates/roko-graph/src/cells/stubs.rs
+Source: `crates/roko-graph/src/cells/stubs.rs`
 
 Passes input engrams through unchanged. Logs `info!` with cell name and input count. Each instance carries a `name: String` field so logs identify which stub was invoked.
 
@@ -1903,7 +1903,7 @@ Passes input engrams through unchanged. Logs `info!` with cell name and input co
 
 ### 17.1 Graph as Cell (Fractal Composition)
 
-Reference: https://github.com/wpank/roko/blob/main/docs/v2/03-GRAPH.md
+Reference: `docs/v2/03-GRAPH.md`
 
 > **Design invariant**: A Graph IS a Cell (fractal composition). Any Graph can be embedded as a SubGraph node inside another Graph. The Engine does not distinguish between "top-level" and "nested" Graphs.
 
@@ -1911,7 +1911,7 @@ A complex workflow can be composed from simpler workflows. A "CI pipeline" graph
 
 ### 17.2 Workflow/Activity Split
 
-Reference: https://github.com/wpank/roko/blob/main/docs/v2/04-EXECUTION.md
+Reference: `docs/v2/04-EXECUTION.md`
 
 Nodes are classified as either **Workflow** (deterministic: same input → same output) or **Activity** (non-deterministic: LLM calls, HTTP requests, shell commands). During replay/resume, Workflow nodes re-execute; Activity nodes return their recorded output without re-execution. Directly inspired by Temporal.io [2].
 
@@ -1922,7 +1922,7 @@ Nodes are classified as either **Workflow** (deterministic: same input → same 
 
 ### 17.3 The Unified Task DAG
 
-Reference: https://github.com/wpank/roko/blob/main/docs/v1/01-orchestration/02-unified-task-dag.md
+Reference: `docs/v1/01-orchestration/02-unified-task-dag.md`
 
 The `UnifiedTaskDag` handles cross-plan scheduling with:
 - **GlobalTaskId**: `"plan_id:task_id"` composite keys for uniqueness across plans
@@ -1933,7 +1933,7 @@ The `UnifiedTaskDag` handles cross-plan scheduling with:
 
 ### 17.4 Advanced DAG Optimizations
 
-Reference: https://github.com/wpank/roko/blob/main/docs/v1/01-orchestration/02-unified-task-dag.md
+Reference: `docs/v1/01-orchestration/02-unified-task-dag.md`
 
 1. **Task Fusion**: Merge linear single-dependency chains into compound tasks (Dask `fuse()` [5])
 2. **Speculative Execution**: Schedule backup tasks for critical-path stragglers
@@ -1943,7 +1943,7 @@ Reference: https://github.com/wpank/roko/blob/main/docs/v1/01-orchestration/02-u
 
 ### 17.5 The Cognitive Loop as a Hot Graph
 
-Reference: https://github.com/wpank/roko/blob/main/docs/v2-depth/05-execution-engine/cognitive-loop-as-graph.md
+Reference: `docs/v2-depth/05-execution-engine/cognitive-loop-as-graph.md`
 
 The 7-step cognitive loop (SENSE → ASSESS → COMPOSE → ACT → VERIFY → PERSIST → REACT) is implemented as a Hot Graph:
 
@@ -2926,12 +2926,12 @@ impl WorkflowContext {
 }
 ```
 
-### C. LlmCell for IronClaw
+### C. LlmCell Adapter Contract for IronClaw
 
 ```rust
 // crates/ironclaw_graph/src/cells/llm_cell.rs
-
-use ironclaw_llm::{ChatMessage, CompletionRequest};
+// Pseudocode: align request, response, usage, and error fields with the current
+// crates/ironclaw_llm provider API before implementation.
 
 pub struct LlmCell {
     model:         String,
@@ -2988,14 +2988,13 @@ impl crate::Cell for LlmCell {
         let user_message = build_message_from_inputs(&input);
         let start = std::time::Instant::now();
 
-        let request = CompletionRequest {
-            model:       self.model.clone(),
-            system:      Some(self.system_prompt.clone()),
-            messages:    vec![ChatMessage::user(user_message)],
-            max_tokens:  Some(self.max_tokens),
-            temperature: Some(self.temperature),
-            ..Default::default()
-        };
+        let request = ctx.llm_request_builder
+            .model(&self.model)
+            .system_prompt(&self.system_prompt)
+            .user_message(user_message)
+            .max_tokens(self.max_tokens)
+            .temperature(self.temperature)
+            .build();
 
         let response = ctx.llm_provider
             .complete(request)
@@ -3148,7 +3147,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-petgraph    = { workspace = true }
+	petgraph    = "0.6"  # optional; use only if a local DFS/toposort is insufficient
 toml        = { workspace = true }
 serde       = { workspace = true, features = ["derive"] }
 serde_json  = { workspace = true }
@@ -3584,8 +3583,8 @@ async fn execute_wave(
 | IronClaw-specific | ~2,400 | Medium–High |
 | **Total** | **~4,750** | **Medium** |
 
-**Dependencies to add to `Cargo.toml`** (all already present in the workspace):
-- `petgraph` — graph data structure + toposort
+**Dependencies to add to `Cargo.toml`**:
+- `petgraph` — optional graph data structure + toposort; not currently assumed as a workspace dependency
 - `toml` — TOML parsing
 - `indexmap` — ordered node map
 - `tokio-util` — CancellationToken

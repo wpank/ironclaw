@@ -1,10 +1,10 @@
 # Plugin & Extension System
 
 **Source provenance**: Roko plugin SDK at
-[`crates/roko-plugin/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs),
-[`crates/roko-plugin/src/manifest.rs`](https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/manifest.rs),
-[`crates/roko-std/src/roles.rs`](https://github.com/wpank/roko/blob/main/crates/roko-std/src/roles.rs),
-[`crates/roko-std/src/scorer.rs`](https://github.com/wpank/roko/blob/main/crates/roko-std/src/scorer.rs),
+`crates/roko-plugin/src/lib.rs`,
+`crates/roko-plugin/src/manifest.rs`,
+`crates/roko-std/src/roles.rs`,
+`crates/roko-std/src/scorer.rs`,
 and design documents `docs/v2/12-EXTENSIONS.md`, `docs/v2/13-TRIGGERS.md`.
 
 **Priority**: LOW — IronClaw already has a solid WASM extension system, but Roko
@@ -118,7 +118,7 @@ an Engram flowing through a processing pipeline.
 Plugins interact with this pipeline through the `SignalSender` type:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (line 33)
+// `crates/roko-plugin/src/lib.rs` (line 33)
 /// Cloneable bounded sender used by event sources to publish signals into Roko.
 pub type SignalSender = Sender<Engram>;
 ```
@@ -149,7 +149,7 @@ roko-runtime     (plugin loading, signal routing, feedback scheduling)
 ```
 
 The plugin crate's full dependency list from
-[`crates/roko-plugin/Cargo.toml`](https://github.com/wpank/roko/blob/main/crates/roko-plugin/Cargo.toml):
+`crates/roko-plugin/Cargo.toml`:
 
 ```toml
 [dependencies]
@@ -182,7 +182,7 @@ but adapted for async Rust with cooperative cancellation.
 ### Full Trait Definition
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (lines 134-144)
+// `crates/roko-plugin/src/lib.rs` (lines 134-144)
 
 /// An asynchronous source of signals.
 ///
@@ -209,7 +209,7 @@ This allows the runtime to store a heterogeneous collection of event sources
 without generics or enum wrappers. The test suite explicitly verifies this:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (lines 739-741)
+// `crates/roko-plugin/src/lib.rs` (lines 739-741)
 let source: Box<dyn EventSource> = Box::new(DummyEventSource);
 assert_eq!(source.name(), "dummy");
 assert_eq!(source.kind(), EventSourceKind::Custom("dummy".to_string()));
@@ -236,7 +236,7 @@ ensuring clean shutdown without polling.
 ### EventSourceKind Enum
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (lines 67-78)
+// `crates/roko-plugin/src/lib.rs` (lines 67-78)
 
 /// Kinds of event sources supported by the plugin SDK.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -263,7 +263,7 @@ built-in variants.
 From the test suite, here is the minimal working implementation:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (lines 689-710)
+// `crates/roko-plugin/src/lib.rs` (lines 689-710)
 
 struct DummyEventSource;
 
@@ -303,7 +303,7 @@ changes, and emits typed Engrams for each event.
 ### Construction
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (lines 82-127)
+// `crates/roko-plugin/src/lib.rs` (lines 82-127)
 
 #[derive(Debug, Clone)]
 pub struct FileWatchEventSource {
@@ -336,7 +336,7 @@ The `WatcherPathConfig` type (from `roko-core`) specifies a directory, include
 globs, and exclude globs:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-core/src/config/subscriptions.rs
+// `crates/roko-core/src/config/subscriptions.rs`
 pub struct WatcherPathConfig {
     pub directory: PathBuf,
     pub include: Vec<String>,   // glob patterns that opt paths in
@@ -351,7 +351,7 @@ from the `globset` crate for efficient matching. Default excludes are always
 applied to suppress editor temporaries, VCS internals, and OS metadata:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (lines 459-473)
+// `crates/roko-plugin/src/lib.rs` (lines 459-473)
 
 fn default_file_watch_excludes() -> &'static [&'static str] {
     &[
@@ -374,7 +374,7 @@ These defaults are merged with any user-specified exclude patterns. The filterin
 logic tests both absolute and relative paths against the glob sets:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (lines 479-503)
+// `crates/roko-plugin/src/lib.rs` (lines 479-503)
 
 fn watch_path_is_enabled(
     path: &Path,
@@ -409,7 +409,7 @@ File system events from `notify` are classified into three signal kinds using
 constants from `roko-core`:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (lines 514-521)
+// `crates/roko-plugin/src/lib.rs` (lines 514-521)
 
 fn classify_file_watch_event(kind: &EventKind) -> Option<(&'static str, &'static str)> {
     match kind {
@@ -424,7 +424,7 @@ fn classify_file_watch_event(kind: &EventKind) -> Option<(&'static str, &'static
 The emitted signal contains a JSON body with the affected path and event kind:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (lines 505-512)
+// `crates/roko-plugin/src/lib.rs` (lines 505-512)
 
 fn file_watch_signal(path: &Path, signal_kind: &str, event_kind: &str) -> Engram {
     Engram::builder(Kind::Custom(signal_kind.to_string()))
@@ -447,7 +447,7 @@ When `start()` is called on `FileWatchEventSource`:
 5. Enter `drain_file_watch_events()` — the debounced event loop.
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (lines 334-372)
+// `crates/roko-plugin/src/lib.rs` (lines 334-372)
 
 #[async_trait]
 impl EventSource for FileWatchEventSource {
@@ -495,7 +495,7 @@ and schedule computation.
 ### Construction
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (lines 212-219)
+// `crates/roko-plugin/src/lib.rs` (lines 212-219)
 
 impl CronEventSource {
     /// Create a cron event source from config.
@@ -514,7 +514,7 @@ metadata.
 ### Schedule Data Structures
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (lines 152-177)
+// `crates/roko-plugin/src/lib.rs` (lines 152-177)
 
 pub struct CronScheduleStatus {
     pub name: String,
@@ -542,7 +542,7 @@ loop that:
 4. Cooperatively checks the cancellation token on each iteration.
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (lines 271-331)
+// `crates/roko-plugin/src/lib.rs` (lines 271-331)
 
 async fn start(&self, sender: SignalSender, cancel: CancellationToken) -> Result<()> {
     let mut schedules = self.compile_schedules()?;
@@ -606,7 +606,7 @@ Each cron firing produces an Engram with a custom kind and a JSON body
 containing the schedule metadata:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (lines 374-382)
+// `crates/roko-plugin/src/lib.rs` (lines 374-382)
 
 fn cron_signal(schedule: &CronSchedule, fired_at: DateTime<Utc>) -> Engram {
     Engram::builder(Kind::Custom(schedule.signal_kind.clone()))
@@ -625,7 +625,7 @@ Invalid cron expressions are caught at compile time (when `start()` is called),
 not at construction time. The test suite verifies this:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (lines 783-805)
+// `crates/roko-plugin/src/lib.rs` (lines 783-805)
 
 let source = CronEventSource {
     schedules: vec![CronSchedule {
@@ -653,7 +653,7 @@ discovers whether its past work was good.
 ### Full Trait Definition
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (lines 599-616)
+// `crates/roko-plugin/src/lib.rs` (lines 599-616)
 
 /// Periodically collects outcomes for previously emitted work.
 ///
@@ -699,7 +699,7 @@ process restarts (assuming the runtime persists the timestamp).
 ### FeedbackSignal and FeedbackOutcome
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (lines 36-64)
+// `crates/roko-plugin/src/lib.rs` (lines 36-64)
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -745,7 +745,7 @@ without constraining the schema.
 ### Implementing FeedbackCollector: Example
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (lines 712-735)
+// `crates/roko-plugin/src/lib.rs` (lines 712-735)
 
 struct DummyFeedbackCollector;
 
@@ -777,7 +777,7 @@ status, review comments, and merge state for episodes that produced PRs.
 ### NoOp Implementations
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-std/src/noop.rs (lines 18-26)
+// `crates/roko-std/src/noop.rs` (lines 18-26)
 
 pub struct NoOpScorer;
 impl ScoreFn for NoOpScorer {
@@ -791,7 +791,7 @@ impl ScoreFn for NoOpScorer {
 The `roko-std` module also provides `NoOpGate` (always passes), `NoOpRouter`
 (picks first candidate), `NoOpComposer` (identity), and `NoOpPolicy` (emits
 nothing). These are re-exported from
-[`crates/roko-std/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-std/src/lib.rs)
+`crates/roko-std/src/lib.rs`
 for convenient access.
 
 ---
@@ -805,7 +805,7 @@ construction, following the builder pattern common in Rust APIs.
 ### PluginManifest
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (lines 619-628)
+// `crates/roko-plugin/src/lib.rs` (lines 619-628)
 
 pub struct PluginManifest {
     pub name: String,
@@ -818,7 +818,7 @@ pub struct PluginManifest {
 ### PluginBuilder
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (lines 631-676)
+// `crates/roko-plugin/src/lib.rs` (lines 631-676)
 
 pub struct PluginBuilder {
     name: String,
@@ -869,7 +869,7 @@ embedding crate's Cargo version.
 ### Usage
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (lines 1067-1079)
+// `crates/roko-plugin/src/lib.rs` (lines 1067-1079)
 
 let manifest = PluginBuilder::new("my-plugin")
     .event_source(DummyEventSource)
@@ -894,7 +894,7 @@ support, and established adoption in the Rust ecosystem (Cargo.toml) [5].
 ### Top-Level Schema
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/manifest.rs (lines 61-80)
+// `crates/roko-plugin/src/manifest.rs` (lines 61-80)
 
 pub struct PluginManifestFile {
     pub plugin: PluginMeta,
@@ -914,7 +914,7 @@ pub struct PluginManifestFile {
 ### Plugin Metadata
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/manifest.rs (lines 83-98)
+// `crates/roko-plugin/src/manifest.rs` (lines 83-98)
 
 pub struct PluginMeta {
     pub name: String,           // required, must not be empty
@@ -931,7 +931,7 @@ Prompt templates are the simplest form of plugin extension. They inject
 role-specific prompt text into the agent's system prompt without any code.
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/manifest.rs (lines 101-113)
+// `crates/roko-plugin/src/manifest.rs` (lines 101-113)
 
 pub struct PromptTemplate {
     pub name: String,               // e.g., "pr-review"
@@ -962,7 +962,7 @@ Profiles define which tools an agent can and cannot use. They are the
 declarative equivalent of the `RoleToolProfile` type in `roko-std`.
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/manifest.rs (lines 116-129)
+// `crates/roko-plugin/src/manifest.rs` (lines 116-129)
 
 pub struct ToolProfileBundle {
     pub name: String,               // e.g., "read-only"
@@ -988,12 +988,13 @@ Declarative tools define shell commands that the agent can invoke, without
 requiring Rust or WASM code. They are the "no-code" tool definition mechanism.
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/manifest.rs (lines 132-149)
+// `crates/roko-plugin/src/manifest.rs` (lines 132-149)
 
 pub struct DeclarativeTool {
     pub name: String,
     pub description: String,
-    pub command: String,                         // shell command
+    pub tool: String,                            // registered tool id
+    pub argv: Vec<String>,                       // validated argv, never raw shell text
     pub timeout_ms: u64,                         // default: 30000
     pub working_dir: Option<String>,             // relative to project root
     pub env: std::collections::HashMap<String, String>,
@@ -1008,13 +1009,15 @@ TOML example:
 [[tools]]
 name = "lint-check"
 description = "Run clippy on the workspace"
-command = "cargo clippy --workspace -- -D warnings"
+tool = "shell"
+argv = ["cargo", "clippy", "--workspace", "--", "-D", "warnings"]
 timeout_ms = 60000
 
 [[tools]]
 name = "test-run"
 description = "Run the test suite"
-command = "cargo test --workspace"
+tool = "shell"
+argv = ["cargo", "test", "--workspace"]
 # timeout_ms defaults to 30000
 ```
 
@@ -1024,7 +1027,7 @@ Triggers specify event sources that activate plugins. They are defined as a
 tagged union discriminated by `kind`:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/manifest.rs (lines 156-192)
+// `crates/roko-plugin/src/manifest.rs` (lines 156-192)
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -1068,7 +1071,7 @@ path = "/hooks/code-review"
 ### Plugin Dependencies
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/manifest.rs (lines 195-202)
+// `crates/roko-plugin/src/manifest.rs` (lines 195-202)
 
 pub struct PluginDependency {
     pub name: String,
@@ -1081,7 +1084,7 @@ pub struct PluginDependency {
 The manifest loader performs structural validation after parsing:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/manifest.rs (lines 234-282)
+// `crates/roko-plugin/src/manifest.rs` (lines 234-282)
 
 fn validate_manifest(manifest: &PluginManifestFile) -> Result<()> {
     if manifest.plugin.name.is_empty() {
@@ -1141,7 +1144,7 @@ fn validate_manifest(manifest: &PluginManifestFile) -> Result<()> {
 The `discover_plugins()` function scans a directory for plugin manifests:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/manifest.rs (lines 297-342)
+// `crates/roko-plugin/src/manifest.rs` (lines 297-342)
 
 pub fn discover_plugins(dir: &Path) -> Result<Vec<LoadedPlugin>> {
     // 1. Check for plugin.toml directly in the directory
@@ -1199,7 +1202,7 @@ should not take down the entire system.
 This is the full example from the test suite, demonstrating all features:
 
 ```toml
-# https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/manifest.rs (FULL_MANIFEST test constant)
+# `crates/roko-plugin/src/manifest.rs` (FULL_MANIFEST test constant)
 
 [plugin]
 name = "code-review"
@@ -1233,13 +1236,15 @@ denied_tools = []
 [[tools]]
 name = "lint-check"
 description = "Run clippy on the workspace"
-command = "cargo clippy --workspace -- -D warnings"
+tool = "shell"
+argv = ["cargo", "clippy", "--workspace", "--", "-D", "warnings"]
 timeout_ms = 60000
 
 [[tools]]
 name = "test-run"
 description = "Run the test suite"
-command = "cargo test --workspace"
+tool = "shell"
+argv = ["cargo", "test", "--workspace"]
 
 [[triggers]]
 kind = "cron"
@@ -1373,7 +1378,7 @@ where multiple attributes (role, domain, context) determine permissions.
 ### Role Archetypes
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-std/src/roles.rs (lines 20-32)
+// `crates/roko-std/src/roles.rs` (lines 20-32)
 
 pub enum RoleToolProfileKind {
     Implementer,  // Code-producing role. No extra filtering.
@@ -1389,7 +1394,7 @@ pub enum RoleToolProfileKind {
 The module defines named tool sets that form the building blocks for profiles:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-std/src/roles.rs (lines 72-117)
+// `crates/roko-std/src/roles.rs` (lines 72-117)
 
 // Read-only tools shared by research, review, and planning profiles
 pub const READ_TOOLS: [&str; 5] = [
@@ -1418,7 +1423,7 @@ Each role archetype has a corresponding `const` profile that combines the
 tool sets:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-std/src/roles.rs (lines 120-161)
+// `crates/roko-std/src/roles.rs` (lines 120-161)
 
 // Implementer: all tools allowed
 pub const IMPLEMENTER_TOOL_PROFILE: RoleToolProfile =
@@ -1456,7 +1461,7 @@ Beyond role profiles, `roko-std` defines domain-specific profiles that
 control which tools are relevant for a particular domain:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-std/src/roles.rs (lines 173-268)
+// `crates/roko-std/src/roles.rs` (lines 173-268)
 
 pub struct DomainToolProfile {
     pub domain: &'static str,
@@ -1477,7 +1482,7 @@ Four domains are defined:
 Domain lookup is case-insensitive with aliases:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-std/src/roles.rs (lines 271-278)
+// `crates/roko-std/src/roles.rs` (lines 271-278)
 
 pub fn domain_profile(domain: &str) -> &'static DomainToolProfile {
     match domain.to_ascii_lowercase().as_str() {
@@ -1495,7 +1500,7 @@ The `compose_profile()` function computes the effective tool set by
 intersecting role, domain, and user override profiles:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-std/src/roles.rs (lines 304-350)
+// `crates/roko-std/src/roles.rs` (lines 304-350)
 
 /// Compose an effective tool profile by intersecting role, domain, and overrides.
 ///
@@ -1541,7 +1546,7 @@ The `denied_tools_for_role()` function maps string role labels to denied tool
 lists, with case-insensitive matching and alias support:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-std/src/roles.rs (lines 361-375)
+// `crates/roko-std/src/roles.rs` (lines 361-375)
 
 pub fn denied_tools_for_role(role: &str) -> Option<&'static [&'static str]> {
     let profile = match role.to_ascii_lowercase().as_str() {
@@ -1571,7 +1576,7 @@ functions.
 A `Score` in Roko is a 7-dimensional value defined in `roko-core`:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-core/src/score.rs (lines 51-69)
+// `crates/roko-core/src/score.rs` (lines 51-69)
 
 pub struct Score {
     pub confidence: f32,   // [0..1] — how correct/valid
@@ -1593,7 +1598,7 @@ composition.
 ### The Score Trait
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-core/src/traits.rs (lines 167-171)
+// `crates/roko-core/src/traits.rs` (lines 167-171)
 
 pub trait ScoreFn: Send + Sync {
     fn score(&self, engram: &Engram, ctx: &Context) -> Score;
@@ -1604,7 +1609,7 @@ pub trait ScoreFn: Send + Sync {
 ### SumScorer (Additive Composition)
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-std/src/scorer.rs (lines 18-55)
+// `crates/roko-std/src/scorer.rs` (lines 18-55)
 
 /// Sum several scorers element-wise (aggregates evidence).
 pub struct SumScorer {
@@ -1637,7 +1642,7 @@ signal scores high on relevance AND recency, both contribute additively.
 ### MulScorer (Multiplicative Composition)
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-std/src/scorer.rs (lines 57-96)
+// `crates/roko-std/src/scorer.rs` (lines 57-96)
 
 /// Multiply several scorers element-wise (scales each axis).
 pub struct MulScorer {
@@ -1672,7 +1677,7 @@ zeros the total. This is analogous to the weighted product model in MCDA [8].
 ### ConstScorer (Static Weighting)
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-std/src/scorer.rs (lines 98-118)
+// `crates/roko-std/src/scorer.rs` (lines 98-118)
 
 /// Returns a fixed score for every signal. Useful for static weighting.
 pub struct ConstScorer {
@@ -1699,7 +1704,7 @@ in a `SumScorer` or `MulScorer` composition.
 From the module's doc comment:
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-std/src/scorer.rs (lines 7-13)
+// `crates/roko-std/src/scorer.rs` (lines 7-13)
 
 // Overall score = relevance * recency * reputation
 let scorer = MulScorer::new(vec![
@@ -1748,7 +1753,7 @@ event would trigger a separate signal emission.
 ### Debounce Window
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (line 210)
+// `crates/roko-plugin/src/lib.rs` (line 210)
 const FILE_WATCH_DEBOUNCE_WINDOW: std::time::Duration =
     std::time::Duration::from_millis(500);
 ```
@@ -1779,7 +1784,7 @@ The debounce logic in `drain_file_watch_events()` works as follows:
    silently dropped on shutdown.
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs (lines 523-579)
+// `crates/roko-plugin/src/lib.rs` (lines 523-579)
 
 async fn drain_file_watch_events(
     mut event_rx: UnboundedReceiver<notify::Result<Event>>,
@@ -2280,7 +2285,8 @@ description = "Watch Rust source files"
 [[tools]]
 name = "quick-lint"
 description = "Run clippy and return output"
-command = "cargo clippy --message-format=json 2>&1 | head -50"
+tool = "shell"
+argv = ["cargo", "clippy", "--message-format=json"]
 timeout_ms = 30000
 ```
 
@@ -2411,13 +2417,15 @@ description = "Run at 2 AM daily"
 [[tools]]
 name = "check-outdated"
 description = "Check for outdated Rust dependencies"
-command = "cargo outdated --format json"
+tool = "shell"
+argv = ["cargo", "outdated", "--format", "json"]
 timeout_ms = 120000
 
 [[tools]]
 name = "audit-deps"
 description = "Run cargo audit for security vulnerabilities"
-command = "cargo audit --json"
+tool = "shell"
+argv = ["cargo", "audit", "--json"]
 timeout_ms = 60000
 
 [[prompts]]
@@ -2778,7 +2786,7 @@ components.
 |-----------|----------|------|----------------|
 | Push-based events | Channels (user-facing only) | EventSource (generic) | Moderate gap |
 | Async feedback | None | FeedbackCollector | Significant gap |
-| Declarative tools | None | TOML DeclarativeTool | Significant gap |
+| Declarative tools | Built-in/WASM/MCP tools with approval path | TOML DeclarativeTool | Consider argv-template manifests only if they dispatch through existing tool safety |
 | WASM sandbox | wasmtime + fuel + allowlist + credential injection + rate limiting | WASM (v2 planned) | **IronClaw ahead** |
 | Prompt extensions | SKILL.md (gated, scored, budget-fitted, attenuated) | PromptTemplate (TOML) | **IronClaw ahead** |
 | Hook system | 6 hooks, priority-ordered | 22 hooks, 8 layers (v2 design) | Roko more comprehensive |
@@ -2800,14 +2808,12 @@ the effort required.
 
 ### A. EventSource Trait
 
-**Where**: New module `src/events/` or extend `src/channels/`
-**Integration surface**: `src/agent/` (agent loop consumes events),
-`src/channels/manager.rs` (ChannelManager merges message streams)
+**Where**: Prefer extending routines/triggers, gateway events, or a narrowly scoped extension event module.
+**Integration surface**: existing untrusted inbound request paths, routines/triggers, and gateway event streams.
 **Effort**: ~300-400 lines
-**Risk**: Low (additive, no existing behavior changes)
+**Risk**: Medium (ingress, auth, scheduling, and approval behavior)
 
-Add an `EventSource` trait that extensions can implement to push events into
-the agent loop. This would enable:
+Add an event-source abstraction only if it routes through existing IronClaw boundaries. Extension events must become untrusted inbound work, not trusted trigger submissions, and must not create a second agent loop. This would enable:
 
 - **File change monitoring** — watch project files and trigger agent action
   on save (useful for "fix on save" workflows)
@@ -2828,7 +2834,7 @@ use tokio_util::sync::CancellationToken;
 use crate::channels::IncomingMessage;
 use crate::error::ChannelError;
 
-pub type EventSender = Sender<IncomingMessage>;
+pub type EventSender = Sender<UntrustedInboundEvent>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -2970,36 +2976,16 @@ impl Tool for DeclarativeToolRunner {
         &self,
         _params: serde_json::Value,
     ) -> Result<ToolOutput, ToolError> {
-        let mut cmd = tokio::process::Command::new("sh");
-        cmd.arg("-c").arg(&self.def.command);
-
-        if let Some(ref dir) = self.def.working_dir {
-            cmd.current_dir(dir);
-        }
-
-        for (key, val) in &self.def.env {
-            cmd.env(key, val);
-        }
-
-        let timeout = std::time::Duration::from_millis(self.def.timeout_ms);
-
-        let output = tokio::time::timeout(timeout, cmd.output())
-            .await
-            .map_err(|_| ToolError::timeout(&self.def.name))?
-            .map_err(|e| ToolError::execution(&self.def.name, e.to_string()))?;
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let combined = format!("{stdout}{stderr}");
-
-        if output.status.success() {
-            Ok(ToolOutput::text(combined))
-        } else {
-            Err(ToolError::execution(
-                &self.def.name,
-                format!("exit {}: {combined}", output.status),
-            ))
-        }
+        // Do not run arbitrary shell strings from a manifest. Resolve the manifest
+        // entry to an approved command template or a registered built-in/WASM/MCP
+        // tool, then dispatch through ToolDispatcher so approvals, sandboxing,
+        // audit, and user attribution remain intact.
+        self.dispatcher.dispatch(
+            &self.def.registered_tool,
+            validate_params(_params, &self.def.schema)?,
+            &self.user_id,
+            DispatchSource::Extension { extension_id: self.def.extension_id.clone() },
+        ).await
     }
 }
 ```
@@ -3015,19 +3001,22 @@ version = "1.0.0"
 [[tools]]
 name = "check_linting"
 description = "Run clippy on the project"
-command = "cargo clippy -- -D warnings"
+tool = "shell"
+argv = ["cargo", "clippy", "--", "-D", "warnings"]
 timeout_ms = 60000
 
 [[tools]]
 name = "run_tests"
 description = "Run the full test suite"
-command = "cargo test --workspace"
+tool = "shell"
+argv = ["cargo", "test", "--workspace"]
 timeout_ms = 120000
 
 [[tools]]
 name = "check_format"
 description = "Check code formatting"
-command = "cargo fmt --check"
+tool = "shell"
+argv = ["cargo", "fmt", "--check"]
 timeout_ms = 30000
 ```
 
@@ -3037,7 +3026,7 @@ timeout_ms = 30000
   "Everything Goes Through Tools" principle.
 - The HTTP variant (with `{{secrets.key}}` interpolation) integrates with
   `src/secrets/` for credential injection.
-- Shell commands run through the same safety pipeline as `src/tools/builtin/shell.rs`.
+- Shell commands are expressed as argv templates and run only through the registered shell tool, with normal sandbox and approval policy. No manifest field should execute raw shell text.
 - Discovery works like WASM tool loading (`src/tools/wasm/loader.rs`).
 
 ### D. Hot-Reload for WASM Tools
@@ -3450,15 +3439,15 @@ See also: [Reinforcement Learning: An Introduction (online)](http://incompleteid
 
 ### Source Citation Index
 
-| GitHub URL | Contents |
+| Captured identifier | Contents |
 |-----------|----------|
-| [`crates/roko-plugin/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/lib.rs) | EventSource trait, FeedbackCollector trait, FileWatchEventSource, CronEventSource, PluginBuilder, debounce logic |
-| [`crates/roko-plugin/src/manifest.rs`](https://github.com/wpank/roko/blob/main/crates/roko-plugin/src/manifest.rs) | TOML manifest schema, PluginManifestFile, DeclarativeTool, TriggerDef, validation, discovery |
-| [`crates/roko-plugin/Cargo.toml`](https://github.com/wpank/roko/blob/main/crates/roko-plugin/Cargo.toml) | Plugin crate dependencies (roko-core, async-trait, notify, cron, globset, chrono, toml) |
-| [`crates/roko-std/src/roles.rs`](https://github.com/wpank/roko/blob/main/crates/roko-std/src/roles.rs) | RoleToolProfile, DomainToolProfile, compose_profile(), denied_tools_for_role() |
-| [`crates/roko-std/src/scorer.rs`](https://github.com/wpank/roko/blob/main/crates/roko-std/src/scorer.rs) | SumScorer, MulScorer, ConstScorer (composable scoring) |
-| [`crates/roko-std/src/lib.rs`](https://github.com/wpank/roko/blob/main/crates/roko-std/src/lib.rs) | Re-exports for roles, scorers, tool registry, NoOp impls |
-| [`crates/roko-std/src/noop.rs`](https://github.com/wpank/roko/blob/main/crates/roko-std/src/noop.rs) | NoOpScorer, NoOpGate, NoOpRouter, NoOpComposer, NoOpPolicy |
-| [`crates/roko-core/src/score.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/score.rs) | Score struct (7-dimensional: confidence, novelty, utility, reputation, precision, salience, coherence) |
-| [`crates/roko-core/src/traits.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/traits.rs) | ScoreFn trait (scorer interface) |
-| [`crates/roko-core/src/config/subscriptions.rs`](https://github.com/wpank/roko/blob/main/crates/roko-core/src/config/subscriptions.rs) | WatcherPathConfig (directory, include, exclude globs) |
+| `crates/roko-plugin/src/lib.rs` | EventSource trait, FeedbackCollector trait, FileWatchEventSource, CronEventSource, PluginBuilder, debounce logic |
+| `crates/roko-plugin/src/manifest.rs` | TOML manifest schema, PluginManifestFile, DeclarativeTool, TriggerDef, validation, discovery |
+| `crates/roko-plugin/Cargo.toml` | Plugin crate dependencies (roko-core, async-trait, notify, cron, globset, chrono, toml) |
+| `crates/roko-std/src/roles.rs` | RoleToolProfile, DomainToolProfile, compose_profile(), denied_tools_for_role() |
+| `crates/roko-std/src/scorer.rs` | SumScorer, MulScorer, ConstScorer (composable scoring) |
+| `crates/roko-std/src/lib.rs` | Re-exports for roles, scorers, tool registry, NoOp impls |
+| `crates/roko-std/src/noop.rs` | NoOpScorer, NoOpGate, NoOpRouter, NoOpComposer, NoOpPolicy |
+| `crates/roko-core/src/score.rs` | Score struct (7-dimensional: confidence, novelty, utility, reputation, precision, salience, coherence) |
+| `crates/roko-core/src/traits.rs` | ScoreFn trait (scorer interface) |
+| `crates/roko-core/src/config/subscriptions.rs` | WatcherPathConfig (directory, include, exclude globs) |

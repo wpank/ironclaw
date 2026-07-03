@@ -3,7 +3,7 @@
 **Source provenance**: `roko-primitives` crate (`crates/roko-primitives/src/`)
 **Priority**: LOW for general use — HIGH for specialized analytics, loop detection, multi-source consistency
 **Relevant task identifiers**: TA-06 (manifolds), TA-09 (TDA), TA-10 (robust statistics), TA-13 (sheaves), TA-14 (tropical algebra)
-**GitHub source references**: `https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/`
+**GitHub source references**: ``crates/roko-primitives/src/``
 
 ---
 
@@ -84,7 +84,7 @@ roko-primitives crate
 
 ## 1. Topological Data Analysis (TDA)
 
-**GitHub source**: [`https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/tda.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/tda.rs) (575 lines)
+**GitHub source**: `crates/roko-primitives/src/tda.rs` (575 lines)
 
 **What problem does TDA solve for an AI agent?** An agent stuck in a retry loop produces a time series of execution latencies that *looks* statistically normal — mean latency might be 200ms, variance might be low — but the agent is cycling through the same bad states over and over. TDA detects this by analyzing the *shape* of the data in phase space rather than its statistics. A retry loop leaves a topological fingerprint (a persistent 1-cycle) that neither mean nor variance can see.
 
@@ -136,7 +136,7 @@ Takens' Embedding Theorem (1981) [2] proves that this construction preserves the
 **Implementation** (lines 141–158 of tda.rs):
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/tda.rs
+// `crates/roko-primitives/src/tda.rs`
 
 pub fn takens_embedding(series: &[f64], dim: usize, tau: usize) -> Vec<Vec<f64>> {
     if dim == 0 || tau == 0 || series.len() < (dim - 1) * tau + 1 {
@@ -182,7 +182,7 @@ Points far from diagonal = genuine topological structure
 **Core data types** (lines 20–89):
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/tda.rs
+// `crates/roko-primitives/src/tda.rs`
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PersistencePoint {
@@ -218,7 +218,7 @@ impl PersistenceDiagram {
 **Vietoris-Rips with Union-Find** (lines 184–409): The algorithm sorts all pairwise distances, then sweeps them in order. When an edge connects two separate components, they merge (H0 event). When an edge closes a cycle among already-connected points, a loop is born (H1 event). Union-Find with path compression makes the H0 tracking O(α(n)) per operation.
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/tda.rs
+// `crates/roko-primitives/src/tda.rs`
 
 pub fn vietoris_rips(points: &[Vec<f64>], max_dim: usize) -> PersistenceDiagram {
     let n = points.len();
@@ -279,7 +279,7 @@ For rigorous treatment of persistent homology and its stability properties, see 
 For each persistence point `(b, d)`, the tent function `λ(t) = min(t - b, d - t)` creates a triangle with height `(d-b)/2`. The level-0 landscape is the maximum tent function value at each parameter value.
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/tda.rs
+// `crates/roko-primitives/src/tda.rs`
 
 pub fn persistence_landscape(
     diagram: &PersistenceDiagram,
@@ -341,7 +341,7 @@ flowchart TD
 
 ### Practical Application: Detecting Agent Loops
 
-> **This is the most actionable section.** If you integrate only one thing from this document, integrate this. The full pipeline costs < 0.1 ms for 30 observations and requires no tuning of statistical thresholds.
+> **This is the most actionable section.** If you integrate only one thing from this document, integrate this. Treat the default thresholds and latency numbers as calibration starting points; validate them against representative IronClaw traces before running inline.
 
 An AI agent stuck in a retry loop generates latency traces with a topological signature — a persistent H1 feature — that no threshold or variance check can reliably catch.
 
@@ -444,7 +444,7 @@ match detect_agent_behavior(&recent_latencies) {
 }
 ```
 
-**Why does this work for the common retry loop?** A latency trace `[100, 200, 100, 200, 100, 200, ...]` with `d=2, tau=1` produces the point cloud `{(100, 200), (200, 100), (100, 200), ...}` — a pair of points visited alternately. The Vietoris-Rips complex at appropriate scale produces a 1-cycle (the two points form a loop). H1 persistence is high. We detect it.
+**Why does this work for retry loops?** A simple two-point alternation is better detected as a periodicity/regime-switch signal than as meaningful persistent H1 topology. TDA becomes useful when the embedded trace visits three or more recurring states, such as `[100, 250, 180, 100, 250, 180, ...]`, where the delay embedding forms a loop-like point cloud. Keep a simpler periodicity check beside TDA for binary alternation.
 
 **Stateful monitoring** (`TdaMonitor`): For production use, maintain a `TdaMonitor` struct that keeps a sliding window, tracks diagram history for regime-change detection via bottleneck distance, and auto-bounds memory. See the Tier 2 integration plan in the Integration section below.
 
@@ -467,13 +467,13 @@ match detect_agent_behavior(&recent_latencies) {
 | 200 | 0.352 ms | 320 KB |
 | 500 | 2.3 ms | 2 MB |
 
-**Practical guidance**: For n=27–47 after embedding with `tau=3`, total pipeline time is **< 0.1 ms**. Safe to call inline in the agent loop dispatcher. For long traces (n > 5,000), subsample to ≤ 500 points before embedding.
+**Practical guidance**: For n=27–47 after embedding with `tau=3`, the target pipeline budget is **< 0.1 ms** on representative hardware. Run in shadow mode first; if measurements miss the budget, move it to the heartbeat/observability path. For long traces (n > 5,000), subsample to ≤ 500 points before embedding.
 
 ---
 
 ## 2. Cellular Sheaves
 
-**GitHub source**: [`https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/sheaf.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/sheaf.rs) (789 lines)
+**GitHub source**: `crates/roko-primitives/src/sheaf.rs` (789 lines)
 
 **What problem does this solve for an AI agent?** When multiple information sources (web search, file reads, LLM reasoning, memory recall) contribute knowledge to a task, they sometimes contradict each other. Pairwise comparison finds *that* two sources disagree but cannot say *which* is the outlier when a contradiction is transitive (A agrees with B, B agrees with C, but A contradicts C). The sheaf Laplacian identifies the structural outlier using the global consistency of the entire network simultaneously.
 
@@ -499,7 +499,7 @@ Pairwise comparison finds A vs D disagree on `correctness`. But it doesn't tell 
 **Restriction maps**: Each edge has two restriction maps projecting each oracle's predictions into a shared "comparison space" — the dimensions where they overlap.
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/sheaf.rs
+// `crates/roko-primitives/src/sheaf.rs`
 
 pub type NodeId = u32;
 
@@ -583,7 +583,7 @@ Inconsistency score = 324 / 204 ≈ 1.59 — very high; C is the outlier.
 ```
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/sheaf.rs
+// `crates/roko-primitives/src/sheaf.rs`
 // Lines 330-367
 
 impl CellularSheaf {
@@ -732,7 +732,7 @@ For n nodes with stalk dimension d (total dimension N = n*d):
 
 ## 3. Riemannian Geometry
 
-**GitHub source**: [`https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/manifold.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/manifold.rs) (828 lines)
+**GitHub source**: `crates/roko-primitives/src/manifold.rs` (828 lines)
 
 **What problem does this solve for an AI agent?** When an agent needs to change its LLM configuration (temperature, token budget, context window, tool budget), the cheapest path is not a straight line through parameter space — because configuration costs are non-linear. Doubling temperature more than doubles unpredictability. The Riemannian metric encodes these non-linear costs, and geodesic computation finds the minimum-disruption path between two configurations.
 
@@ -755,7 +755,7 @@ where Γᵏᵢⱼ are the **Christoffel symbols** encoding how the metric bends 
 ### Key API
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/manifold.rs
+// `crates/roko-primitives/src/manifold.rs`
 
 const DIM: usize = 4;
 pub type Point = [f64; DIM];
@@ -849,7 +849,7 @@ flowchart TD
 
 ## 4. Tropical Algebra (Max-Plus Semiring)
 
-**GitHub source**: [`https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/tropical.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/tropical.rs) (698 lines)
+**GitHub source**: `crates/roko-primitives/src/tropical.rs` (698 lines)
 
 **What problem does this solve for an AI agent?** Piecewise-linear decision functions — "which tool to use?", "which model to pick?" — have exact, analyzable decision boundaries. Tropical algebra makes these boundaries explicit, and the adversarial distance tells you how robust a given decision is: how much you would need to perturb the input to flip the selection to a different tool or model.
 
@@ -886,7 +886,7 @@ You need a perturbation of magnitude 2.0 to flip the decision.
 ### Implementation
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/tropical.rs
+// `crates/roko-primitives/src/tropical.rs`
 // Lines 38-99
 
 use std::ops::{Add, Mul};
@@ -924,7 +924,7 @@ impl Mul for TropicalF64 {
 ### Tropical Polynomials and Active Terms
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/tropical.rs
+// `crates/roko-primitives/src/tropical.rs`
 
 #[derive(Debug, Clone)]
 pub struct TropicalTerm {
@@ -960,7 +960,7 @@ impl TropicalPolynomial {
 **What this means**: Standard softmax attention blends all keys with soft probabilities — smooth, but not interpretable. Tropical (hardmax) attention selects the single best-matching key. The score gap to the second-best key equals twice the adversarial distance.
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/tropical.rs
+// `crates/roko-primitives/src/tropical.rs`
 // Lines 341-377
 
 /// Tropical (hardmax) attention: select the key with highest dot product + value bias.
@@ -984,7 +984,7 @@ pub fn tropical_attention(
 ### Adversarial Distance
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/tropical.rs
+// `crates/roko-primitives/src/tropical.rs`
 // Lines 387-416
 
 /// Minimum L-inf perturbation needed to flip which term wins in a tropical polynomial.
@@ -1078,7 +1078,7 @@ pub fn tool_dispatch_robustness_check(
 
 ## 5. Robust Statistics
 
-**GitHub source**: [`https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/robust_stats.rs`](https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/robust_stats.rs) (169 lines)
+**GitHub source**: `crates/roko-primitives/src/robust_stats.rs` (169 lines)
 
 **What problem does this solve for an AI agent?** Standard metrics are fragile: one 30-second network timeout makes the mean latency useless for SLO monitoring. One anomalous LLM call inflates variance estimates. Robust statistics maintains accurate aggregate metrics even when a significant fraction of observations are corrupted or adversarial.
 
@@ -1100,7 +1100,7 @@ Outliers in AI agent systems come from network timeouts, model retries, adversar
 **Breakdown point**: equal to the trim fraction α.
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/robust_stats.rs
+// `crates/roko-primitives/src/robust_stats.rs`
 // Lines 18-36
 
 /// Trimmed mean with breakdown point = trim_pct.
@@ -1137,7 +1137,7 @@ mean      = 201.8  (catastrophically wrong)
 The constant 1.4826 is `1 / Phi^-1(3/4)` where `Phi^-1` is the standard normal quantile function. This makes MAD an unbiased estimator of σ for normally distributed data.
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/robust_stats.rs
+// `crates/roko-primitives/src/robust_stats.rs`
 // Lines 46-54
 
 /// MAD with 50% breakdown point.
@@ -1171,7 +1171,7 @@ std_dev = ~446   (destroyed)
 **What this means**: The median of all pairwise averages `(x_i + x_j)/2`. Achieves **96% asymptotic efficiency** relative to the arithmetic mean for Gaussian data while maintaining a **29.3% breakdown point**. This is the best efficiency-robustness tradeoff available for a location estimator.
 
 ```rust
-// https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/robust_stats.rs
+// `crates/roko-primitives/src/robust_stats.rs`
 // Lines 62-74
 
 /// Hodges-Lehmann: median of all pairwise averages.
@@ -1363,7 +1363,7 @@ flowchart TD
 ```toml
 # Cargo.toml addition
 [dependencies]
-roko-primitives = { git = "https://github.com/wpank/roko", package = "roko-primitives" }
+# Rebuild the needed primitives locally; do not depend on an external captured-source checkout.
 ```
 
 **Replace in `src/evaluation/` metric aggregation**:
@@ -1577,7 +1577,7 @@ No external linear algebra libraries. All computations are hand-rolled pure Rust
 - [`../execution-verification/conductor-anomaly.md`](../execution-verification/conductor-anomaly.md) — Section 8 (Holt Exponential Smoothing) covers trend-aware exponential smoothing for forecasting error rates N steps ahead. The robust EMA in Section 5 above addresses current-step outlier resistance; Holt smoothing addresses multi-step trend prediction. They compose naturally: apply `robust_ema_update` to clean individual observations, then feed clean observations into the Holt model for trend forecasting.
 
 **Agent intelligence** (`../agent-intelligence/`):
-- [`../agent-intelligence/online-learning.md`](../agent-intelligence/online-learning.md) — The LinUCB reward computation (Section 4) and 18-dimensional context vector (Section 5) directly benefit from the robust statistics in Section 5 above. Reward signals contaminated by adversarial or erroneous observations should use `hodges_lehmann` for aggregation rather than arithmetic mean. The MAD-based anomaly detection can filter outlier reward observations before they corrupt the LinUCB A matrix.
+- [`../agent-intelligence/online-learning.md`](../agent-intelligence/online-learning.md) — The LinUCB reward computation (Section 4) and 14-dimensional IronClaw context vector (Section 5) directly benefit from the robust statistics in Section 5 above. Reward signals contaminated by adversarial or erroneous observations should use `hodges_lehmann` for aggregation rather than arithmetic mean. The MAD-based anomaly detection can filter outlier reward observations before they corrupt the LinUCB A matrix.
 
 ---
 

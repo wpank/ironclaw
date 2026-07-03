@@ -32,7 +32,7 @@ Canary rollback:
 
 - Quality pass rate drops more than 2 percentage points.
 - p95 latency increases more than 10% without an explicit exception.
-- Fallback rate doubles.
+- Fallback rate rises more than 5 percentage points.
 - Cost increases when the feature's primary target was cost reduction.
 
 ## 3. Risk Records
@@ -110,4 +110,3 @@ Requires explicit review:
 - memory body
 - user message body
 - webhook payloads
-

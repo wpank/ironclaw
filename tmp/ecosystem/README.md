@@ -1,8 +1,8 @@
 # Ecosystem and Integration
 
-This category covers how Roko connects to the world outside its core loop: on-chain identity and reputation, a plugin and extension system with event-driven triggers, the ACP/MCP editor integration protocols, a centralized HTTP control plane, and the Solidity smart contract infrastructure for trustless agent economics. These documents are most relevant when building IronClaw's NEAR integration, external tool connectivity, or operator tooling.
+This category covers how the captured ecosystem designs connect an agent runtime to the world outside its core loop: on-chain identity and reputation, plugin and extension triggers, ACP/MCP editor protocols, an HTTP control plane, and NEAR smart-contract patterns for trustable agent economics. These documents are most relevant when building IronClaw's NEAR integration, external tool connectivity, or operator tooling.
 
-**Protocol boundary**: Two documents cover HTTP/streaming patterns with distinct scopes. The Control Plane covers REST HTTP operator APIs (100+ routes, SSE/WebSocket for dashboards, fleet aggregation). MCP/ACP covers the JSON-RPC 2.0 tool protocol between editors and agents. These are complementary, not overlapping — see [Boundary Clarification](#boundary-clarification) below.
+**Protocol boundary**: Two documents cover HTTP/streaming patterns with distinct scopes. The Control Plane covers REST HTTP operator APIs, SSE/WebSocket for dashboards, and fleet aggregation. MCP/ACP covers JSON-RPC tool/editor protocols between editors, agents, and tool servers. These are complementary, not overlapping — see [Boundary Clarification](#boundary-clarification) below.
 
 **Tool discovery boundary**: Two documents discuss tool discovery. Plugin/Extension covers local discovery — scanning directories for TOML manifests and WASM binaries. MCP covers remote protocol discovery — the `tools/list` JSON-RPC handshake over HTTP/stdio/socket to external servers. Again complementary; see [Boundary Clarification](#boundary-clarification).
 
@@ -13,10 +13,10 @@ This category covers how Roko connects to the world outside its core loop: on-ch
 | Document | Summary | Priority |
 |----------|---------|----------|
 | [On-Chain Reputation](./chain-reputation/) | Soulbound NFT identity passports (ERC-8004), seven-domain EMA reputation with 30-day half-life decay, TraceRank (PageRank for agent trust) with collusion detection, a bounty marketplace with three hiring models, X402 micropayments, and KORAI demurrage token economics. Relevant for NEAR integration. Split into: passport-system, reputation-scoring, bounty-marketplace, token-economics, near-implementation, benchmarking. | MEDIUM |
-| [Plugin and Extension System](./plugin-extension.md) | EventSource trait for push-based event streaming (file watchers, cron schedulers), FeedbackCollector trait, TOML manifests with typed permission declarations, filesystem hot-reload, a five-tier extensibility model, and the v2 system with 8 layers, 22 hooks, and 6 decision enums. **Tool discovery here = local filesystem scan.** | LOW |
-| [ACP and MCP Integration](./mcp-editor-integration.md) | MCP JSON-RPC 2.0 tool protocol (tool discovery via `tools/list`, tool invocation via `tools/call`), three transport variants (HTTP/stdio/Unix), OAuth 2.1 with PKCE, multi-tenant session isolation. Roko's Agent Communication Protocol (ACP): workflow pipelines, permission gates, SSE streaming. Five Roko MCP crates. IronClaw MCP client analysis and server-exposure plan. **Tool discovery here = remote JSON-RPC protocol.** | MEDIUM |
-| [Control Plane and API Server](./control-plane.md) | Hub-and-spoke architecture: a centralized HTTP REST server (100+ routes across 7+ functional groups) plus per-agent HTTP sidecars with relay-bus aggregation. WebSocket and SSE streaming for dashboards, agent roster management, fleet aggregation, credential injection, health probes, and a structured route taxonomy. **HTTP here = REST operator API, not MCP.** | MEDIUM |
-| [Smart Contract Architecture](./smart-contracts/README.md) | Thirteen Solidity contracts for AI agent economic infrastructure: MockERC20, RoleRegistry, AgentRegistry, IdentityRegistry (ERC-8004 soulbound), WorkerRegistry, ReputationRegistry, BountyMarket (programmable escrow), ConsortiumValidator, ValidationRegistry, InsightBoard, ISFROracle, ISFRBountyPool, and FeeDistributor. Full NEAR port analysis. Split into: [solidity-contracts](./smart-contracts/solidity-contracts.md), [evm-simulator](./smart-contracts/evm-simulator.md), [near-contracts](./smart-contracts/near-contracts.md), [benchmarking](./smart-contracts/benchmarking.md), [ironclaw-integration](./smart-contracts/ironclaw-integration.md), [references](./smart-contracts/references.md). | MEDIUM |
+| [Plugin and Extension System](./plugin-extension.md) | Event-source pattern for file-watch, cron, webhook, and extension-triggered work; local TOML/WASM discovery; permission declarations; and lifecycle hooks. **Tool discovery here = local catalog + loader path.** | LOW |
+| [ACP and MCP Integration](./mcp-editor-integration.md) | MCP JSON-RPC 2.0 tool protocol, IronClaw's MCP tools-client surface over HTTP/stdio/Unix transports, OAuth/session safety, and a server-exposure plan. ACP material is an editor/workflow integration opportunity, not a second agent loop. **Tool discovery here = remote JSON-RPC protocol.** | MEDIUM |
+| [Control Plane and API Server](./control-plane.md) | Hub-and-spoke control-plane patterns: HTTP operator API, SSE/WebSocket dashboard streams, event replay, readiness, fleet aggregation, credential isolation, and response-side redaction. **HTTP here = REST operator API, not MCP.** | MEDIUM |
+| [Smart Contract Architecture](./smart-contracts/README.md) | NEAR smart contract ports for AI agent economic infrastructure: AgentRegistry, IdentityRegistry (soulbound NEP-171), WorkerRegistry, ReputationRegistry, BountyMarket (programmable escrow), ConsortiumValidator, ValidationRegistry, InsightBoard, FeeDistributor. Split into: [near-contracts](./smart-contracts/near-contracts.md), [ironclaw-integration](./smart-contracts/ironclaw-integration.md), [references](./smart-contracts/references.md). | MEDIUM |
 
 ---
 
@@ -54,9 +54,9 @@ They interact at one point: ACP session events can be routed through the control
 graph TD
     PLUGIN["Plugin & Extension\nEventSource · TOML tools\n5-tier model · hot-reload"]
     ACP["ACP / MCP\nJSON-RPC 2.0 tool protocol\neditor integration · ACP workflows"]
-    CTRL["Control Plane\nREST HTTP 100+ routes\nSSE/WS · fleet aggregation"]
+    CTRL["Control Plane\nREST HTTP operator API\nSSE/WS · fleet aggregation"]
     REPUTATION["On-Chain Reputation\nTraceRank · soulbound passports\nbounty marketplace"]
-    CONTRACTS["Smart Contracts\n13 Solidity contracts\nNEAR port analysis"]
+    CONTRACTS["Smart Contracts\nNEAR contract surfaces\ncallback-safe integration"]
     ORCH["Orchestrator & Swarm\n(execution-verification/)\nmulti-agent coordination"]
 
     PLUGIN -->|"events forwarded via\nControl Plane SSE bus"| CTRL
@@ -86,6 +86,6 @@ If you are working on **operator tooling or dashboards**: start with [Control Pl
 
 If you are working on **NEAR integration or agent identity**: start with [On-Chain Reputation](./chain-reputation/) for the semantic model, then read [Smart Contracts](./smart-contracts/) for the concrete contract walkthrough and NEAR port analysis.
 
-If you are working on **editor integration or MCP server exposure**: start with [ACP and MCP Integration](./mcp-editor-integration.md). IronClaw already has a full MCP client; section 16 covers adding MCP server mode.
+If you are working on **editor integration or MCP server exposure**: start with [ACP and MCP Integration](./mcp-editor-integration.md). IronClaw already has an MCP tools client; the server-mode section covers exposing selected IronClaw tools safely.
 
 If you are working on **push-based events or declarative tools**: start with [Plugin and Extension System](./plugin-extension.md). Sections 3–5 (EventSource, FileWatch, Cron) and section 8 (TOML manifests) are the most IronClaw-relevant.

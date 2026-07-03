@@ -1,6 +1,10 @@
+schema_version: 1
 id: cascade_router.simple_lookup
 feature: cascade_router
+feature_flag_id: flag.cascade_router
 owner: crates/ironclaw_llm
+stage: local
+repetitions: 200
 input:
   prompt: "What is the local time in Berlin?"
   risk: low
@@ -26,7 +30,8 @@ oracle:
   must_include:
     - Berlin
 expected_metrics:
-  min_cost_reduction_pct: 20
+  median_cost_reduction_min_pct: 20
+  min_eligible_events: 200
 guardrails:
   max_quality_regression_pp: 2
   max_p95_latency_regression_pct: 10
@@ -34,4 +39,3 @@ guardrails:
 artifacts:
   write_jsonl: true
   retain_raw_prompt: false
-

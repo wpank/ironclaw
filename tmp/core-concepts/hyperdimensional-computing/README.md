@@ -1,14 +1,14 @@
 # Hyperdimensional Computing (HDC) — Overview
 
-**Source crates**: `roko-primitives`, `roko-neuro`, `roko-index`
-**Priority**: HIGH — drop-in similarity engine for memory, skill matching, tool selection
-**Status**: Production-ready in roko; proposed for IronClaw `ironclaw_hdc` crate
+**Source namespace**: captured `roko-primitives`, `roko-neuro`, and `roko-index` material.
+**Priority**: HIGH — optional structural similarity signal for memory, skill matching, and tool selection.
+**Status**: source-derived design proposal for IronClaw; performance and quality claims require local validation before rollout.
 
 ---
 
 ## What Is HDC?
 
-Hyperdimensional Computing (HDC), also known as Vector Symbolic Architectures (VSA), represents information as 10,240-bit binary vectors and manipulates them with four simple algebraic operations. No floating-point arithmetic. No GPU. No model inference. A single similarity comparison completes in ~13 nanoseconds.
+Hyperdimensional Computing (HDC), also known as Vector Symbolic Architectures (VSA), represents information as 10,240-bit binary vectors and manipulates them with four simple algebraic operations. It needs no model inference and uses bitwise CPU operations for comparison. The captured Roko baseline reports very low per-comparison latency; IronClaw should treat those numbers as benchmark targets until measured on its own CI and deployment hardware.
 
 The core insight: **in sufficiently high-dimensional spaces, random vectors are almost certainly near-orthogonal.** Any measured similarity significantly above 0.5 is therefore a genuine structural signal, not noise.
 
@@ -21,11 +21,11 @@ The core insight: **in sufficiently high-dimensional spaces, random vectors are 
 | Document | Contents |
 |----------|---------|
 | [theory.md](./theory.md) | Mathematical foundations, VSA variants, all four operations, capacity analysis, why 10,240 bits |
-| [implementation.md](./implementation.md) | Full roko source code — HdcVector, Codebook, Accumulators, ItemMemory, PatternStore |
-| [applications.md](./applications.md) | 6 application areas with worked examples and concrete similarity values |
-| [benchmarking.md](./benchmarking.md) | Performance benchmarks, false positive analysis, A/B comparison methodology |
-| [ironclaw-integration.md](./ironclaw-integration.md) | Full IronClaw implementation plan — 6-week phased integration with Rust code |
-| [references.md](./references.md) | All academic citations with DOIs and annotations |
+| [implementation.md](./implementation.md) | Captured-source implementation details — HdcVector, Codebook, Accumulators, ItemMemory, PatternStore |
+| [applications.md](./applications.md) | 6 application areas with worked examples and validation targets |
+| [benchmarking.md](./benchmarking.md) | Benchmark protocol, false-positive analysis, and A/B comparison methodology |
+| [ironclaw-integration.md](./ironclaw-integration.md) | Phased IronClaw integration plan with hook points, gates, and risks |
+| [references.md](./references.md) | Selected academic citations and annotations |
 
 ---
 
@@ -41,9 +41,9 @@ graph TD
         ENC["HdcEncodable trait\nencoder.rs"]
     end
 
-    subgraph MEMORY["Memory Layer\ncrates/ironclaw_memory/"]
-        MW["memory_write\n+ hdc_fingerprint column"]
-        MS["memory_search\n+ HDC as third RRF signal"]
+    subgraph MEMORY["Workspace Memory\nsrc/workspace/ + repository"]
+        MW["memory_write\n+ metadata/DB-trait fingerprint"]
+        MS["memory_search\n+ shadow-mode HDC signal"]
     end
 
     subgraph SKILLS["Skills Layer\ncrates/ironclaw_skills/"]
@@ -116,20 +116,20 @@ similarity(A, B)    = 1 - hamming/D    # [0, 1]; > 0.526 is statistically signif
 | Similarity | Meaning |
 |---|---|
 | 1.0 | Identical |
-| > 0.526 | Genuine structural relationship (< 1% FP scanning 100K entries) |
+| > 0.526 | Candidate structural relationship; target threshold for <1% FP scanning 100K random pairs, subject to corpus validation |
 | 0.485–0.515 | Noise band — quasi-orthogonal, no relationship |
 | < 0.48 | Meaningful dissimilarity |
 | 0.0 | Bitwise complement |
 
 ### Performance at a Glance
 
-| Operation | Time |
+| Operation | Captured baseline / IronClaw target |
 |---|---|
-| `similarity()` | ~13 ns |
-| `bind()` | ~5 ns |
-| `permute()` | ~10 ns |
-| `bundle()` (K=10) | ~800 ns |
-| Scan 100K entries | ~1.3 ms |
+| `similarity()` | ~13 ns baseline; verify with criterion on target hardware |
+| `bind()` | ~5 ns baseline; verify locally |
+| `permute()` | ~10 ns baseline; verify locally |
+| `bundle()` (K=10) | ~800 ns baseline; verify locally |
+| Scan 100K entries | ~1.3 ms baseline; O(N) scan over fixed-width fingerprints |
 
 ---
 
@@ -150,7 +150,7 @@ A reader with no prior HDC knowledge can implement the system from scratch after
 
 1. **Start here** — this README for orientation
 2. [theory.md](./theory.md) — understand the math before reading code
-3. [implementation.md](./implementation.md) — full source code with GitHub links
+3. [implementation.md](./implementation.md) — captured implementation details and adaptation notes
 4. [applications.md](./applications.md) — worked examples for each use case
 5. [benchmarking.md](./benchmarking.md) — performance data and FP analysis
 6. [ironclaw-integration.md](./ironclaw-integration.md) — the IronClaw plan

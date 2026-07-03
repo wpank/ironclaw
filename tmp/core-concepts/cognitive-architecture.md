@@ -4,7 +4,7 @@
 **Source docs**: `docs/v1/00-architecture/`, `docs/v1/13-coordination/`, `docs/v2-depth/11-memory/`
 **Priority**: HIGH — formalizes IronClaw's reactive/reflective/background split and provides the theoretical foundation for self-improving multi-agent coordination
 
-> **Self-contained implementation note**: Roko path-like references are provenance identifiers pointing to the captured source, available at `https://github.com/wpank/roko`. Use [implementation/README.md](../implementation/README.md) and [implementation/05-per-file-action-matrix.md](../implementation/05-per-file-action-matrix.md) for IronClaw-native build plans; use [benchmarking/README.md](../implementation/benchmarking/README.md) and [benchmarking/02-feature-playbooks.md](../implementation/benchmarking/02-feature-playbooks.md) for measurement plans.
+> **Self-contained implementation note**: Roko path-like references are provenance identifiers pointing to the captured source corpus. Use [implementation/README.md](../implementation/README.md) and [implementation/05-per-file-action-matrix.md](../implementation/05-per-file-action-matrix.md) for IronClaw-native build plans; use [benchmarking/README.md](../implementation/benchmarking/README.md) and [benchmarking/02-feature-playbooks.md](../implementation/benchmarking/02-feature-playbooks.md) for measurement plans.
 
 **Related documents in this category:**
 - [Universal Engram](./universal-engram.md) — the data type the Gamma tier indexes and Delta tier consolidates.
@@ -163,7 +163,7 @@ Where `a` = activator concentration, `h` = inhibitor concentration, `rho` = prod
 The three cognitive speeds are the heartbeat of the architecture. Every agent operates at all three timescales concurrently, managed by an adaptive clock that modulates cadence based on the agent's emotional/motivational state.
 
 **Source**: `docs/v1/00-architecture/10-three-cognitive-speeds.md`
-**Implementation**: https://github.com/wpank/roko/blob/main/crates/roko-core/src/operating_frequency.rs
+**Implementation**: `crates/roko-core/src/operating_frequency.rs`
 
 ### 3.1 Three Speeds Overview
 
@@ -271,7 +271,7 @@ Delta ticks use T2 (full model, e.g., Claude Opus/Sonnet class) for deep reasoni
 
 ### 3.5 OperatingFrequency Enum (Source Code)
 
-From https://github.com/wpank/roko/blob/main/crates/roko-core/src/operating_frequency.rs:
+From `crates/roko-core/src/operating_frequency.rs:`
 
 ```rust
 /// Cognitive operating frequency for agent work.
@@ -321,7 +321,7 @@ impl OperatingFrequency {
 
 ### 3.6 InferenceTier Enum (Source Code)
 
-From https://github.com/wpank/roko/blob/main/crates/roko-primitives/src/tier.rs:
+From `crates/roko-primitives/src/tier.rs:`
 
 ```rust
 /// Three-tier gate for inference spend and latency.
@@ -374,7 +374,7 @@ impl TierRouter {
 
 ### 3.7 Frequency Selection Logic (Source Code)
 
-From https://github.com/wpank/roko/blob/main/crates/roko-core/src/operating_frequency.rs:
+From `crates/roko-core/src/operating_frequency.rs:`
 
 ```rust
 impl OperatingFrequency {
@@ -711,7 +711,7 @@ Three cognitive subsystems are injected across multiple layers rather than livin
 | **Consolidated** | 1.0x | Days to weeks | Validated by gate verdicts |
 | **Persistent** | 5.0x | Weeks to months | Repeatedly validated across sessions |
 
-Knowledge is encoded as 10,240-bit HDC vectors (Kanerva, P., 2009, "Hyperdimensional Computing: An Introduction to Computing in Distributed Representation with High-Dimensional Random Vectors", Cognitive Computation, 1(2), pp. 139-159) for O(1) similarity search using Hamming distance.
+Knowledge can be encoded as 10,240-bit HDC vectors (Kanerva, P., 2009, "Hyperdimensional Computing: An Introduction to Computing in Distributed Representation with High-Dimensional Random Vectors", Cognitive Computation, 1(2), pp. 139-159). Each fixed-width Hamming comparison is constant cost; brute-force retrieval remains O(N) unless paired with an index or candidate filter.
 
 ### 6.2 Daimon — Motivation and Focus
 
@@ -757,7 +757,7 @@ The **Hypnagogia Engine** generates creative hypotheses during the transition be
 Roko's multi-agent coordination uses stigmergy: indirect coordination through environment modification. Rather than agents communicating directly, they deposit and sense digital pheromones — coordination signals that decay over time, can be confirmed or contradicted, and drive emergent task allocation.
 
 **Source**: `docs/v1/13-coordination/04-pheromone-kinds.md`, `docs/v2-depth/11-memory/12-pheromone-mechanics-and-interference.md`
-**Implementation**: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/coordination.rs
+**Implementation**: `crates/roko-orchestrator/src/coordination.rs`
 
 ### 7.1 Pheromone Lifecycle
 
@@ -779,7 +779,7 @@ graph LR
 
 ### 7.2 PheromoneKind Enum (Source Code)
 
-From https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/coordination.rs:
+From `crates/roko-orchestrator/src/coordination.rs:`
 
 ```rust
 /// The type of coordination signal a pheromone carries.
@@ -1162,7 +1162,7 @@ When a group of agents starts with identical configurations, they face the **nic
 > **Canonical location**: The Gierer-Meinhardt update equations and convergence analysis are defined here. Mathematical Primitives ([mathematical-primitives.md](./mathematical-primitives.md)) does not cover reaction-diffusion; it provides orthogonal analytical tools (TDA, sheaves, robust stats) that can instrument these agent dynamics but does not restate these update rules.
 
 **Source**: `docs/v1/13-coordination/07-morphogenetic-specialization.md`, `docs/v2-depth/11-memory/13-morphogenetic-specialization-as-loop.md`
-**Implementation**: https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/coordination.rs
+**Implementation**: `crates/roko-orchestrator/src/coordination.rs`
 
 ### 9.1 How Turing's Mechanism Applies to Agents
 
@@ -1364,7 +1364,7 @@ From homogeneous initial conditions, convergence scales as O(N × log N) ticks:
 | 20 | ~1,800 | ~7.5 hours |
 | 50 | ~3,000 | ~12.5 hours |
 
-**Convergence guarantee**: For beta/alpha >= 2.0 and collective_size <= 50, the system converges to a stable pattern with probability > 0.99 within 3000 ticks (validated via Monte Carlo simulation: 10,000 runs per parameter setting).
+**Observed convergence target**: In the captured simulation setup, beta/alpha >= 2.0 and collective_size <= 50 converged to a stable pattern with probability > 0.99 within 3000 ticks across 10,000 Monte Carlo runs per parameter setting. Treat this as a reproduction target, not a production guarantee.
 
 ### 9.8 Stability Monitoring
 
@@ -1410,7 +1410,7 @@ For multi-agent scenarios, roko measures collective intelligence across five axe
 
 ### 10.2 C-Factor Computation (Source Code)
 
-From https://github.com/wpank/roko/blob/main/crates/roko-orchestrator/src/coordination.rs:
+From `crates/roko-orchestrator/src/coordination.rs:`
 
 ```rust
 /// The five axes used to measure collective intelligence.
@@ -2585,7 +2585,7 @@ cargo deny check bans
 | Walker, M. P. & van der Helm, E. (2009). "Overnight therapy? The role of sleep in emotional brain processing". Annual Review of Clinical Psychology, 5, pp. 139-166. | REM sleep emotional depotentiation. Foundation for Dreams REM phase. |
 | Lacaux, C. et al. (2021). "Sleep onset is a creative sweet spot". Science Advances, 7(50), eabj5866. | Hypnagogia: creative insights during sleep onset. Foundation for hypnagogia engine. |
 | McClelland, J. L. et al. (1995). "Why there are complementary learning systems in the hippocampus and neocortex". Psychological Review, 102(3), pp. 419-457. | Complementary Learning Systems theory: hippocampal-neocortical consolidation. |
-| Kanerva, P. (2009). "Hyperdimensional Computing: An Introduction". Cognitive Computation, 1(2), pp. 139-159. | HDC vectors for O(1) similarity search. Foundation for Neuro knowledge encoding. |
+| Kanerva, P. (2009). "Hyperdimensional Computing: An Introduction". Cognitive Computation, 1(2), pp. 139-159. | HDC vectors for fixed-cost pairwise comparison and structural fingerprints. Foundation for Neuro knowledge encoding. |
 
 ### Stigmergy and Multi-Agent Coordination
 

@@ -2,7 +2,7 @@
 
 **Crate**: `ironclaw_gate` (to be created at `crates/ironclaw_gate/`)
 **Priority**: HIGH — direct enhancement to tool builder validation and code generation QA
-**Source provenance**: Architecture adapted from `roko-gate` ([github.com/wpank/roko/blob/main/crates/roko-gate/](https://github.com/wpank/roko/blob/main/crates/roko-gate/))
+**Source provenance**: Architecture adapted from `roko-gate` (`crates/roko-gate`)
 
 ---
 
@@ -169,7 +169,7 @@ The architecture has two primary tiers:
 
 Both tiers feed into the same cross-cutting systems: adaptive thresholds, SPC detectors, the Process Reward Model, and the gate ratchet.
 
-Source: Architecture overview is documented in [`crates/roko-gate/src/lib.rs` lines 1–50](https://github.com/wpank/roko/blob/main/crates/roko-gate/src/lib.rs).
+Source: Architecture overview is documented in `crates/roko-gate/src/lib.rs`.
 
 ---
 
@@ -178,7 +178,7 @@ Source: Architecture overview is documented in [`crates/roko-gate/src/lib.rs` li
 Every gate in the system implements a single trait:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-core/src/traits.rs (line 213)
+// Source: `crates/roko-core/src/traits.rs` (line 213)
 #[async_trait]
 pub trait Verify: Send + Sync {
     /// Verify the engram and return a verdict.
@@ -200,7 +200,7 @@ The `Verify` trait is the fundamental abstraction. Every gate — whether it she
 ### The Verdict Struct
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-core/src/verdict.rs (line 50)
+// Source: `crates/roko-core/src/verdict.rs` (line 50)
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Verdict {
     /// Did the signal pass the gate?
@@ -303,7 +303,7 @@ graph LR
 ### Rung Enum and Canonical Order
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/rung_selector.rs (line 93)
+// Source: `crates/roko-gate/src/rung_selector.rs` (line 93)
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[non_exhaustive]
 #[repr(u8)]
@@ -317,7 +317,7 @@ pub enum Rung {
     Integration = 6,
 }
 
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/rung_selector.rs (line 119)
+// Source: `crates/roko-gate/src/rung_selector.rs` (line 119)
 pub const CANONICAL_ORDER: [Rung; 7] = [
     Rung::Compile,
     Rung::Lint,
@@ -364,7 +364,7 @@ Six additional gates exist outside the rung pipeline for scenario-specific check
 
 Additionally, `GateGenerator` / `GeneratedCheck` support dynamically generated verification checks — the system can synthesize verification steps at runtime.
 
-Source: [`crates/roko-gate/src/lib.rs` lines 27–41](https://github.com/wpank/roko/blob/main/crates/roko-gate/src/lib.rs).
+Source: `crates/roko-gate/src/lib.rs`.
 
 ---
 
@@ -380,7 +380,7 @@ The progressive approach is better than single-pass verification because each ru
 
 **Without this rung**: All downstream rungs would fail with cascading compile errors, wasting time and producing noise instead of the single actionable diagnostic.
 
-**Commands**: `cargo check`, `npm run build`, `go build`, `python -m py_compile`, `forge build`, `make`
+**Commands**: `cargo check`, `npm run build`, `go build`, `python -m compileall .`, `forge build`, `make`
 
 ### Rung 1: Lint
 
@@ -443,7 +443,7 @@ Not every change needs all 7 rungs. The `select_rungs` function determines which
 ### PlanComplexity Enum
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/rung_selector.rs (line 23)
+// Source: `crates/roko-gate/src/rung_selector.rs` (line 23)
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PlanComplexity {
     /// Single-line / derive-only change. Compile only.
@@ -506,7 +506,7 @@ graph TD
 | **Complex** | Y | Y | Y | Y | Y | Y | Y |
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/rung_selector.rs (line 234)
+// Source: `crates/roko-gate/src/rung_selector.rs` (line 234)
 const fn base_rungs(complexity: PlanComplexity) -> &'static [Rung] {
     match complexity {
         PlanComplexity::Trivial => &[Rung::Compile],
@@ -530,7 +530,7 @@ const fn base_rungs(complexity: PlanComplexity) -> &'static [Rung] {
 `RungCaps` narrows the selection based on what the project actually supports. A cap can only **remove** a rung the complexity band selected; it can never **add** one the band did not select:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/rung_selector.rs (line 181)
+// Source: `crates/roko-gate/src/rung_selector.rs` (line 181)
 pub struct RungCaps {
     pub has_lint_tool: bool,
     pub has_symbol_manifest: bool,
@@ -560,7 +560,7 @@ impl RungCaps {
 Prior failures automatically escalate the effective complexity. Each prior failure moves the complexity one tier toward `Complex`:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/rung_selector.rs (line 267)
+// Source: `crates/roko-gate/src/rung_selector.rs` (line 267)
 pub fn select_rungs(complexity: PlanComplexity, caps: &RungCaps, prior_failures: u32) -> Vec<Rung> {
     let effective = complexity.escalate_by(prior_failures);
     base_rungs(effective)
@@ -594,7 +594,7 @@ graph TD
 | **Standard** | Standard | Complex | Complex | Complex |
 | **Complex** | Complex | Complex | Complex | Complex |
 
-Source: [`crates/roko-gate/src/rung_selector.rs`](https://github.com/wpank/roko/blob/main/crates/roko-gate/src/rung_selector.rs) with comprehensive tests at lines 287–560.
+Source: `crates/roko-gate/src/rung_selector.rs` with comprehensive tests at lines 287–560.
 
 ---
 
@@ -603,7 +603,7 @@ Source: [`crates/roko-gate/src/rung_selector.rs`](https://github.com/wpank/roko/
 The `rung_dispatch` module maps each `Rung` enum variant to the concrete gate(s) that execute it. This is the runtime layer that actually shells out to compilers, test runners, and LLM judges.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/rung_dispatch.rs (line 244)
+// Source: `crates/roko-gate/src/rung_dispatch.rs` (line 244)
 pub async fn run_canonical_rung(
     base_signal: &Signal,
     ctx: &Context,
@@ -672,7 +672,7 @@ Rungs 4, 5, and 6 each dispatch to **two** concrete gates:
 
 Gates that exceed their timeout return `Verdict::fail` with a timeout reason.
 
-Source: [`crates/roko-gate/src/rung_dispatch.rs`](https://github.com/wpank/roko/blob/main/crates/roko-gate/src/rung_dispatch.rs).
+Source: `crates/roko-gate/src/rung_dispatch.rs`.
 
 ---
 
@@ -681,7 +681,7 @@ Source: [`crates/roko-gate/src/rung_dispatch.rs`](https://github.com/wpank/roko/
 `GatePipeline` is itself a `Verify` implementation that runs a sequence of inner gates. This is the "ask every gate in order" orchestration layer.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/gate_pipeline.rs
+// Source: `crates/roko-gate/src/gate_pipeline.rs`
 pub struct GatePipeline {
     gates: Vec<Box<dyn Verify>>,
     short_circuit: bool,
@@ -791,7 +791,7 @@ Key behaviors:
 ### ComposedGatePipeline
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/gate_pipeline.rs
+// Source: `crates/roko-gate/src/gate_pipeline.rs`
 pub enum GateComposition {
     /// Run gates in push order; short-circuit on first failure (default).
     Sequential,
@@ -822,7 +822,7 @@ impl GatePipelineBuilder {
 }
 ```
 
-Source: [`crates/roko-gate/src/gate_pipeline.rs`](https://github.com/wpank/roko/blob/main/crates/roko-gate/src/gate_pipeline.rs).
+Source: `crates/roko-gate/src/gate_pipeline.rs`.
 
 ---
 
@@ -875,7 +875,7 @@ graph TD
 Runs N gates concurrently. ALL must pass for the aggregate to pass. The aggregate score is the minimum of all inner scores.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/composition.rs
+// Source: `crates/roko-gate/src/composition.rs`
 pub struct ParallelGate {
     gates: Vec<Box<dyn Verify>>,
     name: String,
@@ -933,7 +933,7 @@ impl Verify for ParallelGate {
 Runs M gates and requires N-of-M to pass. The aggregate score is the mean of passing verdicts' scores.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/composition.rs
+// Source: `crates/roko-gate/src/composition.rs`
 pub struct VotingGate {
     gates: Vec<Box<dyn Verify>>,
     required_passes: usize,
@@ -988,7 +988,7 @@ impl Verify for VotingGate {
 Tries a primary gate first. If it fails, tries a fallback. The first passing verdict wins.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/composition.rs
+// Source: `crates/roko-gate/src/composition.rs`
 pub struct FallbackGate {
     primary: Box<dyn Verify>,
     fallback: Box<dyn Verify>,
@@ -1070,7 +1070,7 @@ let judge_ensemble = VotingGate::new("llm-judge-ensemble", 2)
     .with_gate(Box::new(LlmJudgeGate::with_model("gemini-1.5-pro")));
 ```
 
-Source: [`crates/roko-gate/src/composition.rs`](https://github.com/wpank/roko/blob/main/crates/roko-gate/src/composition.rs).
+Source: `crates/roko-gate/src/composition.rs`.
 
 ---
 
@@ -1106,7 +1106,7 @@ graph LR
 ### Core Structure
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/adaptive_threshold.rs (line 168)
+// Source: `crates/roko-gate/src/adaptive_threshold.rs` (line 168)
 pub struct AdaptiveThresholds {
     rungs: HashMap<u32, RungStats>,
     cusum_sensitivity: f64,        // default: 0.25
@@ -1117,7 +1117,7 @@ pub struct AdaptiveThresholds {
     joint_anomaly_detected: bool,
 }
 
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/adaptive_threshold.rs (line 27)
+// Source: `crates/roko-gate/src/adaptive_threshold.rs` (line 27)
 pub struct RungStats {
     pub ema_pass_rate: f64,         // Exponential moving average [0.0, 1.0]
     pub total_observations: u64,    // Total gate runs for this rung
@@ -1141,7 +1141,7 @@ EMA formula:
 ```
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/adaptive_threshold.rs (line 322)
+// Source: `crates/roko-gate/src/adaptive_threshold.rs` (line 322)
 pub fn observe(&mut self, rung: u32, passed: bool) {
     let stats = self.rungs.entry(rung).or_default();
     let value = if passed { 1.0 } else { 0.0 };
@@ -1179,7 +1179,7 @@ The adaptive threshold suggests a retry count inversely proportional to the pass
 - **Unknown rung** (< 5 observations) → 3 retries (default)
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/adaptive_threshold.rs (line 384)
+// Source: `crates/roko-gate/src/adaptive_threshold.rs` (line 384)
 pub fn suggested_max_retries(&self, rung: u32) -> u32 {
     let Some(stats) = self.rungs.get(&rung) else { return 3; };
     if stats.total_observations < 5 { return 3; }
@@ -1219,7 +1219,7 @@ Agent temperament adjusts threshold behavior:
 Pre-built threshold profiles provide domain-specific priors:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/adaptive_threshold.rs (line 93)
+// Source: `crates/roko-gate/src/adaptive_threshold.rs` (line 93)
 
 /// Rust/systems coding: high compile expectation, moderate test pass rate.
 pub fn coding() -> ThresholdProfile {
@@ -1260,7 +1260,7 @@ pub fn security() -> ThresholdProfile {
 Thresholds are serialized to JSON with atomic save/load:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/adaptive_threshold.rs (line 257)
+// Source: `crates/roko-gate/src/adaptive_threshold.rs` (line 257)
 pub fn save(&self, path: &Path) -> Result<(), io::Error> {
     let serialized = serde_json::to_string_pretty(&self.rungs)?;
     // Atomic write via temp file + rename
@@ -1279,7 +1279,7 @@ pub fn load_or_new(path: &Path) -> Self {
 }
 ```
 
-Source: [`crates/roko-gate/src/adaptive_threshold.rs`](https://github.com/wpank/roko/blob/main/crates/roko-gate/src/adaptive_threshold.rs).
+Source: `crates/roko-gate/src/adaptive_threshold.rs`.
 
 ---
 
@@ -1319,7 +1319,7 @@ Where:
 **Implementation**:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/spc.rs (line 34)
+// Source: `crates/roko-gate/src/spc.rs` (line 34)
 pub struct CusumDetector {
     pub target: f64,       // In-control mean (e.g., 0.85)
     pub threshold_h: f64,  // Decision threshold (e.g., 5.0)
@@ -1360,7 +1360,7 @@ impl CusumDetector {
 
 **Worked example**: Suppose a gate has a target pass rate of 0.85 and starts experiencing failures (actual rate drops to 0.0 on each failure). With `k = 0.05` and `h = 5.0`, each failure observation adds approximately `0.85 - 0.0 - 0.05 = 0.80` to the lower CUSUM accumulator. After 7 consecutive failures: `7 * 0.80 = 5.60 > h = 5.0`, triggering a `CusumShift::Downward` alarm.
 
-Source: [`crates/roko-gate/src/spc.rs` lines 22–122](https://github.com/wpank/roko/blob/main/crates/roko-gate/src/spc.rs).
+Source: `crates/roko-gate/src/spc.rs`.
 
 ### 14.2 EWMA (Exponentially Weighted Moving Average) Control Chart
 
@@ -1392,14 +1392,14 @@ Where:
 Note: The implementation uses the simpler asymptotic form `sqrt(lambda / (2 - lambda))` rather than the exact time-varying form. For processes with more than ~20 observations, the asymptotic form closely approximates the exact formula.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/spc.rs (line 127)
+// Source: `crates/roko-gate/src/spc.rs` (line 127)
 pub enum ControlStatus {
     InControl,      // Within control limits
     Warning,        // Between 2-sigma and 3-sigma
     OutOfControl,   // Beyond 3-sigma
 }
 
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/spc.rs (line 149)
+// Source: `crates/roko-gate/src/spc.rs` (line 149)
 pub struct EwmaControlChart {
     lambda: f64,           // Smoothing factor (0.01, 1.0]
     sigma: f64,            // Process standard deviation
@@ -1444,7 +1444,7 @@ impl EwmaControlChart {
 
 If the EWMA drops below 0.80, the chart signals `OutOfControl`.
 
-Source: [`crates/roko-gate/src/spc.rs` lines 124–236](https://github.com/wpank/roko/blob/main/crates/roko-gate/src/spc.rs).
+Source: `crates/roko-gate/src/spc.rs`.
 
 ### 14.3 BOCPD (Bayesian Online Change Point Detection)
 
@@ -1467,7 +1467,7 @@ At each new observation `x_t`:
 The Gaussian predictive uses a conjugate normal model:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/spc.rs (line 403)
+// Source: `crates/roko-gate/src/spc.rs` (line 403)
 fn gaussian_predictive(&self, count: usize, sum: f64, sum_sq: f64, observation: f64) -> f64 {
     let n = count as f64;
     let mean = if n > 0.0 {
@@ -1496,14 +1496,14 @@ fn gaussian_predictive(&self, count: usize, sum: f64, sum_sq: f64, observation: 
 - `change_threshold`: Posterior probability to trigger alarm. Typical: 0.5.
 - Memory is bounded by trimming run lengths with negligible probability (`< 1e-8`) from the tail.
 
-Source: [`crates/roko-gate/src/spc.rs` lines 238–444](https://github.com/wpank/roko/blob/main/crates/roko-gate/src/spc.rs).
+Source: `crates/roko-gate/src/spc.rs`.
 
 ### 14.4 Composite SPC Detector
 
 All three detectors are combined in `SpcDetector`, running in parallel on each observation:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/spc.rs (line 472)
+// Source: `crates/roko-gate/src/spc.rs` (line 472)
 #[derive(Debug)]
 pub enum SpcAlert {
     CusumShift(CusumShift),                   // Gradual mean shift detected
@@ -1557,7 +1557,7 @@ impl SpcDetector {
 | **EWMA** | Small persistent shifts, formal control limits | High | O(1) | Roberts (1959) [2] |
 | **BOCPD** | Abrupt regime changes | Threshold-based | O(n), bounded by trimming | Adams & MacKay (2007) [3] |
 
-Source: [`crates/roko-gate/src/spc.rs` lines 446–533](https://github.com/wpank/roko/blob/main/crates/roko-gate/src/spc.rs).
+Source: `crates/roko-gate/src/spc.rs`.
 
 ---
 
@@ -1570,7 +1570,7 @@ The Process Reward Model (PRM) tracks per-turn gate snapshots and derives two cy
 ### Turn Snapshots
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/process_reward.rs (line 19)
+// Source: `crates/roko-gate/src/process_reward.rs` (line 19)
 pub struct TurnSnapshot {
     pub rung: u32,              // Highest rung reached at this turn
     pub verdicts: Vec<Verdict>, // All verdicts from the gate pipeline
@@ -1584,7 +1584,7 @@ pub struct TurnSnapshot {
 **Promise** predicts the probability of eventual task success given the current trajectory. It is a weighted combination of three signals:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/process_reward.rs (line 94)
+// Source: `crates/roko-gate/src/process_reward.rs` (line 94)
 pub fn promise(&self) -> f64 {
     if self.history.is_empty() {
         return 0.5; // no data => neutral prior
@@ -1626,7 +1626,7 @@ The three components:
 **Progress** measures the trajectory delta between the two most recent turns. It ranges from -1.0 (severe regression) to +1.0 (major improvement).
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/process_reward.rs (line 114)
+// Source: `crates/roko-gate/src/process_reward.rs` (line 114)
 pub fn progress(&self) -> f64 {
     if self.history.len() < 2 { return 0.0; }
 
@@ -1673,7 +1673,7 @@ If Promise drops below `min_promise` (e.g., 0.3) after at least 2 turns, the orc
 The PRM also scores individual reasoning steps:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/process_reward.rs (line 161)
+// Source: `crates/roko-gate/src/process_reward.rs` (line 161)
 pub fn verify_steps(&self, steps: &[ReasoningStep]) -> StepVerdict {
     let step_scores: Vec<f64> = steps.iter().map(|s| score_step(s)).collect();
     let aggregate_score = match self.aggregate {
@@ -1708,7 +1708,7 @@ Step scoring heuristics:
 - Contains code block (``` or indented): +0.3
 - Contains verification keywords (assert, verify, check, test, ensure, confirm): +0.3
 
-Source: [`crates/roko-gate/src/process_reward.rs`](https://github.com/wpank/roko/blob/main/crates/roko-gate/src/process_reward.rs). References: Lightman et al. 2023 [4], AgentPRM (arXiv:2502.10325) [5].
+Source: `crates/roko-gate/src/process_reward.rs`. References: Lightman et al. 2023 [4], AgentPRM (arXiv:2502.10325) [5].
 
 ---
 
@@ -1719,7 +1719,7 @@ The `GateRatchet` prevents rung regression during convergence loops. Once a plan
 **Why this matters**: Without a ratchet, an agent can thrash in a convergence loop: fix the compile error but break lint, then fix lint but break compile again. The ratchet makes the second regression visible and blockable.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/ratchet.rs (line 19)
+// Source: `crates/roko-gate/src/ratchet.rs` (line 19)
 pub struct GateRatchet {
     passes: HashMap<String, u8>,  // plan_id -> highest rung passed
 }
@@ -1773,7 +1773,7 @@ Turn 3: agent fixes lint, re-passes compile + lint + test
          ratchet state: { "plan-xyz": 2 }  (unchanged, already at 2)
 ```
 
-Source: [`crates/roko-gate/src/ratchet.rs`](https://github.com/wpank/roko/blob/main/crates/roko-gate/src/ratchet.rs).
+Source: `crates/roko-gate/src/ratchet.rs`.
 
 ---
 
@@ -1786,7 +1786,7 @@ The forensic system reconstructs the complete causal chain for any task: which a
 All gate artifacts (build logs, test output, diff snapshots) are stored in a BLAKE3 content-addressed store:
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/artifact_store.rs
+// Source: `crates/roko-gate/src/artifact_store.rs`
 pub struct ArtifactStore {
     inner: HashMap<ContentHash, Vec<u8>>,
     root: Option<PathBuf>,  // Optional disk-backed storage
@@ -1825,7 +1825,7 @@ Properties:
 ### Causal Chain
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/forensic.rs (line 47)
+// Source: `crates/roko-gate/src/forensic.rs` (line 47)
 pub struct CausalChain {
     pub task_id: String,
     pub agent_model: String,
@@ -1846,7 +1846,7 @@ pub struct TurnRecord {
 ### Replay Builder
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/forensic.rs (line 132)
+// Source: `crates/roko-gate/src/forensic.rs` (line 132)
 pub struct ForensicReplayBuilder {
     task_turns: HashMap<String, Vec<TurnRecord>>,
     task_verdicts: HashMap<String, Vec<(Verdict, Option<ContentHash>)>>,
@@ -1921,7 +1921,7 @@ Turn 2 (claude-sonnet-4-6):
     artifact: 9d2e1f... (892 bytes, verified)
 ```
 
-Source: [`crates/roko-gate/src/forensic.rs`](https://github.com/wpank/roko/blob/main/crates/roko-gate/src/forensic.rs) and [`crates/roko-gate/src/artifact_store.rs`](https://github.com/wpank/roko/blob/main/crates/roko-gate/src/artifact_store.rs).
+Source: `crates/roko-gate/src/forensic.rs` and `crates/roko-gate/src/artifact_store.rs`.
 
 ---
 
@@ -1932,7 +1932,7 @@ Acceptance contracts define what "done" means for a specific task. They are type
 ### Contract Structure
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/acceptance_contract.rs
+// Source: `crates/roko-gate/src/acceptance_contract.rs`
 pub struct AcceptanceContract {
     pub version: u32,                                          // Schema version (only 1 accepted)
     pub gates: Vec<GateRequirement>,                           // Compile/test/lint gates
@@ -1965,7 +1965,7 @@ pub enum GateRequirementKind {
 ### The 9 Outcome States
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/acceptance_contract.rs
+// Source: `crates/roko-gate/src/acceptance_contract.rs`
 pub enum AcceptanceOutcome {
     Passed,       // All evidence present and passing
     Failed,       // Required evidence failed or malformed
@@ -1981,7 +1981,7 @@ pub enum AcceptanceOutcome {
 
 The 9 outcomes are substantially richer than binary pass/fail, enabling precise orchestrator routing decisions.
 
-Source: [`crates/roko-gate/src/acceptance_contract.rs`](https://github.com/wpank/roko/blob/main/crates/roko-gate/src/acceptance_contract.rs).
+Source: `crates/roko-gate/src/acceptance_contract.rs`.
 
 ---
 
@@ -1990,7 +1990,7 @@ Source: [`crates/roko-gate/src/acceptance_contract.rs`](https://github.com/wpank
 Raw gate output (compiler stderr, test logs, linter JSON) is verbose and full of noise that wastes agent context tokens. The feedback system parses raw output into structured, filtered feedback.
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/feedback.rs (line 52)
+// Source: `crates/roko-gate/src/feedback.rs` (line 52)
 pub struct GateFeedback {
     pub rung: u8,                    // Which rung produced this
     pub passed: bool,                // Did the gate pass?
@@ -2040,7 +2040,7 @@ pub fn feedback_for_agent(raw_output: &str, rung: u8) -> GateFeedback {
 }
 ```
 
-Source: [`crates/roko-gate/src/feedback.rs`](https://github.com/wpank/roko/blob/main/crates/roko-gate/src/feedback.rs).
+Source: `crates/roko-gate/src/feedback.rs`.
 
 ---
 
@@ -2066,7 +2066,7 @@ Where:
 ### Implementation
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/hotelling.rs (line 31)
+// Source: `crates/roko-gate/src/hotelling.rs` (line 31)
 pub struct HotellingDetector {
     dimension: usize,       // Number of gates tracked
     mean: Vec<f64>,         // Running mean per gate
@@ -2149,7 +2149,7 @@ where `z_alpha` is the standard normal quantile computed via the Abramowitz and 
 
 The covariance matrix is updated using Welford's algorithm [7] extended to multivariate data, avoiding the numerical instability of naive `sum(x^2) - n*mean^2` formulas.
 
-Source: [`crates/roko-gate/src/hotelling.rs`](https://github.com/wpank/roko/blob/main/crates/roko-gate/src/hotelling.rs). Wired into `AdaptiveThresholds` via `observe_pipeline()` in [`crates/roko-gate/src/adaptive_threshold.rs` lines 469–485](https://github.com/wpank/roko/blob/main/crates/roko-gate/src/adaptive_threshold.rs).
+Source: `crates/roko-gate/src/hotelling.rs`. Wired into `AdaptiveThresholds` via `observe_pipeline()` in `crates/roko-gate/src/adaptive_threshold.rs`.
 
 ---
 
@@ -2177,7 +2177,7 @@ where `C_min` is the minimum possible cost for any future segment starting at `s
 ### Cost Functions
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/pelt.rs (line 34)
+// Source: `crates/roko-gate/src/pelt.rs` (line 34)
 pub enum CostFunction {
     L2,     // Squared error from segment mean — detects mean shifts
     L1,     // Absolute error from segment median — robust to outliers
@@ -2203,7 +2203,7 @@ cost(y[s..e]) = n_segment * ln(var(y[s..e]))
 ### Implementation
 
 ```rust
-// Source: https://github.com/wpank/roko/blob/main/crates/roko-gate/src/pelt.rs
+// Source: `crates/roko-gate/src/pelt.rs`
 pub struct PeltDetector {
     cost_fn: CostFunction,
     penalty: f64,
@@ -2273,7 +2273,7 @@ let change_points = detector.detect(&data);
 // change_points contains index ~4 (where values jump from ~1 to ~5)
 ```
 
-Source: [`crates/roko-gate/src/pelt.rs`](https://github.com/wpank/roko/blob/main/crates/roko-gate/src/pelt.rs).
+Source: `crates/roko-gate/src/pelt.rs`.
 
 ---
 
@@ -2486,7 +2486,7 @@ A false positive (FP) is when the gate fails but the output was actually correct
 | Prop-Test | ~5% | ~10% | Property test failures usually real; scope limited by oracle |
 | Integration | ~15% | ~5% | Environment setup failures inflate FP; catches cross-system bugs |
 
-**FP rate of 0% for compile** is intentional: compiler errors are by definition correct. The only "false positives" would be compiler bugs, which are essentially nonexistent in practice.
+Compile failures are usually high-confidence semantic failures, but the gate must still classify infrastructure/toolchain failures separately: missing targets, feature-flag drift, unavailable generated files, or stale environment setup can all produce false-positive gate failures.
 
 **FN rate of 20–40% for tests** reflects the known coverage gap in typical codebases. Rung 4 (Gen-Test) is specifically designed to address this gap by generating tests for uncovered paths.
 
@@ -2884,7 +2884,7 @@ impl CompileGate {
             BuildSystem::Cargo => ("cargo", vec!["check", "--message-format=short"]),
             BuildSystem::Npm => ("npm", vec!["run", "build"]),
             BuildSystem::Go => ("go", vec!["build", "./..."]),
-            BuildSystem::Python => ("python", vec!["-m", "py_compile"]),
+            BuildSystem::Python => ("python", vec!["-m", "compileall", "."]),
             BuildSystem::Make => ("make", vec![]),
         }
     }
@@ -3003,7 +3003,7 @@ mod tests {
         let files = [
             Path::new("src/agent/mod.rs"),
             Path::new("src/tools/registry.rs"),
-            Path::new("src/channels/web/server.rs"),
+            Path::new("src/channels/web/mod.rs"),
             Path::new("crates/ironclaw_llm/src/lib.rs"),
         ];
         assert_eq!(assess_complexity(&files, 850), PlanComplexity::Complex);
@@ -3141,10 +3141,9 @@ pub async fn gate_validate_tool_build(
 
     let verdict = pipeline.run(working_dir.to_str().unwrap_or("")).await;
 
-    // Update adaptive thresholds for future retry budget decisions
-    for rung in &rungs {
-        thresholds.observe(rung.as_index(), verdict.passed);
-    }
+    // MVP rule: do not train adaptive thresholds from an aggregate verdict.
+    // Threshold learning requires per-rung verdicts so one compile failure
+    // does not incorrectly label lint/test rungs as failed.
 
     let feedback = feedback_for_agent(
         verdict.detail.as_deref().unwrap_or(""),
@@ -3219,14 +3218,12 @@ pub async fn gate_check_generated_code(
     let highest_rung = if verdict.passed {
         rungs.last().map_or(0, |r| r.as_index())
     } else {
-        // Find which rung was the last to pass
-        0 // simplified; production impl tracks per-rung verdicts
+        // Production implementation must return per-rung verdicts and the
+        // first failing rung. Until then, do not train adaptive thresholds.
+        0
     };
 
-    // Update adaptive thresholds
-    for rung in &rungs {
-        thresholds.observe(rung.as_index(), verdict.passed);
-    }
+    // Adaptive threshold updates intentionally deferred until per-rung verdicts exist.
 
     // Update ratchet
     if verdict.passed {
