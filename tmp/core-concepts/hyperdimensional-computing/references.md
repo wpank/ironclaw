@@ -16,7 +16,7 @@ The original work on content-addressable memory in high-dimensional binary space
 
 **[Kanerva96]** Kanerva, P. (1996). "Binary Spatter-Coding of Ordered K-Tuples." In C. von der Malsburg et al. (eds.), *Artificial Neural Networks — ICANN 96* (Lecture Notes in Computer Science, vol. 1112), pp. 869–873. Berlin: Springer.
 
-Formalized Binary Spatter Codes (BSC): the specific HDC variant used by roko and proposed for IronClaw. Defined XOR as the binding operation and majority vote as the bundling operation for binary vectors. Showed that ordered sequences can be encoded using cyclic permutation combined with XOR binding.
+Formalized Binary Spatter Codes (BSC): the captured HDC variant proposed as IronClaw's first adaptation target. Defined XOR as the binding operation and majority vote as the bundling operation for binary vectors. Showed that ordered sequences can be encoded using cyclic permutation combined with XOR binding.
 
 ---
 

@@ -5,8 +5,8 @@ ideas against the current IronClaw codebase. It is not an implementation spec,
 not a parity claim, and not evidence that a feature is ready to build.
 
 Treat the current IronClaw code, subsystem specs, and `FEATURE_PARITY.md` as the
-source of truth. Captured external source-path names in this corpus are kept
-only for provenance; they are not live external dependencies.
+source of truth. Captured source-path names in this corpus are kept only for
+provenance; they are not live dependencies.
 
 ## Current Inventory
 
@@ -44,6 +44,21 @@ Use the strategy folder first:
 5. [implementation/README.md](implementation/README.md) - implementation tracker and readiness links.
 
 Before coding, read the relevant subsystem spec listed in `AGENTS.md`.
+
+## HDC Working Set
+
+For the current HDC/memory work, use these files together:
+
+| File | Purpose |
+|------|---------|
+| [hdc-implementation-plan.md](hdc-implementation-plan.md) | Current implementation plan, audit checklist, rollout phases, and known gaps. |
+| [hdc-github-issue.md](hdc-github-issue.md) | Draft GitHub issue written for readers without prior context. |
+| [hdc-pr-body.md](hdc-pr-body.md) | Draft PR body, testing commands, risk notes, and rollout/rollback text. |
+| [hdc-performance-comparison.md](hdc-performance-comparison.md) | HDC versus embedding comparison frame and benchmarking cautions. |
+| [hdc-roko-cognitive-usecases.md](hdc-roko-cognitive-usecases.md) | Self-contained portable HDC/cognitive use cases and implementation sketches. |
+| [hdc-ironclaw-innovation-integrations.md](hdc-ironclaw-innovation-integrations.md) | Advanced IronClaw HDC integrations for memory, episodes, anti-knowledge, replay, heartbeat, subagents, and routines. |
+| [hdc-innovation-examples-and-benchmarks.md](hdc-innovation-examples-and-benchmarks.md) | Concrete scenarios, fixture rows, telemetry events, benchmark commands, and promotion gates. |
+| [hdc-test-gap-analysis.md](hdc-test-gap-analysis.md) | Concrete test gap analysis with 42 missing test specifications across Priority 1 (blocking promotion) and Priority 2 (follow-up features). |
 
 ## Near-Term Sequence
 

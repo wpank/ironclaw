@@ -1,6 +1,6 @@
 # Hyperdimensional Computing (HDC) — Overview
 
-**Source namespace**: captured `roko-primitives`, `roko-neuro`, and `roko-index` material.
+**Captured source-corpus labels**: `roko-primitives`, `roko-neuro`, and `roko-index`.
 **Priority**: HIGH — optional structural similarity signal for memory, skill matching, and tool selection.
 **Status**: source-derived design proposal for IronClaw; captured paths are provenance labels only, and performance/quality claims require local validation before rollout.
 
@@ -8,7 +8,7 @@
 
 ## What Is HDC?
 
-Hyperdimensional Computing (HDC), also known as Vector Symbolic Architectures (VSA), represents information as 10,240-bit binary vectors and manipulates them with four simple algebraic operations. It needs no model inference and uses bitwise CPU operations for comparison. The captured Roko baseline reports very low per-comparison latency; IronClaw should treat those numbers as benchmark targets until measured on its own CI and deployment hardware.
+Hyperdimensional Computing (HDC), also known as Vector Symbolic Architectures (VSA), represents information as 10,240-bit binary vectors and manipulates them with four simple algebraic operations. It needs no model inference and uses bitwise CPU operations for comparison. The captured baseline reports very low per-comparison latency; IronClaw should treat those numbers as benchmark targets until measured on its own CI and deployment hardware.
 
 The core insight: **in sufficiently high-dimensional spaces, random vectors are almost certainly near-orthogonal.** Similarity significantly above 0.5 is a candidate structural signal that still needs encoder and corpus validation.
 
@@ -41,7 +41,7 @@ graph TD
         ENC["HdcEncodable trait\nencoder.rs"]
     end
 
-    subgraph MEMORY["Workspace Memory\nsrc/workspace/ + repository"]
+    subgraph MEMORY["Workspace Memory\nsrc/workspace/ + DB trait"]
         MW["memory_write\n+ metadata/DB-trait fingerprint"]
         MS["memory_search\n+ shadow-mode HDC signal"]
     end

@@ -628,7 +628,7 @@ impl WorkspaceStore for LibSqlBackend {
             .query(
                 r#"
                 SELECT id, user_id, agent_id, path, content,
-                       created_at, updated_at, metadata
+                       created_at, updated_at, metadata, hdc_fingerprint
                 FROM memory_documents
                 WHERE user_id = ?1 AND agent_id IS ?2
                 ORDER BY updated_at DESC
@@ -1323,6 +1323,107 @@ impl WorkspaceStore for LibSqlBackend {
                 reason: format!("Failed to prune versions: {e}"),
             })?;
         Ok(result)
+    }
+
+    #[cfg(feature = "hdc")]
+    async fn update_document_hdc_fingerprint(
+        &self,
+        id: Uuid,
+        fingerprint: &[u8],
+    ) -> Result<(), WorkspaceError> {
+        if fingerprint.len() != 1280 {
+            return Err(WorkspaceError::SearchFailed {
+                reason: format!(
+                    "HDC fingerprint must be exactly 1280 bytes, got {}",
+                    fingerprint.len()
+                ),
+            });
+        }
+        let conn = self
+            .connect()
+            .await
+            .map_err(|e| WorkspaceError::SearchFailed {
+                reason: e.to_string(),
+            })?;
+        let updated = conn
+            .execute(
+                "UPDATE memory_documents SET hdc_fingerprint = ?1 WHERE id = ?2",
+                params![libsql::Value::Blob(fingerprint.to_vec()), id.to_string()],
+            )
+            .await
+            .map_err(|e| WorkspaceError::SearchFailed {
+                reason: format!("Failed to update HDC fingerprint: {e}"),
+            })?;
+        if updated == 0 {
+            return Err(WorkspaceError::SearchFailed {
+                reason: format!("Document {id} not found for HDC fingerprint update"),
+            });
+        }
+        Ok(())
+    }
+
+    #[cfg(feature = "hdc")]
+    async fn list_document_hdc_fingerprints(
+        &self,
+        user_id: &str,
+        agent_id: Option<Uuid>,
+    ) -> Result<Vec<crate::workspace::DocumentHdcFingerprint>, WorkspaceError> {
+        let conn = self
+            .connect()
+            .await
+            .map_err(|e| WorkspaceError::SearchFailed {
+                reason: e.to_string(),
+            })?;
+        let agent_id_str = agent_id.map(|a| a.to_string());
+        let mut rows = conn
+            .query(
+                r#"
+                SELECT id, path, hdc_fingerprint
+                FROM memory_documents
+                WHERE user_id = ?1
+                  AND agent_id IS ?2
+                  AND hdc_fingerprint IS NOT NULL
+                "#,
+                params![
+                    user_id,
+                    agent_id_str
+                        .as_deref()
+                        .map(libsql::Value::from)
+                        .unwrap_or(libsql::Value::Null)
+                ],
+            )
+            .await
+            .map_err(|e| WorkspaceError::SearchFailed {
+                reason: format!("Failed to list HDC fingerprints: {e}"),
+            })?;
+
+        let mut results = Vec::new();
+        while let Some(row) = rows
+            .next()
+            .await
+            .map_err(|e| WorkspaceError::SearchFailed {
+                reason: format!("Failed to read HDC fingerprint row: {e}"),
+            })?
+        {
+            let id_str: String = row.get(0).map_err(|e| WorkspaceError::SearchFailed {
+                reason: format!("Failed to read id: {e}"),
+            })?;
+            let path: String = row.get(1).map_err(|e| WorkspaceError::SearchFailed {
+                reason: format!("Failed to read path: {e}"),
+            })?;
+            let fingerprint: Vec<u8> = row.get(2).map_err(|e| WorkspaceError::SearchFailed {
+                reason: format!("Failed to read fingerprint: {e}"),
+            })?;
+            let id = Uuid::parse_str(&id_str).map_err(|e| WorkspaceError::SearchFailed {
+                reason: format!("Invalid UUID: {e}"),
+            })?;
+            results.push(crate::workspace::DocumentHdcFingerprint {
+                id,
+                path,
+                fingerprint,
+            });
+        }
+        Ok(results)
     }
 }
 

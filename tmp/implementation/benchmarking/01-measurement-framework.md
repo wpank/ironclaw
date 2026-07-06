@@ -60,7 +60,7 @@ the raw counts and do not promote automatically.
 | Stage | Traffic | Authority |
 | --- | --- | --- |
 | `local` | fixture or developer run | candidate may act only in test |
-| `shadow` | mirrored production-like input | baseline controls behavior |
+| `shadow` | mirrored eligible input | baseline controls behavior |
 | `canary` | small opted-in cohort | candidate controls eligible requests |
 | `limited` | broader opted-in cohort | candidate controls eligible requests |
 | `default` | default path | candidate is baseline, flag cleanup starts |

@@ -56,7 +56,7 @@ HDC belongs to the family of Vector Symbolic Architectures (VSA):
 | Holographic Reduced Representations (HRR) | Circular convolution | Real-valued | Plate, 1995 [Plate95] |
 | Fourier HRR (FHRR) | Element-wise complex multiply | Complex unit phasors | Plate, 2003 [Plate03] |
 
-BSC was chosen for the roko implementation because it offers the best combination of:
+BSC is the captured-source variant to adapt first because it offers the best combination of:
 - **Simplicity**: binary vectors, XOR binding
 - **Performance**: pure bitwise operations on CPU
 - **Capacity**: sufficient at 10,240 bits for production knowledge systems
@@ -155,7 +155,7 @@ The 10,240-bit choice balances three engineering concerns:
 
 2. **Precision**: ±1.0% noise band (2-sigma) means a similarity threshold of 0.526 (just 2.6% above the 0.5 baseline) is statistically meaningful at p < 10^-7 per comparison, remaining significant even after Bonferroni correction against 100K comparisons.
 
-3. **Performance**: 160 words × 8 bytes = 1,280 bytes per fingerprint. The vector is small enough for cache-friendly scans. XOR + popcount over 160 words is the fixed-cost inner loop; the ~13 ns figure is a captured benchmark target, requires IronClaw validation.
+3. **Performance**: 160 words × 8 bytes = 1,280 bytes per fingerprint. The vector is small enough for cache-friendly scans. XOR + popcount over 160 words is the fixed-cost inner loop. Treat the captured ~13 ns figure as a local benchmark target, not a design guarantee.
 
 The number 10,240 = 160 × 64 is chosen for alignment: it maps cleanly to 160 machine words with no padding or waste.
 

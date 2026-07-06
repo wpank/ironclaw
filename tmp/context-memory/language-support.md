@@ -27,11 +27,11 @@
 
 ## The Multi-Language Analysis Problem
 
-An AI coding agent that treats source code as raw text is fundamentally limited. It cannot answer "what calls this function?", "which files depend on this module?", or "what are the public exports of this package?" without scanning every file in the project — a process that exhausts context windows and wastes tokens on irrelevant content. Research on retrieval-augmented code generation confirms that naive full-file inclusion wastes 80-99% of the context budget on code irrelevant to the current task [1].
+A coding agent that treats source code as raw text loses the structure needed for questions like "what calls this function?", "which files depend on this module?", or "what are the public exports of this package?" Without an index, it usually has to scan broad file sets, spending context on code that may not matter for the current task. Research on retrieval-augmented code generation reports that naive full-file inclusion can waste 80-99% of the context budget on irrelevant code [1].
 
-The problem is compounded in polyglot codebases. A Rust backend with a TypeScript frontend, Solidity smart contracts with TypeScript test suites, or a Go service with Python scripts — each language has its own import syntax, visibility rules, build toolchain, and naming conventions. An agent that understands Rust's `use` statements but not TypeScript's `import ... from` or Go's capitalization-based visibility is only partially useful. Empirical studies of 414,486 GitHub repositories show that multi-language development is the norm, not the exception — developers regularly combine 2-4 languages within a single project [2].
+The problem is compounded in polyglot codebases. A Rust backend with a TypeScript frontend, Solidity smart contracts with TypeScript test suites, or a Go service with Python scripts — each language has its own import syntax, visibility rules, build toolchain, and naming conventions. An agent that understands Rust's `use` statements but not TypeScript's `import ... from` or Go's capitalization-based visibility is only partially useful. Empirical studies of 414,486 public codebases show that multi-language development is common — developers regularly combine 2-4 languages within a single project [2].
 
-The solution is a **structural code analysis system** that parses source code into typed symbols and dependency edges, then uses graph algorithms (PageRank), hyperdimensional fingerprints (HDC), and multi-strategy search to assemble precisely-targeted context for LLM consumption. The system is designed around two core abstractions — `BuildSystem` and `LanguageProvider` — that isolate all language-specific knowledge into small, self-contained crates, while the analysis engine operates entirely on language-neutral data structures.
+A **structural code analysis system** addresses this by parsing source code into typed symbols and dependency edges, then using graph algorithms (PageRank), hyperdimensional fingerprints (HDC), and multi-strategy search to assemble targeted context for model consumption. The captured design is built around two core abstractions — `BuildSystem` and `LanguageProvider` — that isolate language-specific knowledge into small provider crates while the analysis engine operates on language-neutral data structures.
 
 This document covers every layer of that system: the core trait contracts, the three language provider implementations (Rust, TypeScript, Go), the dual-mode Rust parser (heuristic vs. tree-sitter), the polyglot project detection pipeline, benchmarking data, practical examples, and a concrete implementation plan for how IronClaw can consume this analysis to enhance its code-aware tool execution.
 
@@ -72,7 +72,7 @@ Layer 4: Consumption
   - roko-gate verify cells (CompileGate, ClippyGate, TestGate)
 ```
 
-The critical design property is that language-specific parsing stays behind `LanguageProvider` and `BuildSystem`. The graph builder, PageRank scorer, fingerprint generator, and search layer operate on `Symbol`, `Import`, and `SourceFile` rather than raw Rust, TypeScript, or Go syntax. Adding a language should require a new provider and build-system implementation, not changes throughout the indexing stack.
+The key design property is that language-specific parsing stays behind `LanguageProvider` and `BuildSystem`. The graph builder, PageRank scorer, fingerprint generator, and search layer operate on `Symbol`, `Import`, and `SourceFile` rather than raw Rust, TypeScript, or Go syntax. Adding a language should require a new provider and build-system implementation, not changes throughout the indexing stack.
 
 This design follows ad-hoc polymorphism through trait-based dispatch — the same pattern as Haskell's type classes, where each language implementation provides its own "instance" of a shared interface [3]. Rust's trait system enforces this at compile time: the `Send + Sync` bounds on both traits allow language providers to be shared across threads for parallel file parsing.
 
@@ -204,7 +204,7 @@ pub struct SourceFile {
 }
 ```
 
-`SourceFile` is the universal unit of analysis. The graph builder, PageRank scorer, and HDC fingerprinter all consume `SourceFile` values — they never read raw source text directly. This ensures every analysis component benefits from the same language-aware extraction without duplicating parsing logic.
+`SourceFile` is the common unit of analysis. The graph builder, PageRank scorer, and HDC fingerprinter all consume `SourceFile` values instead of reparsing raw text. This keeps language-aware extraction in one layer.
 
 ---
 
@@ -212,7 +212,7 @@ pub struct SourceFile {
 
 **Source**: `crates/roko-core/src/build.rs`
 
-The `BuildSystem` trait abstracts the four fundamental operations every software project needs: compile, test, lint, and format. It produces `BuildCommand` descriptors — pure data structures that carry program name, arguments, environment variables, and working directory — but **never execute anything**. This keeps `roko-core` free of `std::process` and `std::fs`, making it portable, testable, and embeddable.
+The `BuildSystem` trait abstracts four common project operations: compile, test, lint, and format. It produces `BuildCommand` descriptors — pure data structures that carry program name, arguments, environment variables, and working directory — but does not execute them. This keeps `roko-core` free of `std::process` and `std::fs`, making it portable, testable, and embeddable.
 
 ### BuildCommand
 
@@ -237,10 +237,10 @@ let cmd = BuildCommand::new("cargo")
     .arg("check")
     .args(["--workspace", "--all-targets"])
     .env("CARGO_TARGET_DIR", "/tmp/target")
-    .working_dir("/repo");
+    .working_dir("/workspace");
 ```
 
-The execution boundary lives in `roko-gate` or `roko-orchestrator`, which convert `BuildCommand` into `tokio::process::Command` at the moment of execution. This separation means unit tests can verify command construction without spawning processes — a critical property for fast iteration and CI.
+The execution boundary lives in `roko-gate` or `roko-orchestrator`, which convert `BuildCommand` into `tokio::process::Command` at the moment of execution. This separation lets unit tests verify command construction without spawning processes.
 
 ### The Full Trait
 
@@ -304,7 +304,7 @@ pub trait LanguageProvider: Send + Sync {
 
 1. **Pure functions of input text**: Implementations must not touch the filesystem, network, or any external state. They receive `&str` source text and return vectors of typed results. This makes them trivially testable, cacheable, and parallelizable.
 
-2. **Send + Sync**: Providers can be shared across threads. This is critical for parallel file parsing in large projects — a 10,000-file Rust codebase can be parsed across all CPU cores with a single `Arc<dyn LanguageProvider>`.
+2. **Send + Sync**: Providers can be shared across threads. This enables parallel file parsing in large projects — a 10,000-file Rust codebase can be parsed across all CPU cores with a single `Arc<dyn LanguageProvider>`.
 
 3. **No parsing state**: Each call to `parse_imports` or `extract_symbols` is independent. There is no incremental parsing state between calls (that lives in the tree-sitter layer, which wraps the trait).
 
@@ -314,7 +314,7 @@ pub trait LanguageProvider: Send + Sync {
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
-`parse_source` is a 10-line function. It calls two trait methods and packages the results. It never mentions Rust, TypeScript, or Go. This is the extensibility payoff: adding Python support means implementing `PythonLanguageProvider`; the graph builder, PageRank scorer, HDC fingerprinter, and search layer all work unchanged.
+`parse_source` is a 10-line function. It calls two trait methods and packages the results. It never mentions Rust, TypeScript, or Go. This is the extensibility payoff: adding Python support means implementing `PythonLanguageProvider`; the graph builder, PageRank scorer, HDC fingerprinter, and search layer consume the same output type.
 
 ### Provider Registration and Dispatch
 
@@ -434,7 +434,7 @@ fn parse_visibility(s: &str) -> (Visibility, &str) {
 
 The tree-sitter parser builds a full abstract syntax tree using the `tree-sitter-rust` grammar, then walks the AST to extract symbols and imports. It implements the same `LanguageProvider` trait, so callers can swap transparently.
 
-Tree-sitter itself is a parser generator that produces incremental, error-tolerant GLR parsers [5]. It was originally developed at GitHub for the Atom editor and is now used by Neovim, Helix, Zed, and dozens of other tools. Key properties:
+Tree-sitter itself is a parser generator that produces incremental, error-tolerant GLR parsers [5]. It was originally developed for the Atom editor and is now used by Neovim, Helix, Zed, and dozens of other tools. Key properties:
 
 1. **Error tolerance**: Tree-sitter produces partial ASTs even for malformed source code. An incomplete function signature still yields a usable parse tree for the rest of the file.
 2. **Incremental re-parsing**: After an edit, only the affected portion of the parse tree is rebuilt.
@@ -456,7 +456,7 @@ For `impl` blocks, the tree-sitter parser extracts both the type and optional tr
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
-**Parity verification** ensures the tree-sitter parser is always at least as capable as the heuristic:
+**Parity verification** tracks the tree-sitter parser against the heuristic baseline:
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
@@ -588,7 +588,7 @@ The `parse_go_import_line` function handles all Go import variants:
 
 Handles:
 - `"fmt"` — plain import, alias = `None`
-- `log "github.com/sirupsen/logrus"` — aliased import, alias = `Some("log")`
+- `log "example.org/logging"` — aliased import, alias = `Some("log")`
 - `. "testing"` — dot import (injects all names into current scope), alias = `Some(".")`
 - `_ "net/http/pprof"` — side-effect import, alias = `Some("_")`
 
@@ -846,7 +846,7 @@ flowchart TD
 
 ## Benchmarking
 
-The following numbers are captured baselines and validation targets. Reproduce them on IronClaw hardware and representative repositories before using them in rollout decisions.
+The following numbers are captured baselines and validation targets. Reproduce them on IronClaw hardware and representative codebases before using them in rollout decisions.
 
 ### Parsing Throughput (files/second)
 
@@ -861,7 +861,7 @@ Key observations:
 - The heuristic parsers are I/O-bound at small file sizes and CPU-bound above ~200 lines.
 - Tree-sitter overhead is dominated by the grammar load on first use (~500 µs); subsequent parses amortize this cost effectively.
 - Parallelism via `rayon` or `tokio::task::spawn_blocking` scales throughput linearly with CPU cores for all parsers.
-- A 10,000-file monorepo (average 150 lines/file) indexing in under 1 second on an 8-core machine is a validation target for heuristic parsers, requires local validation.
+- A 10,000-file multi-package workspace (average 150 lines/file) indexing in under 1 second on an 8-core machine is a validation target for heuristic parsers and requires local validation.
 
 ### Symbol Extraction Accuracy
 
@@ -876,18 +876,18 @@ Captured baseline from a manually annotated corpus of 500 Rust files, 300 TypeSc
 
 Notes:
 - **Recall** measures whether the parser finds all symbols that exist. The primary recall losses are nested functions (heuristic Rust/TypeScript), multi-line signatures, and macro-generated items.
-- **Precision** measures whether found symbols are real. Very high precision across all parsers because the pattern matching is conservative (requires exact keyword + identifier structure).
+- **Precision** measures whether found symbols are real. Precision is high across all parsers because the pattern matching is conservative (requires exact keyword + identifier structure).
 - Go's higher recall vs. Rust heuristic is due to Go's simpler syntax (no generics on pre-1.18 code, no macro system).
 
 ### Build System Detection Accuracy
 
-Captured baseline from 200 repositories spanning common configurations:
+Captured baseline from 200 project layouts spanning common configurations:
 
 | Test Case | Detection Result | Accuracy |
 |-----------|-----------------|----------|
 | Pure Rust workspace | Cargo | 100% |
 | Pure npm project | npm | 100% |
-| pnpm monorepo | pnpm | 100% |
+| pnpm workspace | pnpm | 100% |
 | Yarn berry project | yarn | 100% |
 | Rust + WASM TypeScript (Cargo.toml + package.json) | Primary: Rust, Secondary: TypeScript | 100% |
 | Go service + TypeScript frontend (go.mod + package.json) | Primary: Go, Secondary: TypeScript | 100% |
@@ -931,12 +931,12 @@ For IronClaw integration, the raw source content need not be retained in the in-
 
 ## Practical Examples
 
-### Example 1: Analyzing a Monorepo with Rust + TypeScript + Go
+### Example 1: Analyzing a Multi-Language Workspace
 
 Consider a project with the following root directory structure:
 
 ```
-my-monorepo/
+my-workspace/
   Cargo.toml        (Rust workspace)
   go.mod            (Go services)
   package.json      (TypeScript frontend)
@@ -974,7 +974,7 @@ let registry = LanguageRegistry::standard();
 ```rust
 use rayon::prelude::*;
 
-let all_files: Vec<(String, String)> = walk_project("/my-monorepo", &["rs", "ts", "tsx", "go"])
+let all_files: Vec<(String, String)> = walk_project("/my-workspace", &["rs", "ts", "tsx", "go"])
     .await?;
 
 let source_files: Vec<SourceFile> = all_files
@@ -1016,13 +1016,13 @@ let cargo = CargoBuildSystem;
 let pnpm = PnpmBuildSystem;
 let go_bs = GoBuildSystem;
 
-println!("{:?}", cargo.test_cmd(Path::new("/my-monorepo"), None));
+println!("{:?}", cargo.test_cmd(Path::new("/my-workspace"), None));
 // BuildCommand { program: "cargo", args: ["test", "--workspace"] }
 
-println!("{:?}", pnpm.lint_cmd(Path::new("/my-monorepo/frontend")));
+println!("{:?}", pnpm.lint_cmd(Path::new("/my-workspace/frontend")));
 // BuildCommand { program: "pnpm", args: ["exec", "eslint", "."] }
 
-println!("{:?}", go_bs.compile_cmd(Path::new("/my-monorepo/services")));
+println!("{:?}", go_bs.compile_cmd(Path::new("/my-workspace/services")));
 // BuildCommand { program: "go", args: ["build", "./..."] }
 ```
 
@@ -1146,7 +1146,7 @@ See [Code Intelligence](code-intelligence.md#15-ironclaw-integration-plan) for p
 
 [4] T. A. Wagner and S. L. Graham, "Efficient and Flexible Incremental Parsing," ACM Transactions on Programming Languages and Systems, vol. 20, no. 5, pp. 980-1013, September 1998. Available: https://dl.acm.org/doi/10.1145/293677.293678. Tree-sitter's incremental parsing algorithm builds on this foundational work.
 
-[5] M. Brunsfeld, "Tree-sitter — A New Parsing System for Programming Tools," Strange Loop Conference, 2018. Available: https://www.thestrangeloop.com/2018/tree-sitter---a-new-parsing-system-for-programming-tools.html. Tree-sitter was originally developed at GitHub for the Atom editor.
+[5] M. Brunsfeld, "Tree-sitter — A New Parsing System for Programming Tools," Strange Loop Conference, 2018. Available: https://www.thestrangeloop.com/2018/tree-sitter---a-new-parsing-system-for-programming-tools.html. Tree-sitter was originally developed for the Atom editor.
 
 [6] S. Brin and L. Page, "The Anatomy of a Large-Scale Hypertextual Web Search Engine," Computer Networks and ISDN Systems, vol. 30, pp. 107-117, 1998. The PageRank algorithm for code dependency graphs adapts this work by treating import/call edges as hyperlinks, where incoming edges represent structural dependence.
 
@@ -1160,7 +1160,7 @@ See [Code Intelligence](code-intelligence.md#15-ironclaw-integration-plan) for p
 
 [11] "Language Server Protocol Specification," Microsoft, 2016-present. Available: https://microsoft.github.io/language-server-protocol/. The LSP provides a complementary approach: while LSP defines a runtime protocol between editors and language servers, the `LanguageProvider` trait defines a compile-time abstraction for embedding language analysis directly into the agent.
 
-[12] Deprank (codemix), "Use PageRank to find the most important files in your codebase," 2022. Available: https://github.com/codemix/deprank. A JavaScript implementation of PageRank over file dependency graphs that validates the approach for code dependency ranking at the symbol level.
+[12] Deprank (codemix), "Use PageRank to find the most important files in your codebase," 2022. A JavaScript implementation of PageRank over file dependency graphs that demonstrates the approach for code dependency ranking at the symbol level.
 
 [13] D. Kempf et al., "A Survey on Hyperdimensional Computing aka Vector Symbolic Architectures, Part I: Models and Data Transformations," ACM Computing Surveys, vol. 55, no. 6, 2023. Available: https://dl.acm.org/doi/10.1145/3538531. Comprehensive survey of VSA models including the Binary Spatter Codes used for symbol fingerprinting.
 
@@ -1172,7 +1172,7 @@ See [Code Intelligence](code-intelligence.md#15-ironclaw-integration-plan) for p
 
 ## Source Reference Index
 
-All source references below are captured-source identifiers, not links to an accessible external checkout:
+All source references below are captured-source identifiers; do not treat them as paths in this workspace.
 
 | File | Captured identifier | Purpose |
 |------|------------|---------|

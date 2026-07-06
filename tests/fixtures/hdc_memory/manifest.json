@@ -1,0 +1,131 @@
+{
+  "description": "HDC memory test fixture corpus for deduplication, heartbeat novelty, and search fusion",
+  "dedup": {
+    "exact-duplicate-different-path": {
+      "file": "dedup/exact-duplicate-different-path.jsonl",
+      "expected_decision": "similar",
+      "expected_similarity_range": { "min": 0.78, "max": 0.88 },
+      "rationale": "Identical content byte-for-byte; only path differs. Path (weight 2) pulls vectors apart from 1.0; measured ~0.819. Falls in 'similar' band [0.78, 0.92) with default thresholds."
+    },
+    "reformatted-duplicate": {
+      "file": "dedup/reformatted-duplicate.jsonl",
+      "expected_decision": "similar",
+      "expected_similarity_range": { "min": 0.80, "max": 0.91 },
+      "rationale": "Same information with different markdown formatting (bullets vs paragraphs, header levels). HDC n-gram encoding sees through most formatting changes; measured ~0.848. Falls in 'similar' band with default thresholds."
+    },
+    "paraphrase-duplicate": {
+      "file": "dedup/paraphrase-duplicate.jsonl",
+      "expected_decision": "similar",
+      "expected_similarity_range": { "min": 0.78, "max": 0.85 },
+      "rationale": "Same facts restated with different word choices and sentence structure; measured ~0.782. Sits in the 'similar' band [0.78, 0.92) with default thresholds -- surface-form changes prevent reaching 'duplicate'."
+    },
+    "added-paragraph": {
+      "file": "dedup/added-paragraph.jsonl",
+      "expected_decision": "similar",
+      "expected_similarity_range": { "min": 0.83, "max": 0.91 },
+      "rationale": "Entry 2 is a strict superset of entry 1. High overlap but not identical; measured ~0.876. Falls in 'similar' band [0.78, 0.92) with default thresholds."
+    },
+    "same-topic-different-facts": {
+      "file": "dedup/same-topic-different-facts.jsonl",
+      "expected_decision": "unique",
+      "expected_similarity_range": { "min": 0.66, "max": 0.77 },
+      "rationale": "Both about async Rust concurrency with identical tags and similar vocabulary. Tag weight (3/10) plus shared n-grams keep similarity elevated; measured ~0.718. Below the 0.78 'similar' threshold, so classified as 'unique'."
+    },
+    "same-tags-different-content": {
+      "file": "dedup/same-tags-different-content.jsonl",
+      "expected_decision": "unique",
+      "expected_similarity_range": { "min": 0.72, "max": 0.78 },
+      "rationale": "Shared tags (rust, database) and similar path structure pull similarity up; measured ~0.777. Just below the 0.78 'similar' threshold, classified as 'unique'."
+    },
+    "same-path-pattern-different-content": {
+      "file": "dedup/same-path-pattern-different-content.jsonl",
+      "expected_decision": "unique",
+      "expected_similarity_range": { "min": 0.66, "max": 0.77 },
+      "rationale": "Shared path prefix and identical tags provide strong tag+path similarity. Content differs (Alpha frontend vs Beta API migration); measured ~0.715. Below the 0.78 'similar' threshold."
+    },
+    "content-subset": {
+      "file": "dedup/content-subset.jsonl",
+      "expected_decision": "similar",
+      "expected_similarity_range": { "min": 0.78, "max": 0.85 },
+      "rationale": "Entry 1 is fully contained in entry 2. The shared n-grams from the subset push similarity above 0.78; measured ~0.807. Falls in 'similar' band with default thresholds."
+    },
+    "translated-content": {
+      "file": "dedup/translated-content.jsonl",
+      "expected_decision": "unique",
+      "expected_similarity_range": { "min": 0.72, "max": 0.78 },
+      "rationale": "Same semantic content in different natural languages. Identical tags (rust, memory) and shared technical terms provide some signal, but cross-language n-grams differ substantially; measured ~0.767. Below the 0.78 'similar' threshold."
+    }
+  },
+  "heartbeat": {
+    "repeated-observation": {
+      "file": "heartbeat/repeated-observation.jsonl",
+      "expected_novelty_at_cycle": [
+        { "cycle": 1, "novel": true, "reason": "First occurrence is always novel" },
+        { "cycle": 2, "novel": false, "reason": "Exact repeat of cycle 1" },
+        { "cycle": 3, "novel": false, "reason": "Third exact repeat" },
+        { "cycle": 5, "novel": false, "reason": "Fifth exact repeat, staleness should be high" },
+        { "cycle": 10, "novel": false, "reason": "Tenth repeat, maximum staleness" }
+      ]
+    },
+    "recurring-after-gap": {
+      "file": "heartbeat/recurring-after-gap.jsonl",
+      "expected_novelty_at_cycle": [
+        { "cycle": 1, "novel": true, "reason": "First occurrence of disk space warning" },
+        { "cycle": 2, "novel": false, "reason": "Immediate repeat" },
+        { "cycle": 3, "novel": false, "reason": "Third repeat" },
+        { "cycle": 4, "novel": true, "reason": "New topic: CPU utilization" },
+        { "cycle": 10, "novel": true, "reason": "New topic: background jobs" },
+        { "cycle": 24, "novel": false, "reason": "Disk space warning returns after 20-cycle gap; HDC memory should still recognize it" }
+      ]
+    },
+    "similar-but-different-metric": {
+      "file": "heartbeat/similar-but-different-metric.jsonl",
+      "expected_novelty_at_cycle": [
+        { "cycle": 1, "novel": true, "reason": "First disk observation" },
+        { "cycle": 2, "novel": false, "reason": "Same sentence structure with only a numeric value changed (85% vs 92%); byte-trigram HDC cannot distinguish a single number change and scores similarity >= 0.80 threshold" },
+        { "cycle": 3, "novel": false, "reason": "Sentence structure identical ('Disk utilization at 85% on /...'); changing only the last few path bytes (/data vs /logs) is not enough to cross the novelty threshold in byte-trigram HDC" }
+      ]
+    },
+    "completely-novel": {
+      "file": "heartbeat/completely-novel.jsonl",
+      "expected_novelty_at_cycle": [
+        { "cycle": 1, "novel": true, "reason": "DNS failures — new topic" },
+        { "cycle": 2, "novel": true, "reason": "TLS cert expiry — new topic" },
+        { "cycle": 3, "novel": true, "reason": "Memory leak — new topic" },
+        { "cycle": 4, "novel": true, "reason": "Traffic spike — new topic" },
+        { "cycle": 5, "novel": true, "reason": "Cron failure — new topic" },
+        { "cycle": 6, "novel": true, "reason": "K8s node down — new topic" },
+        { "cycle": 7, "novel": true, "reason": "Rate limiting — new topic" },
+        { "cycle": 8, "novel": true, "reason": "DB migration — new topic" },
+        { "cycle": 9, "novel": true, "reason": "S3 permissions — new topic" },
+        { "cycle": 10, "novel": true, "reason": "Dependency vulnerability — new topic" }
+      ]
+    }
+  },
+  "search": {
+    "structural-query": {
+      "file": "search/structural-query.jsonl",
+      "query": "rust async database connection pooling",
+      "relevant_document_ids": ["search-struct-r1", "search-struct-r2", "search-struct-r3"],
+      "irrelevant_document_ids": ["search-struct-i1", "search-struct-i2", "search-struct-i3"]
+    },
+    "tag-heavy-query": {
+      "file": "search/tag-heavy-query.jsonl",
+      "query": "deployment kubernetes",
+      "relevant_document_ids": ["search-tag-r1", "search-tag-r2", "search-tag-r3"],
+      "irrelevant_document_ids": ["search-tag-i1", "search-tag-i2"]
+    },
+    "path-oriented-query": {
+      "file": "search/path-oriented-query.jsonl",
+      "query": "project alpha status",
+      "relevant_document_ids": ["search-path-r1", "search-path-r2"],
+      "irrelevant_document_ids": ["search-path-i1", "search-path-i2", "search-path-i3"]
+    },
+    "semantic-only-query": {
+      "file": "search/semantic-only-query.jsonl",
+      "query": "how to handle errors gracefully",
+      "relevant_document_ids": ["search-sem-r1", "search-sem-r2", "search-sem-r3"],
+      "irrelevant_document_ids": ["search-sem-i1", "search-sem-i2"]
+    }
+  }
+}

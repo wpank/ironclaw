@@ -2,7 +2,7 @@
 
 [Back to overview](./README.md)
 
-This is a porting blueprint, not copy-paste contract code. The goal is to keep NEAR contracts small, make async behavior explicit, and preserve IronClaw's existing identity, trust, approval, and sandbox boundaries.
+This is a porting blueprint, not transplantable contract code. The goal is to keep NEAR contracts small, make async behavior explicit, and preserve IronClaw's existing identity, trust, approval, and sandbox boundaries.
 
 ## EVM-to-NEAR Differences That Matter
 

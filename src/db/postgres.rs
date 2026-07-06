@@ -48,6 +48,16 @@ impl PgBackend {
         Ok(Self { store, repo })
     }
 
+    /// Wrap a pre-built connection pool.
+    ///
+    /// Useful in tests that already hold a pool (e.g., from a testcontainer or
+    /// a shared `DATABASE_URL`) and don't need to re-parse env vars.
+    pub fn from_pool(pool: Pool) -> Self {
+        let store = Store::from_pool(pool);
+        let repo = Repository::new(store.pool());
+        Self { store, repo }
+    }
+
     /// Get a clone of the connection pool.
     ///
     /// Useful for sharing with components that still need raw pool access.
@@ -946,6 +956,28 @@ impl WorkspaceStore for PgBackend {
         keep_count: i32,
     ) -> Result<u64, WorkspaceError> {
         self.repo.prune_versions(document_id, keep_count).await
+    }
+
+    #[cfg(feature = "hdc")]
+    async fn update_document_hdc_fingerprint(
+        &self,
+        id: Uuid,
+        fingerprint: &[u8],
+    ) -> Result<(), WorkspaceError> {
+        self.repo
+            .update_document_hdc_fingerprint(id, fingerprint)
+            .await
+    }
+
+    #[cfg(feature = "hdc")]
+    async fn list_document_hdc_fingerprints(
+        &self,
+        user_id: &str,
+        agent_id: Option<Uuid>,
+    ) -> Result<Vec<crate::workspace::DocumentHdcFingerprint>, WorkspaceError> {
+        self.repo
+            .list_document_hdc_fingerprints(user_id, agent_id)
+            .await
     }
 }
 

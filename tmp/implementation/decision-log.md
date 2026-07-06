@@ -53,19 +53,19 @@ Consequences:
 
 ## ADR-004: Clean-Room Implementation
 
-Decision: implementation uses IronClaw-owned code and public design notes. Do
-not import external research crates or copy inaccessible source paths into code
-comments.
+Decision: implementation uses code owned by this project and local design
+notes. Do not import research prototypes or copy non-local source paths into
+code comments.
 
 Rationale:
 
-- The repo needs stable ownership, licensing clarity, and reviewable code.
+- The codebase needs stable ownership, licensing clarity, and reviewable code.
 - Captured notes are background context, not a dependency.
 
 Consequences:
 
 - New code lives in the owning IronClaw module.
-- PRs cite the relevant local implementation doc, benchmark, and ADR.
+- Changes cite the relevant local implementation doc, benchmark, and ADR.
 
 ## ADR-005: Metrics Exclude Raw Private Content
 

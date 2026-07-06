@@ -2,7 +2,7 @@
 
 These examples show how the reference concepts become practical IronClaw
 workflows. They describe desired behavior and measurement points without
-assuming access to any external source repository.
+assuming extra source inputs.
 
 ## Use Case 1: Cheaper Routine Questions
 
@@ -33,7 +33,7 @@ Measurement:
 - Cost/request before and after.
 - User correction rate.
 - Fallback-to-primary rate.
-- latency distribution.
+- Latency distribution.
 
 Benchmark fixture: [`tmp/implementation/benchmarking/scenarios/cascade-router.yaml`](../../implementation/benchmarking/scenarios/cascade-router.yaml).
 
@@ -55,7 +55,8 @@ IronClaw flow:
 
 1. Before `memory_write`, compute content hash and HDC fingerprint.
 2. Search nearby fingerprints and exact content hashes.
-3. Merge duplicate or near-duplicate memories instead of writing a new row.
+3. Link exact duplicates or record near-duplicate candidates before writing or
+   merging.
 4. Reinforce old memory stability when the user confirms or reuses it.
 5. Keep taint on derived memories until verified.
 
@@ -194,9 +195,9 @@ IronClaw flow:
 
 Measurement:
 
-- refactor completion rate.
-- changed-file conflict count.
-- gate pass rate after first repair.
+- Refactor completion rate.
+- Changed-file conflict count.
+- Gate pass rate after first repair.
 - SSE reconnect event loss.
 
 Benchmark fixtures:
@@ -228,10 +229,10 @@ IronClaw flow:
 
 Measurement:
 
-- time to useful retrieval.
-- repeated failure rate.
-- derived memory precision.
-- background cost.
+- Time to useful retrieval.
+- Repeated failure rate.
+- Derived memory precision.
+- Background cost.
 
 Benchmark fixture: [`tmp/implementation/benchmarking/scenarios/dream-consolidation.yaml`](../../implementation/benchmarking/scenarios/dream-consolidation.yaml).
 
@@ -261,10 +262,10 @@ IronClaw flow:
 
 Measurement:
 
-- denied permission attempts.
-- sandbox violation count.
-- user approval reversal rate.
-- failed tool execution rate.
+- Denied permission attempts.
+- Sandbox violation count.
+- User approval reversal rate.
+- Failed tool execution rate.
 
 Benchmark fixture: no fixture exists yet. Add an extension-trust fixture before
 using reputation to affect production tool selection.
@@ -294,10 +295,10 @@ IronClaw flow:
 
 Measurement:
 
-- resume correctness over fixture restarts.
-- duplicate side-effect count.
-- event replay gap count.
-- user-visible recovery time.
+- Resume correctness over fixture restarts.
+- Duplicate side-effect count.
+- Event replay gap count.
+- User-visible recovery time.
 
 Benchmark fixture: no single fixture exists yet. Combine a DAG snapshot fixture
 with the SSE reconnect regression test before rollout.

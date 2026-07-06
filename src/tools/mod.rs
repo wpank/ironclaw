@@ -22,6 +22,9 @@ pub(crate) mod schema_metrics;
 pub mod schema_validator;
 pub mod wasm;
 
+#[cfg(feature = "hdc")]
+pub mod hdc_index;
+
 mod registry;
 mod tool;
 

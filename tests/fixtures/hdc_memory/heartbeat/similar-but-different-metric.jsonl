@@ -1,0 +1,3 @@
+{"id": "hb-metric-1", "content": "Disk utilization at 85% on /data", "tags": ["ops", "disk"], "path": "heartbeat/observations.md", "cycle": 1}
+{"id": "hb-metric-2", "content": "Disk utilization at 92% on /data", "tags": ["ops", "disk"], "path": "heartbeat/observations.md", "cycle": 2}
+{"id": "hb-metric-3", "content": "Disk utilization at 85% on /logs", "tags": ["ops", "disk"], "path": "heartbeat/observations.md", "cycle": 3}

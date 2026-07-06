@@ -18,7 +18,7 @@ graph TD
         ENC["HdcEncodable trait\nencoder.rs"]
     end
 
-    subgraph MEMORY["Workspace Memory\nsrc/workspace/ + repository"]
+    subgraph MEMORY["Workspace Memory\nsrc/workspace/ + DB trait"]
         MW["memory_write\n+ metadata/DB-trait fingerprint"]
         MS["memory_search\n+ shadow-mode HDC signal"]
     end
@@ -204,7 +204,7 @@ ALTER TABLE memory_documents ADD COLUMN hdc_fingerprint BLOB;
 ## Risk Register
 
 - **Ranking regression**: any change that affects `memory_search` can reduce answer quality. Keep HDC in shadow mode until caller-level retrieval tests and recorded fixtures show no regression.
-- **DB parity**: schema or repository changes must support PostgreSQL and libSQL and preserve config/reload behavior.
+- **DB parity**: schema or persistence-layer changes must support PostgreSQL and libSQL and preserve config/reload behavior.
 - **Memory overhead** (Phase 2+): 1,280 bytes per memory entry × N entries. For 100K entries = 125 MB additional memory if all fingerprints are loaded. Mitigate with cursor-based loading or mmap.
 - **Scan latency** (Phase 3): brute-force HDC search is O(N) over fixed-width fingerprints. Use the captured ~1.3 ms / 100K result only as a benchmark target; if local measurements miss it, add a candidate filter before HDC scoring.
 - **False merges** (Phase 6): the 0.70 deduplication threshold is conservative. Confirm empirically before enabling by default; start with `DedupResult::Similar` being advisory only.

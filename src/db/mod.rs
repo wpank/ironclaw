@@ -900,6 +900,32 @@ pub trait WorkspaceStore: Send + Sync {
         keep_count: i32,
     ) -> Result<u64, WorkspaceError>;
 
+    // ==================== HDC Fingerprints ====================
+
+    /// Update the HDC fingerprint on a document.
+    ///
+    /// The fingerprint must be exactly 1280 bytes (10240-bit hyperdimensional
+    /// vector). Returns an error if the length is wrong.
+    ///
+    /// # Trust
+    /// Caller must have verified ownership of `id` via a user-scoped lookup.
+    #[cfg(feature = "hdc")]
+    async fn update_document_hdc_fingerprint(
+        &self,
+        id: Uuid,
+        fingerprint: &[u8],
+    ) -> Result<(), WorkspaceError>;
+
+    /// List all documents with HDC fingerprints for a given user/agent scope.
+    ///
+    /// Returns only documents where `hdc_fingerprint IS NOT NULL`.
+    #[cfg(feature = "hdc")]
+    async fn list_document_hdc_fingerprints(
+        &self,
+        user_id: &str,
+        agent_id: Option<Uuid>,
+    ) -> Result<Vec<crate::workspace::DocumentHdcFingerprint>, WorkspaceError>;
+
     // ==================== Multi-scope read methods ====================
     //
     // Default implementations loop over user_ids calling single-scope methods,

@@ -6,8 +6,8 @@ set.
 ## Provenance
 
 - `roko-*`, `docs/v2-depth/*`, and `plans/*` names are captured-source labels.
-- Do not assume those labels are accessible checkout paths.
-- Do not add path dependencies to Roko crates from IronClaw.
+- Do not treat those labels as file paths.
+- Do not add captured `roko-*` crates as IronClaw path dependencies.
 - Count-heavy claims should be treated as catalog metadata unless regenerated
   from local evidence in the same pass.
 

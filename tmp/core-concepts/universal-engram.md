@@ -16,7 +16,7 @@
 - `crates/roko-core/src/datum.rs` -- Datum polymorphism (Engram | Pulse)
 - `crates/roko-core/src/signal.rs` -- Signal type alias (Engram -> Signal rename in progress)
 
-Captured paths in this document identify source-corpus provenance only. They are not accessible checkout paths or dependencies to add to IronClaw.
+Captured paths in this document identify source-corpus provenance only. They are not implementation inputs or dependencies to add to IronClaw.
 
 ---
 
@@ -51,7 +51,7 @@ Captured paths in this document identify source-corpus provenance only. They are
 
 The term "engram" originates from neuroscience. Richard Semon coined it in 1904 (Semon 1904) to describe the hypothetical physical trace that a memory leaves in the brain -- a biophysical change in neural tissue that encodes experience. For decades the engram was theoretical: Karl Lashley spent thirty years searching for it (Lashley 1950), ultimately concluding that memories were not localized to any single region. The concept was vindicated in 2015 when Susumu Tonegawa's group at MIT identified specific neurons ("engram cells") in the hippocampus and amygdala whose artificial reactivation could recall or suppress a fear memory (Tonegawa et al. 2015, *Science* 348(6238):1007-1013).
 
-In the captured Roko design, an **Engram** is a content-addressed, scored, decaying unit of cognition. It acts as a common record shape for observations, decisions, outputs, and derived knowledge. Where biological engrams encode memories as patterns of synaptic weights, this software pattern encodes knowledge as structured data with explicit quality scores, decay functions, provenance records, and lineage graphs.
+In the captured Engram design, an **Engram** is a content-addressed, scored, decaying unit of cognition. It acts as a common record shape for observations, decisions, outputs, and derived knowledge. Where biological engrams encode memories as patterns of synaptic weights, this software pattern encodes knowledge as structured data with explicit quality scores, decay functions, provenance records, and lineage graphs.
 
 The key properties that make an Engram a rich memory primitive rather than a simple record:
 
@@ -173,7 +173,7 @@ From `crates/roko-core/src/hash.rs` (lines 17-66):
 
 ### 4.2 Why BLAKE3 Over SHA-256
 
-BLAKE3 was designed by Jack O'Connor, Jean-Philippe Aumasson, Samuel Neves, and Zooko Wilcox-O'Hearn and announced at Real World Crypto 2020 (O'Connor et al. 2020, "BLAKE3: one function, fast everywhere," [BLAKE3 specification](https://github.com/BLAKE3-team/BLAKE3-specs/blob/master/blake3.pdf)). The choice of BLAKE3 over SHA-256 is motivated by three properties:
+BLAKE3 was designed by Jack O'Connor, Jean-Philippe Aumasson, Samuel Neves, and Zooko Wilcox-O'Hearn and announced at Real World Crypto 2020. The choice of BLAKE3 over SHA-256 is motivated by three properties:
 
 1. **Speed**: BLAKE3 uses a Merkle tree internal structure and SIMD optimizations to achieve approximately 5-14x faster throughput than SHA-256 on modern hardware. On a single core with AVX-512, BLAKE3 achieves over 1 GB/s; with multi-threading it scales near-linearly with core count.
 2. **Streaming**: BLAKE3 supports incremental hashing natively via its `Hasher` type, which matters when Engrams contain large payloads (file contents, compiled artifacts). You can feed data in chunks without buffering the entire input.
@@ -457,9 +457,9 @@ Self::Ebbinghaus { strength, scale_ms } => {
 }
 ```
 
-**Connection to psychology**: Named after Hermann Ebbinghaus, who in 1885 published *Uber das Gedachtnis* ("Memory: A Contribution to Experimental Psychology"), documenting the first experimental study of memory decay. Through self-experimentation with nonsense syllables (CVC trigrams like "WID" and "ZOF"), he discovered that retention follows an approximately exponential curve: `R = e^(-t/S)`, where R is retention, t is time since learning, and S is a memory strength parameter that increases with repetition and spaced practice (Ebbinghaus 1885; Murre and Dros 2015, "Replication and Analysis of Ebbinghaus' Forgetting Curve," *PLOS ONE* 10(7):e0120644). Roko's `strength` parameter directly maps to Ebbinghaus's S.
+**Connection to psychology**: Named after Hermann Ebbinghaus, who in 1885 published *Uber das Gedachtnis* ("Memory: A Contribution to Experimental Psychology"), documenting the first experimental study of memory decay. Through self-experimentation with nonsense syllables (CVC trigrams like "WID" and "ZOF"), he found that retention follows an approximately exponential curve: `R = e^(-t/S)`, where R is retention, t is time since learning, and S is a memory strength parameter that increases with repetition and spaced practice (Ebbinghaus 1885; Murre and Dros 2015, "Replication and Analysis of Ebbinghaus' Forgetting Curve," *PLOS ONE* 10(7):e0120644). The captured `strength` parameter maps to Ebbinghaus's S.
 
-**Ebbinghaus with tier shaping**: In Roko's Neuro subsystem, the effective half-life combines a knowledge-type base with a validation tier multiplier:
+**Ebbinghaus with tier shaping**: In the captured Neuro subsystem, the effective half-life combines a knowledge-type base with a validation tier multiplier:
 
 | Knowledge Type | Base Half-Life |
 |---|---|
@@ -497,7 +497,7 @@ Used by garbage collection and pruning routines. Note that negative ages (clock 
 
 ## 7. Demurrage -- Attention Economics
 
-Beyond the four decay variants, Roko defines a **demurrage** system that models knowledge retention as an attention economy. The concept is borrowed from Silvio Gesell's 1916 *The Natural Economic Order* (Gesell 1916), which proposed that money should carry a holding cost ("demurrage") to encourage circulation. Just as Gesellian demurrage taxes idle money to prevent hoarding, Roko's demurrage taxes idle knowledge to ensure active validation.
+Beyond the four decay variants, the captured source defines a **demurrage** system that models knowledge retention as an attention economy. The concept is borrowed from Silvio Gesell's 1916 *The Natural Economic Order* (Gesell 1916), which proposed that money should carry a holding cost ("demurrage") to encourage circulation. In this memory model, idle knowledge loses balance unless it is actively validated or reused.
 
 From `crates/roko-core/src/demurrage.rs` (lines 9-32):
 
@@ -732,7 +732,7 @@ Similarity search is wired through the `Store` trait's `query_similar()` method 
 
 ## 14. The Core Traits
 
-The entire Roko system is built from the Engram and traits defined in `crates/roko-core/src/traits.rs`. These traits define the complete operational surface:
+The captured core design is built from the Engram and traits defined in `crates/roko-core/src/traits.rs`. These traits define the operational surface:
 
 ### 14.1 Store (lines 37-80)
 
@@ -818,7 +818,7 @@ pub trait Bus: Send + Sync {
 
 ## 15. The Engram/Pulse Duality
 
-Roko has two data mediums, not one:
+The captured design has two data mediums, not one:
 
 | Property | Signal/Engram (durable) | Pulse (ephemeral) |
 |---|---|---|
@@ -1193,7 +1193,7 @@ For a typical IronClaw deployment with 10,000 memory documents, the overhead is 
 | Safety filtering | None | Taint-based exclusion/penalization |
 | Memory economics | Hard delete or keep-all | Demurrage + cold storage |
 
-The flat model is simpler and has lower storage overhead. The Engram model can centralize scoring, lineage, and taint behavior that would otherwise drift across handlers, but only after the repository and DB contracts enforce those fields consistently.
+The flat model is simpler and has lower storage overhead. The Engram model can centralize scoring, lineage, and taint behavior that would otherwise drift across handlers, but only after the persistence and DB contracts enforce those fields consistently.
 
 ---
 
@@ -1304,7 +1304,7 @@ pub fn engram_weighted_rank(
 | Component | Estimated Lines | Risk | Notes |
 |---|---|---|---|
 | MemoryScore struct + effective() | 60 | Low | Pure arithmetic |
-| DecayVariant enum + apply() | 80 | Low | Adapted from roko |
+| DecayVariant enum + apply() | 80 | Low | Adapted from captured design |
 | MemoryDocument field additions | 60 | Low | All have defaults |
 | compute_content_hash() + touch() + tick_demurrage() | 60 | Low | Straightforward |
 | content-addressed dedup in memory_write | 80 | Low | Single extra DB lookup |
@@ -1314,7 +1314,7 @@ pub fn engram_weighted_rank(
 | engram_lifecycle_tick() heartbeat | 80 | Medium | Must handle archive edge cases |
 | PostgreSQL migration | 40 | Low | Additive nullable columns |
 | libSQL migration | 40 | Low | Same, libSQL syntax |
-| DB repository updates (find_by_content_hash) | 60 | Low | New index + query |
+| DB trait updates (find_by_content_hash) | 60 | Low | New index + query |
 | **Total** | **~670** | **Low** | |
 
 **Risk assessment**: Medium. Start with a metadata overlay on `MemoryDocument` and caller-level ranking tests before adding columns. Any schema migration must go through the shared DB trait, implement both PostgreSQL and libSQL, preserve file-like memory semantics, and include rollback/backfill notes. The heartbeat lifecycle tick is the highest-risk behavior because it can hide useful documents if the archive threshold is wrong.
@@ -1337,7 +1337,7 @@ pub fn engram_weighted_rank(
 
 - Benet, J. (2014). "IPFS - Content Addressed, Versioned, P2P File System." arXiv:1407.3561. [https://arxiv.org/abs/1407.3561](https://arxiv.org/abs/1407.3561).
 - Merkle, R.C. (1979). "Method of providing digital signatures." U.S. Patent 4,309,569, filed September 5, 1979, issued January 5, 1982. See also: Merkle, R.C. (1987). "A Digital Signature Based on a Conventional Encryption Function." *Advances in Cryptology -- CRYPTO '87*, LNCS 293:369-378.
-- O'Connor, J., Aumasson, J.-P., Neves, S., and Wilcox-O'Hearn, Z. (2020). "BLAKE3: one function, fast everywhere." Presented at Real World Crypto 2020. Specification: [https://github.com/BLAKE3-team/BLAKE3-specs/blob/master/blake3.pdf](https://github.com/BLAKE3-team/BLAKE3-specs/blob/master/blake3.pdf). See also: IETF draft: [https://www.ietf.org/archive/id/draft-aumasson-blake3-00.html](https://www.ietf.org/archive/id/draft-aumasson-blake3-00.html).
+- O'Connor, J., Aumasson, J.-P., Neves, S., and Wilcox-O'Hearn, Z. (2020). "BLAKE3: one function, fast everywhere." Presented at Real World Crypto 2020. See also: IETF draft [https://www.ietf.org/archive/id/draft-aumasson-blake3-00.html](https://www.ietf.org/archive/id/draft-aumasson-blake3-00.html).
 - Sanjuan, A.A., Spielman, E., and Pestana, P. (2020). "Merkle-CRDTs: Merkle-DAGs meet CRDTs." arXiv:2004.00107. [https://arxiv.org/abs/2004.00107](https://arxiv.org/abs/2004.00107).
 
 ### Information Theory and Appraisal
@@ -1358,7 +1358,7 @@ pub fn engram_weighted_rank(
 
 ### Economics
 
-- Gesell, S. (1916). *Die Naturliche Wirtschaftsordnung durch Freiland und Freigeld*. English: *The Natural Economic Order* (1958 translation by Philip Pye). See also: [https://en.wikipedia.org/wiki/Demurrage_(currency)](https://en.wikipedia.org/wiki/Demurrage_(currency)).
+- Gesell, S. (1916). *Die Naturliche Wirtschaftsordnung durch Freiland und Freigeld*. English: *The Natural Economic Order* (1958 translation by Philip Pye).
 
 ### Software Engineering
 
@@ -1375,4 +1375,4 @@ pub fn engram_weighted_rank(
 - **[Hyperdimensional Computing](./hyperdimensional-computing/README.md)** — full documentation of the HDC system whose `HdcFingerprint` is embedded in every fingerprinted Engram.
 - **[context-memory/persistence-storage.md](../context-memory/persistence-storage.md)** — concrete database backends (PostgreSQL, libSQL) that implement the `Store` and `ColdStore` traits described in Section 14.
 - **[Cognitive Architecture](./cognitive-architecture.md)** — how Engrams flow through Gamma (reactive search), Theta (reflective scoring), and Delta (consolidation / cold storage) tiers.
-- **[Mathematical Primitives](./mathematical-primitives.md)** — the Ebbinghaus formula used in `Decay::Ebbinghaus` is implemented in the `roko-primitives` crate; TDA can detect loops in Engram lineage DAGs.
+- **[Mathematical Primitives](./mathematical-primitives.md)** — the Ebbinghaus formula used in `Decay::Ebbinghaus` is covered by the captured primitives material; TDA can detect loops in Engram lineage DAGs.

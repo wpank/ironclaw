@@ -1,9 +1,9 @@
 # IronClaw Implementation Tracker
 
-This directory is a self-contained implementation planning package for
-experimental IronClaw features. It does not require external code or copied
-research implementation. Each feature must land through IronClaw-owned
-modules, runtime flags, caller-level tests, and bounded rollout metrics.
+This directory is the implementation planning package for experimental
+IronClaw features. It does not require external code, copied research
+implementations, or hidden source paths. Each feature must land through the
+owning module, runtime flags, caller-level tests, and bounded rollout metrics.
 
 ## Operating Rules
 
@@ -40,11 +40,11 @@ modules, runtime flags, caller-level tests, and bounded rollout metrics.
 ## Definition Of Done
 
 ```text
-feature has owner module
+feature has owner module and caller boundary
 feature flag exists and defaults off
 flag-off path proves baseline behavior
 caller-level test covers the side effect
-YAML scenario or benchmark captures baseline and candidate
+YAML scenario or benchmark captures baseline, candidate, target, and guardrails
 guardrails are bounded
 PostgreSQL/libSQL parity exists for new persistence
 security review covers auth, secrets, sandboxing, approvals, and network

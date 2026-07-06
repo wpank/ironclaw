@@ -37,7 +37,7 @@ report.md
   "feature_flag_id": "flag.cascade_router",
   "variant": "candidate",
   "stage": "local",
-  "timestamp_ms": 1783064100000,
+  "timestamp_ms": 1783073700000,
   "latency_ms": 412,
   "cost_microusd": 120,
   "quality_pass": true,

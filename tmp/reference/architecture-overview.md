@@ -1,8 +1,8 @@
 # Captured Architecture Overview
 
 This overview summarizes the captured Roko architecture in terms useful for
-IronClaw planning. It does not require, assume, or validate access to an
-external checkout. For naming details, see [terminology-glossary.md](terminology-glossary.md).
+IronClaw planning. It uses the local captured reference corpus. For naming
+details, see [terminology-glossary.md](terminology-glossary.md).
 
 ## Core Model
 
@@ -14,7 +14,7 @@ external checkout. For naming details, see [terminology-glossary.md](terminology
 | Graph | Ordered or dependency-aware execution of cells. | Use the existing runner/workflow/orchestration path; do not create a second agent loop. |
 | Verify / Gate | Structured acceptance checks for artifacts or decisions. | Test through the caller that triggers the side effect. |
 | Compose / Route | Prompt/context assembly and provider selection. | Keep routing inside the owning LLM and agent modules. |
-| Bus / Trigger | Event flow and external ingress. | Preserve channel, routine, webhook, and auth boundaries. |
+| Bus / Trigger | Event flow and trigger ingress. | Preserve channel, routine, webhook, and auth boundaries. |
 
 ## Layer Map
 

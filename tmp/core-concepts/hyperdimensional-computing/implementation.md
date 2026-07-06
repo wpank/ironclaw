@@ -2,13 +2,13 @@
 
 # Implementation — Captured Source And Adaptation Notes
 
-This document captures the HDC implementation shape from the source corpus. Treat the code blocks as implementation references and adaptation sketches unless a block is explicitly marked as IronClaw-ready.
+This document captures the HDC implementation shape from the local source corpus. Treat the code blocks as implementation references and adaptation sketches unless a block is explicitly marked as IronClaw-ready. Omitted blocks intentionally avoid duplicating inaccessible source; rebuild them in the owning IronClaw modules with caller-level tests.
 
 ---
 
 ## 1. Core Data Structure: HdcVector
 
-The foundation of the entire HDC system is the `HdcVector` type, defined in `crates/roko-primitives/src/hdc.rs`. This is a 10,240-bit binary vector stored as a fixed-size array of 160 u64 words.
+The foundation of the HDC system is the `HdcVector` shape: a 10,240-bit binary vector stored as a fixed-size array of 160 u64 words.
 
 ### 1.1 Type Definition
 
@@ -43,7 +43,7 @@ pub fn random() -> Self {
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
-*Source: `crates/roko-primitives/src/hdc.rs`*
+*Corpus label: `crates/roko-primitives/src/hdc.rs`*
 
 The PRNG chain is `FNV-1a hash -> splitmix64 expansion`. The key property: `from_seed(b"rust")` **always produces the same vector**, across runs, across machines, across architectures.
 
@@ -59,7 +59,7 @@ pub const fn zeros() -> Self {
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
-*Source: `crates/roko-primitives/src/hdc.rs`*
+*Corpus label: `crates/roko-primitives/src/hdc.rs`*
 
 ### 1.4 Convenience Fingerprinting Functions
 
@@ -76,7 +76,7 @@ pub fn text_fingerprint(text: &str) -> HdcVector {
 }
 ```
 
-*Source: `crates/roko-primitives/src/hdc.rs`*
+*Corpus label: `crates/roko-primitives/src/hdc.rs`*
 
 ---
 
@@ -95,19 +95,19 @@ pub fn bind(&self, other: &Self) -> Self {
 }
 ```
 
-*Source: `crates/roko-primitives/src/hdc.rs`*
+*Corpus label: `crates/roko-primitives/src/hdc.rs`*
 
 ### 2.2 Bundle (Majority Vote)
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
-*Source: `crates/roko-primitives/src/hdc.rs`*
+*Corpus label: `crates/roko-primitives/src/hdc.rs`*
 
 ### 2.3 Permute (Cyclic Shift)
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
-*Source: `crates/roko-primitives/src/hdc.rs`*
+*Corpus label: `crates/roko-primitives/src/hdc.rs`*
 
 ### 2.4 Similarity (Hamming Distance)
 
@@ -123,7 +123,7 @@ pub fn similarity(&self, other: &Self) -> f32 {
 }
 ```
 
-*Source: `crates/roko-primitives/src/hdc.rs`*
+*Corpus label: `crates/roko-primitives/src/hdc.rs`*
 
 **Zero-copy similarity** (for memory-mapped archives):
 
@@ -146,7 +146,7 @@ On little-endian platforms, the archived representation of `[u64; 160]` is ident
 
 ## 3. Codebooks and Symbol Allocation
 
-A codebook maps symbolic names to deterministic HDC vectors. Source: `crates/roko-primitives/src/codebook.rs`.
+A codebook maps symbolic names to deterministic HDC vectors.
 
 ### 3.1 Codebook Type
 
@@ -177,19 +177,19 @@ Two `CodingCodebook::new()` calls on different machines produce identical vector
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
-*Source: `crates/roko-primitives/src/codebook.rs`*
+*Corpus label: `crates/roko-primitives/src/codebook.rs`*
 
 ### 3.5 Cross-Domain Resonance Detection
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
-*Source: `crates/roko-primitives/src/codebook.rs`*
+*Corpus label: `crates/roko-primitives/src/codebook.rs`*
 
 ---
 
 ## 4. Accumulators: Incremental and Decaying Bundling
 
-Because majority-vote bundling is **not associative**, the system provides two accumulator types that maintain per-bit vote counts. Source: `crates/roko-primitives/src/hdc.rs`.
+Because majority-vote bundling is **not associative**, use accumulator types that maintain per-bit vote counts.
 
 ### 4.1 BundleAccumulator
 
@@ -215,7 +215,7 @@ A specialized accumulator where each `add()` call automatically decays prior vot
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
-*Source: `crates/roko-primitives/src/hdc.rs`*
+*Corpus label: `crates/roko-primitives/src/hdc.rs`*
 
 **Memory**: 10,240 × 4 bytes = 40 KB (f32 votes instead of i32).
 
@@ -225,7 +225,7 @@ A specialized accumulator where each `add()` call automatically decays prior vot
 
 ## 5. ItemMemory: Named Concept Lookup
 
-`ItemMemory` is a codebook with brute-force nearest-neighbor lookup. Source: `crates/roko-primitives/src/hdc.rs`.
+`ItemMemory` is a codebook with brute-force nearest-neighbor lookup.
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
@@ -233,9 +233,9 @@ A specialized accumulator where each `add()` call automatically decays prior vot
 
 ---
 
-## 6. Code Fingerprinting Types (roko-index)
+## 6. Code Fingerprinting Types
 
-The `roko-index` crate defines its own `HdcFingerprint` type — structurally identical to `HdcVector` but independent for minimal dependencies. Source: `crates/roko-index/src/hdc.rs`.
+The captured code-indexing material defines its own `HdcFingerprint` type — structurally identical to `HdcVector` but independent for minimal dependencies.
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 

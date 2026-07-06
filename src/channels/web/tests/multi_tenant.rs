@@ -191,7 +191,7 @@ fn make_sandbox_job(user_id: &str, task: &str) -> crate::history::SandboxJobReco
 #[cfg(feature = "libsql")]
 mod workspace_pool {
     use super::*;
-    use crate::config::{WorkspaceConfig, WorkspaceSearchConfig};
+    use crate::config::{HdcConfig, WorkspaceConfig, WorkspaceSearchConfig};
     use crate::workspace::layer::{LayerSensitivity, MemoryLayer};
     use ironclaw_embeddings::EmbeddingCacheConfig;
 
@@ -230,6 +230,7 @@ mod workspace_pool {
         let ws_config = WorkspaceConfig {
             memory_layers: layers,
             read_scopes: vec![],
+            hdc: HdcConfig::default(),
         };
         let pool = WorkspacePool::new(
             db,
@@ -258,6 +259,7 @@ mod workspace_pool {
         let ws_config = WorkspaceConfig {
             memory_layers: MemoryLayer::default_for_user("owner-scope"),
             read_scopes: vec![],
+            hdc: HdcConfig::default(),
         };
         let pool = WorkspacePool::new(
             db,
@@ -297,6 +299,7 @@ mod workspace_pool {
         let ws_config = WorkspaceConfig {
             memory_layers: MemoryLayer::default_for_user("owner-scope"),
             read_scopes: vec![],
+            hdc: HdcConfig::default(),
         };
         let pool = WorkspacePool::new(
             db,
@@ -386,6 +389,7 @@ mod workspace_pool {
         let ws_config = WorkspaceConfig {
             memory_layers: vec![],
             read_scopes: vec!["global-shared".to_string()],
+            hdc: HdcConfig::default(),
         };
         let pool = WorkspacePool::new(
             db,

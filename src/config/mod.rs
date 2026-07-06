@@ -75,7 +75,7 @@ pub use self::skills::SkillsConfig;
 pub use self::transcription::TranscriptionConfig;
 pub use self::tunnel::TunnelConfig;
 pub use self::wasm::WasmConfig;
-pub use self::workspace::WorkspaceConfig;
+pub use self::workspace::{HdcConfig, HdcDedupMode, WorkspaceConfig};
 pub use ironclaw_embeddings::{DEFAULT_EMBEDDING_CACHE_SIZE, EmbeddingsConfig};
 // LLM config / session types live in `ironclaw_llm`. Re-exported here so
 // existing `crate::config::*Config` callers (notably `LlmConfig::resolve`

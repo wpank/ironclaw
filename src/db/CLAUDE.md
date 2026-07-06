@@ -129,6 +129,21 @@ The `Database` supertrait is composed of seven sub-traits. Leaf consumers can de
 - `tool_failures` — broken tool tracking for self-repair
 - `_migrations` — libSQL-only internal migration version tracking
 
+## HDC Fingerprint Column
+
+The `memory_documents` table has an optional `hdc_fingerprint` column for storing hyperdimensional computing fingerprints. The schema column is added by migrations regardless of compile features; the Rust trait methods and runtime behavior are behind the `hdc` feature flag:
+
+- **PostgreSQL:** `hdc_fingerprint BYTEA NULL` — added in migration `V33__memory_hdc_fingerprint.sql`
+- **libSQL:** `hdc_fingerprint BLOB NULL` — added via `INCREMENTAL_MIGRATIONS` entry
+
+**Length validation:** exactly 1,280 bytes (10,240-bit binary vector). Writes with incorrect length must be rejected at the trait method level.
+
+**Trait methods (`WorkspaceStore`):**
+- `update_document_hdc_fingerprint(id, fingerprint: &[u8]) -> Result<()>` — sets the fingerprint for an existing document ID; callers must have resolved the ID through a user/agent-scoped lookup
+- `list_document_hdc_fingerprints(user_id, agent_id) -> Result<Vec<DocumentHdcFingerprint>>` — bulk-fetches scoped fingerprints for similarity comparison; nullable `agent_id` matching must mirror normal workspace read semantics
+
+Both backends must implement these methods. The column is nullable — documents written before HDC enablement or with the feature flag off will have `NULL` fingerprints.
+
 ## libSQL Current Limitations
 
 - **Secrets store** — `LibSqlSecretsStore` is wired through both startup paths: `AppBuilder::init_secrets` via `crate::secrets::create_secrets_store` (dispatches on `DatabaseHandles`) and the CLI helper `crate::cli::init_secrets_store` via `crate::db::create_secrets_store` (dispatches on `DatabaseBackend`). When the master key resolves but neither dispatch produces a store (e.g. no DB handle on a hosted TEE), `init_secrets` installs an ephemeral `InMemorySecretsStore` fallback so WASM tool credential injection stays wired — see #1537.

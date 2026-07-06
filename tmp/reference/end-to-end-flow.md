@@ -1,8 +1,8 @@
 # End-to-End Flow
 
 This file is the self-contained request-flow reference for translating captured
-Roko ideas into IronClaw work. Captured source paths are provenance labels only;
-the implementation target is the local IronClaw architecture.
+Roko ideas into IronClaw work. Captured labels are provenance labels only; the
+implementation target is the local IronClaw architecture.
 
 ## Baseline Request Path
 
@@ -27,7 +27,7 @@ the implementation target is the local IronClaw architecture.
 | Cascade routing | Adaptive provider choice. | Static safety/privacy rules stay authoritative. |
 | Conductor | Health and stuck-loop supervision. | Advisory until enforced by explicit runtime policy. |
 | Dream consolidation | Background learning from past sessions. | Derived memories need source links, taint, confidence, and budget caps. |
-| Pheromone / coordination marker | Shared hint for future agents or tasks. | Use local workspace metadata before external trust systems. |
+| Pheromone / coordination marker | Shared hint for future agents or tasks. | Use local workspace metadata before trust integrations. |
 
 ## Scenario Sketches
 

@@ -212,6 +212,7 @@ CREATE TABLE IF NOT EXISTS memory_documents (
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
     updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
     metadata TEXT NOT NULL DEFAULT '{}',
+    hdc_fingerprint BLOB,
     UNIQUE (user_id, agent_id, path)
 );
 
@@ -1007,6 +1008,16 @@ WHERE key = 'wasm.default_fuel_limit'
   AND CAST(json_extract(value, '$') AS INTEGER) = 10000000;
 "#,
     ),
+    (
+        26,
+        "memory_hdc_fingerprint",
+        // Add HDC fingerprint column for near-duplicate detection.
+        // Marked as idempotent (see IDEMPOTENT_ADD_COLUMN_MIGRATIONS below)
+        // because SQLite does not support IF NOT EXISTS for ADD COLUMN.
+        r#"
+ALTER TABLE memory_documents ADD COLUMN hdc_fingerprint BLOB;
+"#,
+    ),
 ];
 
 /// Migrations whose ADD COLUMN should be skipped when the column already
@@ -1017,6 +1028,7 @@ const IDEMPOTENT_ADD_COLUMN_MIGRATIONS: &[(i64, &str, &str)] = &[
     (18, "wasm_tools", "scope"),
     (18, "dynamic_tools", "scope"),
     (22, "agent_jobs", "restart_params"),
+    (26, "memory_documents", "hdc_fingerprint"),
 ];
 
 /// Check whether `table` already contains `column` via `pragma_table_info`.

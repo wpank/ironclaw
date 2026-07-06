@@ -2,7 +2,7 @@
 
 Scenario YAML files are executable benchmark manifests for `ironclaw-bench`.
 They should be small, deterministic, and safe to run in local CI with mocked
-external services.
+services.
 
 ## Required Fields
 
@@ -35,5 +35,5 @@ artifacts: {}
 - `guardrails` contains bounded maximum regressions, rates, latency, cost, and
   privacy requirements.
 - `artifacts` states what can be retained and whether raw user content is banned.
-- Fixtures may reference synthetic corpora or recorded local fixtures, but not a
-  private repository or external live service.
+- Fixtures may reference synthetic corpora or recorded local fixtures. They
+  must not require code or services outside this workspace.

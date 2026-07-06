@@ -1,0 +1,24 @@
+{"id": "hb-gap-1", "content": "Disk space on /data is running low at 89% utilization. Recommend archiving old logs.", "tags": ["ops", "disk"], "path": "heartbeat/observations.md", "cycle": 1}
+{"id": "hb-gap-2", "content": "Disk space on /data is running low at 89% utilization. Recommend archiving old logs.", "tags": ["ops", "disk"], "path": "heartbeat/observations.md", "cycle": 2}
+{"id": "hb-gap-3", "content": "Disk space on /data is running low at 89% utilization. Recommend archiving old logs.", "tags": ["ops", "disk"], "path": "heartbeat/observations.md", "cycle": 3}
+{"id": "hb-gap-4", "content": "CPU utilization averaged 34% over the last 30 minutes. All services healthy.", "tags": ["ops", "cpu"], "path": "heartbeat/observations.md", "cycle": 4}
+{"id": "hb-gap-5", "content": "Memory usage stable at 6.2GB of 16GB. No swap activity detected.", "tags": ["ops", "memory"], "path": "heartbeat/observations.md", "cycle": 5}
+{"id": "hb-gap-6", "content": "Network throughput normal: 120 Mbps ingress, 45 Mbps egress on eth0.", "tags": ["ops", "network"], "path": "heartbeat/observations.md", "cycle": 6}
+{"id": "hb-gap-7", "content": "PostgreSQL connection pool at 12/100 active connections. Query p99 latency 8ms.", "tags": ["ops", "database"], "path": "heartbeat/observations.md", "cycle": 7}
+{"id": "hb-gap-8", "content": "Redis cache hit rate 94.2%. Eviction count zero over last hour.", "tags": ["ops", "cache"], "path": "heartbeat/observations.md", "cycle": 8}
+{"id": "hb-gap-9", "content": "TLS certificate for api.example.com expires in 45 days. Renewal scheduled.", "tags": ["ops", "security"], "path": "heartbeat/observations.md", "cycle": 9}
+{"id": "hb-gap-10", "content": "Background job queue depth: 3 pending, 0 failed. Average processing time 1.2s.", "tags": ["ops", "jobs"], "path": "heartbeat/observations.md", "cycle": 10}
+{"id": "hb-gap-11", "content": "Container registry storage at 52GB. Image pruning policy removing tags older than 30 days.", "tags": ["ops", "containers"], "path": "heartbeat/observations.md", "cycle": 11}
+{"id": "hb-gap-12", "content": "DNS resolution latency p50=2ms p99=12ms. No NXDOMAIN spikes detected.", "tags": ["ops", "dns"], "path": "heartbeat/observations.md", "cycle": 12}
+{"id": "hb-gap-13", "content": "Load balancer health checks passing for all 4 backend instances.", "tags": ["ops", "lb"], "path": "heartbeat/observations.md", "cycle": 13}
+{"id": "hb-gap-14", "content": "Automated backup completed successfully. 2.1GB compressed snapshot stored in S3.", "tags": ["ops", "backup"], "path": "heartbeat/observations.md", "cycle": 14}
+{"id": "hb-gap-15", "content": "Error rate 0.02% across all endpoints. No 5xx responses in the last 15 minutes.", "tags": ["ops", "errors"], "path": "heartbeat/observations.md", "cycle": 15}
+{"id": "hb-gap-16", "content": "Kubernetes pod autoscaler stable at 3 replicas. No scaling events in 2 hours.", "tags": ["ops", "k8s"], "path": "heartbeat/observations.md", "cycle": 16}
+{"id": "hb-gap-17", "content": "Prometheus scrape targets: 28/28 up. Alertmanager queue empty.", "tags": ["ops", "monitoring"], "path": "heartbeat/observations.md", "cycle": 17}
+{"id": "hb-gap-18", "content": "CDN cache hit ratio 87%. Origin requests within normal range at 340 rpm.", "tags": ["ops", "cdn"], "path": "heartbeat/observations.md", "cycle": 18}
+{"id": "hb-gap-19", "content": "OAuth token refresh cycle normal. 0 expired sessions, 12 active users.", "tags": ["ops", "auth"], "path": "heartbeat/observations.md", "cycle": 19}
+{"id": "hb-gap-20", "content": "Log ingestion pipeline processing 2400 events/sec. No dropped messages.", "tags": ["ops", "logging"], "path": "heartbeat/observations.md", "cycle": 20}
+{"id": "hb-gap-21", "content": "Cron job cleanup_temp_files completed in 4s. Removed 847 files totaling 230MB.", "tags": ["ops", "cron"], "path": "heartbeat/observations.md", "cycle": 21}
+{"id": "hb-gap-22", "content": "gRPC service mesh latency p99=15ms across 6 services. No circuit breakers tripped.", "tags": ["ops", "mesh"], "path": "heartbeat/observations.md", "cycle": 22}
+{"id": "hb-gap-23", "content": "Feature flag evaluation: 14 flags active, 2 in gradual rollout at 25% and 50%.", "tags": ["ops", "features"], "path": "heartbeat/observations.md", "cycle": 23}
+{"id": "hb-gap-24", "content": "Disk space on /data is running low at 89% utilization. Recommend archiving old logs.", "tags": ["ops", "disk"], "path": "heartbeat/observations.md", "cycle": 24}

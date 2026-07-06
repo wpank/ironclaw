@@ -1,8 +1,7 @@
 # End-To-End Scenarios
 
-These scenarios show realistic IronClaw task paths. They avoid assuming any
-private source repository exists: every path is either a local IronClaw module,
-an existing fixture, or an explicit adaptation sketch.
+These scenarios show realistic IronClaw task paths. They use local IronClaw
+modules, existing fixtures, or explicit adaptation sketches.
 
 ## 1. Cheap Routine Question With Safe Model Routing
 
@@ -211,7 +210,7 @@ Path:
 3. Tool selection prefers the reliable tool but keeps exploration budget for
    recovery.
 4. Collusion checks are irrelevant locally, but signed evidence shape is kept so
-   future external trust integrations can consume the same events.
+   future trust integrations can consume the same events.
 
 Benchmark fixture: no fixture exists yet. Add one before enabling reputation to
 affect production selection.

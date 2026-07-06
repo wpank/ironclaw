@@ -35,7 +35,7 @@ Any new pattern should wrap or extend those surfaces.
 - Do not pass trusted trigger requests from product adapters or host-runtime handlers. Use untrusted inbound requests unless the trigger-worker-owned path minted the request.
 - Do not move module-owned initialization into `src/main.rs` or `src/app.rs`.
 - Do not add production panic-on-error calls for these patterns.
-- Do not use examples that imply a missing crate, missing source checkout, or generated implementation can be pasted as-is.
+- Do not use examples that imply missing crates, unavailable source files, or generated implementations can be pasted as-is.
 
 ## Pattern Details
 

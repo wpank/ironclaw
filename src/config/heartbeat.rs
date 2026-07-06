@@ -27,6 +27,20 @@ pub struct HeartbeatConfig {
     /// When true, cycle through all users with routines. Controlled via
     /// HEARTBEAT_MULTI_TENANT env var; defaults to false.
     pub multi_tenant: bool,
+
+    // ── HDC novelty detection ──────────────────────────────────────────────
+    /// Enable HDC-based novelty detection for heartbeat responses.
+    /// When enabled, responses are encoded into hypervectors and compared
+    /// against a decaying summary of past responses.
+    pub hdc_enabled: bool,
+    /// Decay factor for the HDC bundle accumulator (0.0..1.0 exclusive).
+    pub hdc_decay_factor: f32,
+    /// Cosine similarity threshold above which a response is classified as Repeated.
+    pub hdc_repeated_threshold: f64,
+    /// Cosine similarity threshold below which a response is classified as Novel.
+    pub hdc_novel_threshold: f64,
+    /// When true AND hdc_enabled, skip notification for Repeated responses.
+    pub hdc_suppress_repeated: bool,
 }
 
 impl Default for HeartbeatConfig {
@@ -41,6 +55,11 @@ impl Default for HeartbeatConfig {
             quiet_hours_end: None,
             timezone: None,
             multi_tenant: false,
+            hdc_enabled: false,
+            hdc_decay_factor: 0.93,
+            hdc_repeated_threshold: 0.80,
+            hdc_novel_threshold: 0.60,
+            hdc_suppress_repeated: false,
         }
     }
 }
@@ -92,6 +111,70 @@ impl HeartbeatConfig {
                 })
                 .transpose()?;
 
+        let timezone = {
+            let tz = db_first_optional_string(&settings.heartbeat.timezone, "HEARTBEAT_TIMEZONE")?;
+            if let Some(ref tz_str) = tz
+                && crate::timezone::parse_timezone(tz_str).is_none()
+            {
+                return Err(ConfigError::InvalidValue {
+                    key: "HEARTBEAT_TIMEZONE".into(),
+                    message: format!("invalid IANA timezone: '{tz_str}'"),
+                });
+            }
+            tz
+        };
+
+        let multi_tenant = parse_bool_env(
+            "HEARTBEAT_MULTI_TENANT",
+            optional_env("GATEWAY_USER_TOKENS")?.is_some(),
+        )?;
+
+        let hdc_enabled = parse_bool_env("HEARTBEAT_HDC_ENABLED", false)?;
+        let hdc_decay_factor = parse_heartbeat_hdc_f32(
+            "HEARTBEAT_HDC_DECAY_FACTOR",
+            0.93,
+            "must be a finite float in (0.0, 1.0)",
+        )?;
+        if hdc_decay_factor <= 0.0 || hdc_decay_factor >= 1.0 {
+            return Err(ConfigError::InvalidValue {
+                key: "HEARTBEAT_HDC_DECAY_FACTOR".into(),
+                message: format!("must be in (0.0, 1.0), got {hdc_decay_factor}"),
+            });
+        }
+
+        let hdc_repeated_threshold = parse_heartbeat_hdc_f64(
+            "HEARTBEAT_HDC_REPEATED_THRESHOLD",
+            0.80,
+            "must be a finite float in [0.0, 1.0]",
+        )?;
+        let hdc_novel_threshold = parse_heartbeat_hdc_f64(
+            "HEARTBEAT_HDC_NOVEL_THRESHOLD",
+            0.60,
+            "must be a finite float in [0.0, 1.0]",
+        )?;
+        if !(0.0..=1.0).contains(&hdc_repeated_threshold) {
+            return Err(ConfigError::InvalidValue {
+                key: "HEARTBEAT_HDC_REPEATED_THRESHOLD".into(),
+                message: format!("must be in [0.0, 1.0], got {hdc_repeated_threshold}"),
+            });
+        }
+        if !(0.0..=1.0).contains(&hdc_novel_threshold) {
+            return Err(ConfigError::InvalidValue {
+                key: "HEARTBEAT_HDC_NOVEL_THRESHOLD".into(),
+                message: format!("must be in [0.0, 1.0], got {hdc_novel_threshold}"),
+            });
+        }
+        if hdc_novel_threshold >= hdc_repeated_threshold {
+            return Err(ConfigError::InvalidValue {
+                key: "HEARTBEAT_HDC_NOVEL_THRESHOLD".into(),
+                message: format!(
+                    "novel threshold ({hdc_novel_threshold}) must be < repeated threshold ({hdc_repeated_threshold})"
+                ),
+            });
+        }
+
+        let hdc_suppress_repeated = parse_bool_env("HEARTBEAT_HDC_SUPPRESS_REPEATED", false)?;
+
         Ok(Self {
             enabled: db_first_bool(
                 settings.heartbeat.enabled,
@@ -114,33 +197,78 @@ impl HeartbeatConfig {
             fire_at,
             quiet_hours_start,
             quiet_hours_end,
-            timezone: {
-                let tz =
-                    db_first_optional_string(&settings.heartbeat.timezone, "HEARTBEAT_TIMEZONE")?;
-                if let Some(ref tz_str) = tz
-                    && crate::timezone::parse_timezone(tz_str).is_none()
-                {
-                    return Err(ConfigError::InvalidValue {
-                        key: "HEARTBEAT_TIMEZONE".into(),
-                        message: format!("invalid IANA timezone: '{tz_str}'"),
-                    });
-                }
-                tz
-            },
-            // Auto-detect multi-tenant mode from GATEWAY_USER_TOKENS presence,
-            // or allow explicit override via HEARTBEAT_MULTI_TENANT. Stays env-only.
-            multi_tenant: parse_bool_env(
-                "HEARTBEAT_MULTI_TENANT",
-                optional_env("GATEWAY_USER_TOKENS")?.is_some(),
-            )?,
+            timezone,
+            multi_tenant,
+            hdc_enabled,
+            hdc_decay_factor,
+            hdc_repeated_threshold,
+            hdc_novel_threshold,
+            hdc_suppress_repeated,
         })
     }
+}
+
+fn parse_heartbeat_hdc_f32(
+    key: &'static str,
+    default: f32,
+    expected: &'static str,
+) -> Result<f32, ConfigError> {
+    let value = optional_env(key)?
+        .map(|s| {
+            s.parse::<f32>().map_err(|e| ConfigError::InvalidValue {
+                key: key.into(),
+                message: format!("{expected}: {e}"),
+            })
+        })
+        .transpose()?
+        .unwrap_or(default);
+    if !value.is_finite() {
+        return Err(ConfigError::InvalidValue {
+            key: key.into(),
+            message: format!("{expected}, got {value}"),
+        });
+    }
+    Ok(value)
+}
+
+fn parse_heartbeat_hdc_f64(
+    key: &'static str,
+    default: f64,
+    expected: &'static str,
+) -> Result<f64, ConfigError> {
+    let value = optional_env(key)?
+        .map(|s| {
+            s.parse::<f64>().map_err(|e| ConfigError::InvalidValue {
+                key: key.into(),
+                message: format!("{expected}: {e}"),
+            })
+        })
+        .transpose()?
+        .unwrap_or(default);
+    if !value.is_finite() {
+        return Err(ConfigError::InvalidValue {
+            key: key.into(),
+            message: format!("{expected}, got {value}"),
+        });
+    }
+    Ok(value)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::config::helpers::lock_env;
+
+    fn with_env(key: &str, value: &str, f: impl FnOnce()) {
+        let _guard = lock_env();
+        let previous = std::env::var(key).ok();
+        unsafe { std::env::set_var(key, value) };
+        f();
+        match previous {
+            Some(value) => unsafe { std::env::set_var(key, value) },
+            None => unsafe { std::env::remove_var(key) },
+        }
+    }
 
     #[test]
     fn test_quiet_hours_settings_have_priority() {
@@ -302,5 +430,42 @@ mod tests {
         assert!(config.multi_tenant, "multi_tenant should read from env");
 
         unsafe { std::env::remove_var("HEARTBEAT_MULTI_TENANT") };
+    }
+
+    #[test]
+    fn test_hdc_decay_rejects_out_of_range() {
+        with_env("HEARTBEAT_HDC_DECAY_FACTOR", "1.0", || {
+            let result = HeartbeatConfig::resolve(&Settings::default());
+            assert!(result.is_err());
+        });
+    }
+
+    #[test]
+    fn test_hdc_thresholds_reject_nan() {
+        with_env("HEARTBEAT_HDC_REPEATED_THRESHOLD", "NaN", || {
+            let result = HeartbeatConfig::resolve(&Settings::default());
+            assert!(result.is_err());
+        });
+    }
+
+    #[test]
+    fn test_hdc_thresholds_require_novel_below_repeated() {
+        let _guard = lock_env();
+        let previous_novel = std::env::var("HEARTBEAT_HDC_NOVEL_THRESHOLD").ok();
+        let previous_repeated = std::env::var("HEARTBEAT_HDC_REPEATED_THRESHOLD").ok();
+        unsafe {
+            std::env::set_var("HEARTBEAT_HDC_NOVEL_THRESHOLD", "0.9");
+            std::env::set_var("HEARTBEAT_HDC_REPEATED_THRESHOLD", "0.8");
+        }
+        let result = HeartbeatConfig::resolve(&Settings::default());
+        assert!(result.is_err());
+        match previous_novel {
+            Some(value) => unsafe { std::env::set_var("HEARTBEAT_HDC_NOVEL_THRESHOLD", value) },
+            None => unsafe { std::env::remove_var("HEARTBEAT_HDC_NOVEL_THRESHOLD") },
+        }
+        match previous_repeated {
+            Some(value) => unsafe { std::env::set_var("HEARTBEAT_HDC_REPEATED_THRESHOLD", value) },
+            None => unsafe { std::env::remove_var("HEARTBEAT_HDC_REPEATED_THRESHOLD") },
+        }
     }
 }

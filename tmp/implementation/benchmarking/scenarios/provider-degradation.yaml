@@ -19,7 +19,7 @@ mocked_dependencies:
 baseline:
   variant: reactive_circuit_breaker
 variant:
-  variant: holt_forecast_bias
+  variant: forecast_bias
 oracle:
   type: avoided_degradation
 expected_metrics:

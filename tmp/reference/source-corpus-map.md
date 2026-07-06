@@ -1,10 +1,9 @@
 # Captured Source Corpus Map
 
-This map is the local replacement for external source access. Captured
-`roko-*` names identify source-corpus families only; they are not dependency
-paths, external checkout paths, or proof that an external repository still has
-the same shape. For implementation planning, follow the local summaries and
-rebuild the needed behavior as IronClaw-native modules.
+This map summarizes the local captured corpus. Captured `roko-*` names identify
+source-corpus families only; they are not dependencies, local files, or
+implementation evidence. For planning, follow the local summaries and rebuild
+the needed behavior as IronClaw-native modules.
 
 ## Crate Families
 
@@ -36,12 +35,12 @@ rebuild the needed behavior as IronClaw-native modules.
 | `docs/v2-depth` | Algorithmic deep dives and implementation commentary | [v2-depth-research.md](v2-depth-research.md) |
 | `plans` | TOML plan catalog, task tiers, verification commands | [plans-catalog.md](plans-catalog.md) |
 
-## No External Dependency Policy
+## Captured Dependency Policy
 
 For IronClaw implementation planning:
 
 1. Do not add `roko-*` path dependencies.
-2. Do not link to a Roko Git remote as implementation evidence.
+2. Do not cite captured source labels as implementation evidence.
 3. Treat captured source identifiers as provenance labels only.
 4. Rebuild the required pieces as IronClaw-native crates or modules.
 5. Preserve IronClaw rules: `ToolDispatcher` for actions, dual PostgreSQL/libSQL persistence, security review for auth/network/secrets, caller-level tests for side effects.

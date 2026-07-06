@@ -24,7 +24,7 @@ lower-risk foundations for later measurement and memory work.
 | 7 | Cascade router | 4.15 | Wrap existing smart routing with shadow-mode contextual-bandit decisions. Static safety overrides remain pre-bandit rules. | At least one baseline dataset with cost, latency, selected model, and quality outcome. |
 | 8 | Gate verification expansion | 3.85 | Extend existing gate/builder validation in rungs: compile, lint, tests, symbol checks. | Clear language scope and command-sandbox rules. |
 | 9 | HDC similarity signal | 3.85 | Prototype as a third retrieval signal behind current FTS/vector RRF. | Offline retrieval benchmark shows a lift on compositional queries. |
-| 10 | Cognitive speed labels | 3.50 | Add a small enum only if it feeds routing, budget, or UX decisions. | A caller needs the label; otherwise this is taxonomy without leverage. |
+| 10 | Cognitive speed labels | 3.50 | Add a small enum only if it feeds routing, budget, or UX decisions. | A caller needs the label; otherwise this is taxonomy without a use case. |
 
 These are not first-pass features. They change core selection, verification, or
 retrieval behavior and need measured rollouts.

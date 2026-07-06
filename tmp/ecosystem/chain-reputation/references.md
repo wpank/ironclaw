@@ -2,7 +2,7 @@
 
 [Back to overview](./README.md)
 
-These references justify the concepts used in this folder. They are not source-code dependencies, and the design should remain understandable without access to any external repository. Before implementing against any named protocol, verify the current standard and threat model in the owning project.
+These references justify the concepts used in this folder. They are not source-code dependencies, and the design should remain understandable without separate code access. Before implementing against any named protocol, verify the current standard and threat model in the owning project.
 
 1. J. R. Douceur, "The Sybil Attack," IPTPS, 2002. Defines the Sybil problem: one actor can present many identities unless a system introduces a trusted identity authority or meaningful cost.
 

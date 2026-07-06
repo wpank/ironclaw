@@ -2,7 +2,7 @@
 
 This file is a top-level bridge to the captured bibliography. It exists so
 references can point to `research-citations.md` without assuming a single
-monolithic citation file or an external Roko checkout.
+monolithic citation file.
 
 ## Local Sources
 

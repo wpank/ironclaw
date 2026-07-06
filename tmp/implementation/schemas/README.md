@@ -1,8 +1,8 @@
 # Schemas And Data Models
 
-These files define the shared data contracts for implementation plans, rollout
-telemetry, benchmark fixtures, and persistence. Keep this directory authoritative
-for schema shape; other docs should link here instead of restating fields.
+These files define shared contracts for implementation plans, rollout
+telemetry, benchmark fixtures, and persistence. Other docs should link here
+instead of restating field shapes.
 
 | File | Purpose |
 | --- | --- |
@@ -17,7 +17,7 @@ for schema shape; other docs should link here instead of restating fields.
   matching `flag.<feature>` exposure id.
 - Runtime behavior defaults off until a rollout document explicitly moves it.
 - Metric labels stay bounded and low cardinality; raw prompts, secrets, file
-  bodies, and private paths are stored only as redacted artifacts.
+  bodies, and private paths are referenced only through redacted artifacts.
 - PostgreSQL and libSQL changes ship together with one contract test that runs
   against both backends.
 - Fixtures must parse as YAML and include the required scenario fields listed in

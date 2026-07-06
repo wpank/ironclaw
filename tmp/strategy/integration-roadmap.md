@@ -117,7 +117,7 @@ Do not schedule these as implementation work without a separate design document 
 1. Keep PRs scoped to one candidate and one owning boundary.
 2. Prefer metadata or existing tables for reversible experiments; add schema only when query requirements demand it.
 3. Test through the caller when a helper gates a side effect.
-4. Do not add live external dependencies or source-repo links.
+4. Do not add live external dependencies or source links.
 5. Do not port external UI themes, execution loops, or storage models directly.
 6. Preserve existing defaults unless the feature explicitly changes them.
 7. Update relevant docs, specs, and `FEATURE_PARITY.md` when behavior status changes.

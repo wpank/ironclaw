@@ -2,7 +2,7 @@
 
 These are candidate supplemental references for topics already covered in the
 local bibliography. They should be verified against the original paper or venue
-before external publication. They are not evidence of external repository state.
+before public citation use. They are not implementation evidence.
 
 ## Memory And Consolidation
 

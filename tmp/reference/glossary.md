@@ -14,7 +14,7 @@ terms are normalized through [terminology-glossary.md](terminology-glossary.md).
 | Cell | Typed computation boundary. In IronClaw, translate to an owned tool, workflow step, handler, service, or gate. |
 | Graph | Dependency-aware plan of Cells. In IronClaw, use the existing runner/workflow path. |
 | Bus | Event stream for transient progress, tool, provider, gate, or projection updates. |
-| Trigger | External event source such as webhook, schedule, file watch, or channel input. |
+| Trigger | Event source such as webhook, schedule, file watch, or channel input. |
 | Compose | Prompt/context assembly from identity, task, memory, tools, and budget. |
 | Route | Model/provider/tool selection under policy and cost constraints. |
 | Verify / Gate | Structured acceptance check for an artifact, model output, or side effect. |
@@ -82,7 +82,7 @@ terms are normalized through [terminology-glossary.md](terminology-glossary.md).
 
 | Term | Definition |
 |---|---|
-| MCP | Model Context Protocol; external tool/resource/prompt server integration. |
+| MCP | Model Context Protocol; out-of-process tool/resource/prompt server integration. |
 | ACP | Captured editor/agent coordination protocol concept; translate through IronClaw channel and web boundaries. |
 | WASM tool | Sandboxed extension capability executed with host-controlled permissions. |
 | Extension lifecycle | Install, authenticate/configure, activate, use, revoke, and remove. |

@@ -1,9 +1,9 @@
 # Captured Roko vs IronClaw
 
 This comparison is scoped to the captured reference corpus and the local
-IronClaw checkout. It does not claim anything about external repository state. When
-the table says "no equivalent identified," it means no equivalent was identified
-in the local pass, not that one cannot exist elsewhere.
+IronClaw workspace. It does not make claims beyond those inputs. When the table
+says "no equivalent identified," it means no equivalent was identified in the
+local pass.
 
 ## Comparison Summary
 
@@ -14,7 +14,7 @@ in the local pass, not that one cannot exist elsewhere.
 | Tool execution | Tools modeled as Cells with verification and trust metadata. | `ToolDispatcher`, WASM/MCP/tool paths, approval and sandbox policy. |
 | Routing | Captured cascade and bandit-routing designs. | `crates/ironclaw_llm/` provider routing and cost controls; learned routing should start observe-only. |
 | Verification | Captured progressive gate pipeline and structured verdicts. | Caller-owned checks and tests; expand through production boundaries. |
-| Memory | Captured Signal/Engram identity, decay, HDC, AntiKnowledge, and dream consolidation. | Workspace memory, search, and repository layers; any decay/HDC work must preserve file-like memory semantics. |
+| Memory | Captured Signal/Engram identity, decay, HDC, AntiKnowledge, and dream consolidation. | Workspace memory, search, and storage layers; any decay/HDC work must preserve file-like memory semantics. |
 | Supervision | Captured Conductor/watchers for stuck loops and provider health. | Existing self-repair, cost guard, circuit breakers, job/session state, and web projections. |
 | Channels | Captured ACP/MCP/control-plane ideas. | ChannelManager, web gateway, SSE/WebSocket, webhook, CLI, WASM channels, and MCP tools. |
 | Extensions | Captured plugin and capability registry ideas. | IronClaw extension lifecycle, WASM sandbox, MCP integration, authentication/configuration flows. |

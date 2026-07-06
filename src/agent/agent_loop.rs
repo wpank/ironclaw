@@ -1318,14 +1318,44 @@ impl Agent {
                             None
                         }
                     } else {
-                        Some(spawn_heartbeat(
+                        #[cfg(feature = "hdc")]
+                        let handle = if hb_config.hdc_enabled {
+                            let hdc_cfg = crate::agent::heartbeat::HeartbeatHdcConfig {
+                                enabled: true,
+                                decay_factor: hb_config.hdc_decay_factor,
+                                repeated_threshold: hb_config.hdc_repeated_threshold,
+                                novel_threshold: hb_config.hdc_novel_threshold,
+                                suppress_repeated: hb_config.hdc_suppress_repeated,
+                            };
+                            crate::agent::heartbeat::spawn_heartbeat_with_hdc(
+                                config,
+                                hygiene,
+                                workspace.clone(),
+                                self.cheap_llm().clone(),
+                                Some(notify_tx),
+                                self.system_store(),
+                                hdc_cfg,
+                            )
+                        } else {
+                            spawn_heartbeat(
+                                config,
+                                hygiene,
+                                workspace.clone(),
+                                self.cheap_llm().clone(),
+                                Some(notify_tx),
+                                self.system_store(),
+                            )
+                        };
+                        #[cfg(not(feature = "hdc"))]
+                        let handle = spawn_heartbeat(
                             config,
                             hygiene,
                             workspace.clone(),
                             self.cheap_llm().clone(),
                             Some(notify_tx),
                             self.system_store(),
-                        ))
+                        );
+                        Some(handle)
                     }
                 } else {
                     tracing::warn!("Heartbeat enabled but no workspace available");

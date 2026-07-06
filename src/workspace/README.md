@@ -156,6 +156,19 @@ let config = HeartbeatConfig::default()
 spawn_heartbeat(config, workspace, llm, response_tx);
 ```
 
+## HDC Fingerprinting (Optional)
+
+Behind the `hdc` feature flag, workspace memory gains hyperdimensional computing fingerprints for deduplication and novelty detection. When enabled, fingerprints are computed and stored alongside documents without changing existing behavior until explicitly activated.
+
+**Modes:**
+
+- **Shadow mode** (`IRONCLAW_HDC_FINGERPRINT_SHADOW=true`): computes and stores 10,240-bit fingerprints on write without altering behavior. Use this to evaluate HDC quality before enabling active modes.
+- **Write-time dedup** (`IRONCLAW_HDC_DEDUP_MODE=warn|block`): blocks duplicate writes or warns on similar content based on normalized Hamming similarity thresholds.
+- **Search fusion** (`IRONCLAW_HDC_SEARCH_SHADOW=true`): computes HDC normalized Hamming similarity as an additional search signal. Shadow mode annotates results without reordering; live mode applies a small score boost.
+- **Heartbeat novelty** (`HEARTBEAT_HDC_ENABLED=true`): detects repeated observations in heartbeat runs, optionally suppressing already-reported findings.
+
+See `crates/ironclaw_hdc/CLAUDE.md` for crate internals and the fingerprint encoding format.
+
 ## Chunking Strategy
 
 Documents are chunked for search indexing:

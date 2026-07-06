@@ -7,7 +7,7 @@ owner: crates/ironclaw_llm
 stage: local
 repetitions: 200
 input:
-  prompt: "What is the local time in Berlin?"
+  prompt: "Return the city name in this sentence: Berlin."
   risk: low
   contains_private_data: false
 mocked_dependencies:
@@ -24,7 +24,7 @@ baseline:
   variant: current_static_router
   expected_provider: primary
 variant:
-  variant: linucb_shadow
+  variant: cost_quality_shadow_router
   expected_provider: cheap
 oracle:
   type: deterministic_answer_shape

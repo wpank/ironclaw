@@ -8,8 +8,8 @@ The strategy is deliberately conservative:
 
 - Build narrow, reversible improvements before architectural changes.
 - Measure current IronClaw behavior before claiming improvement.
-- Keep external context self-contained through captured concepts and source-path
-  names, not live source links.
+- Keep external context self-contained as captured concepts, not live source
+  links.
 - Prefer existing IronClaw modules, traits, and Reborn runtime boundaries over new crates unless a feature clearly needs one.
 
 ## Documents
@@ -24,7 +24,7 @@ The strategy is deliberately conservative:
 | [priority-matrix/implementation-sketches.md](priority-matrix/implementation-sketches.md) | Integration contracts and test targets, not porting instructions. |
 | [priority-matrix/benchmarking-plans.md](priority-matrix/benchmarking-plans.md) | Baselines, metrics, canary gates, and rollback thresholds. |
 | [priority-matrix/synergy-analysis.md](priority-matrix/synergy-analysis.md) | Dependencies and combinations that change feature value. |
-| [priority-matrix/references.md](priority-matrix/references.md) | Internal source map, captured path names, and research anchors. |
+| [priority-matrix/references.md](priority-matrix/references.md) | Internal source map, captured context, and research anchors. |
 
 ## Decision Flow
 

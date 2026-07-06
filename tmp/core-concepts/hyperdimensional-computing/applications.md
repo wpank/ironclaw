@@ -1,8 +1,8 @@
 [← Back to HDC Overview](./README.md)
 
-# Applications — 6 Use Cases with Worked Examples
+# Applications — Six Use Cases
 
-This document covers the six application areas implemented in the roko codebase, each with complete source code and concrete similarity values.
+This document summarizes six captured-source application patterns and translates them into IronClaw validation targets. Treat similarity values as examples until reproduced with IronClaw encoders and corpora.
 
 ---
 
@@ -10,7 +10,7 @@ This document covers the six application areas implemented in the roko codebase,
 
 The `KnowledgeHdcEncoder` encodes knowledge entries (Engrams) as HDC vectors. Every knowledge entry gets a 10,240-bit fingerprint at ingestion time, enabling content-addressed similarity search without any external embedding model.
 
-*Source: `crates/roko-neuro/src/hdc.rs`*
+*Corpus label: `crates/roko-neuro/src/hdc.rs`*
 
 ### Memory Fingerprinting Flow
 
@@ -121,7 +121,7 @@ fn ensure_hdc_vector(mut entry: KnowledgeEntry) -> KnowledgeEntry {
 }
 ```
 
-*Source: `crates/roko-neuro/src/knowledge_store.rs`*
+*Corpus label: `crates/roko-neuro/src/knowledge_store.rs`*
 
 ---
 
@@ -129,7 +129,7 @@ fn ensure_hdc_vector(mut entry: KnowledgeEntry) -> KnowledgeEntry {
 
 The `RoleFillerEncoder` provides higher-level encoding where each attribute of a knowledge entry is explicitly bound to a named role. This enables structured queries: "find all entries where domain = coding."
 
-*Source: `crates/roko-neuro/src/hdc.rs`*
+*Corpus label: `crates/roko-neuro/src/hdc.rs`*
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
@@ -180,7 +180,7 @@ Consider three knowledge entries from three domains:
 
 All three share the same abstract structure: `BIND(role_risk_factor, hv_high_X) XOR BIND(role_response, hv_more_Y)`. The shared role vectors (`role_risk_factor`, `role_response`) contribute similarly to all three vectors, creating measurable above-noise similarity even though the domain-specific fillers are quasi-orthogonal.
 
-Cross-domain similarity typically falls in the range 0.53–0.58, well above the 0.526 threshold.
+In the captured examples, cross-domain similarity falls around 0.53–0.58, above the 0.526 random-pair threshold. IronClaw should remeasure this with its own role/tag codebooks before using it for retrieval decisions.
 
 ```mermaid
 flowchart TB
@@ -221,17 +221,17 @@ flowchart TB
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
-*Source: `crates/roko-neuro/src/hdc.rs`*
+*Corpus label: `crates/roko-neuro/src/hdc.rs`*
 
-The algorithm is O(n^2) pairwise comparison. The captured implementation reports a very small fixed-width comparison cost; IronClaw should measure the full scan path with realistic corpus sizes before committing to latency targets.
+The algorithm is O(n^2) pairwise comparison. The fixed-width comparison is cheap, but IronClaw should measure the full scan path with realistic corpus sizes before committing to latency targets.
 
 ---
 
 ## Application 4: Code Fingerprinting
 
-The `roko-index` crate provides specialized HDC encoding for source code symbols (functions, structs, traits, enums, modules). This enables finding similar code patterns regardless of naming, using structural similarity rather than text matching.
+The captured code-indexing material provides specialized HDC encoding for source code symbols (functions, structs, traits, enums, modules). This can find similar code patterns by structure rather than naming alone.
 
-*Source: `crates/roko-index/src/hdc.rs`*
+*Corpus label: `crates/roko-index/src/hdc.rs`*
 
 ### Symbol Fingerprinting: The Encoding Formula
 
@@ -279,7 +279,7 @@ pub fn fingerprint_file(source: &SourceFile) -> HdcFingerprint {
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
-*Source: `crates/roko-index/src/workspace.rs`*
+*Corpus label: `crates/roko-index/src/workspace.rs`*
 
 ---
 
@@ -287,7 +287,7 @@ pub fn fingerprint_file(source: &SourceFile) -> HdcFingerprint {
 
 The knowledge store uses HDC similarity for admission control and conflict detection. Feature-gated behind `#[cfg(feature = "hdc")]`.
 
-*Source: `crates/roko-neuro/src/knowledge_store.rs`*
+*Corpus label: `crates/roko-neuro/src/knowledge_store.rs`*
 
 ### Thresholds
 
@@ -324,7 +324,7 @@ When assembling context for an agent prompt, the knowledge store uses a weighted
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
-*Source: `crates/roko-neuro/src/knowledge_store.rs`*
+*Corpus label: `crates/roko-neuro/src/knowledge_store.rs`*
 
 HDC similarity gets the plurality weight (40%) because it captures structural semantic similarity that keyword matching misses. Cross-domain entries get a 15% bonus to encourage diverse context assembly.
 

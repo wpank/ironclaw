@@ -43,7 +43,7 @@ Required fields on every experimental event:
   "variant": "shadow",
   "stage": "local",
   "enabled": false,
-  "timestamp_ms": 1783064100000
+  "timestamp_ms": 1783073700000
 }
 ```
 

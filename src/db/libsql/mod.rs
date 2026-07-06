@@ -428,6 +428,10 @@ impl Database for LibSqlBackend {
 // ==================== Row conversion helpers ====================
 
 pub(crate) fn row_to_memory_document(row: &libsql::Row) -> MemoryDocument {
+    // hdc_fingerprint is not selected by all queries. Column index 8 may not
+    // exist; try_get gracefully returns Err for absent columns.
+    let hdc_fingerprint: Option<Vec<u8>> = row.get::<Vec<u8>>(8).ok();
+
     MemoryDocument {
         id: get_text(row, 0).parse().unwrap_or_default(),
         user_id: get_text(row, 1),
@@ -437,6 +441,7 @@ pub(crate) fn row_to_memory_document(row: &libsql::Row) -> MemoryDocument {
         created_at: get_ts(row, 5),
         updated_at: get_ts(row, 6),
         metadata: get_json(row, 7),
+        hdc_fingerprint,
     }
 }
 

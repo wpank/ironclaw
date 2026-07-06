@@ -57,10 +57,10 @@ pub mod settings_schemas;
 
 pub use chunker::{ChunkConfig, chunk_document};
 pub use document::{
-    ADMIN_SCOPE, CONFIG_FILE_NAME, ChunkWrite, DocumentMetadata, DocumentVersion, HygieneMetadata,
-    IDENTITY_PATHS, MemoryChunk, MemoryDocument, PatchResult, VersionSummary, WorkspaceEntry,
-    content_sha256, is_config_path, is_identity_path, is_reserved_scope, merge_workspace_entries,
-    paths,
+    ADMIN_SCOPE, CONFIG_FILE_NAME, ChunkWrite, DocumentHdcFingerprint, DocumentMetadata,
+    DocumentVersion, HygieneMetadata, IDENTITY_PATHS, MemoryChunk, MemoryDocument, PatchResult,
+    VersionSummary, WorkspaceEntry, content_sha256, is_config_path, is_identity_path,
+    is_reserved_scope, merge_workspace_entries, paths,
 };
 pub use reborn_identity_context::WorkspaceIdentityContextSource;
 #[cfg(feature = "postgres")]
@@ -493,6 +493,32 @@ impl WorkspaceStorage {
             Self::Db(db) => db.prune_versions(document_id, keep_count).await,
         }
     }
+
+    #[cfg(feature = "hdc")]
+    async fn update_document_hdc_fingerprint(
+        &self,
+        id: Uuid,
+        fingerprint: &[u8],
+    ) -> Result<(), WorkspaceError> {
+        match self {
+            #[cfg(feature = "postgres")]
+            Self::Repo(repo) => repo.update_document_hdc_fingerprint(id, fingerprint).await,
+            Self::Db(db) => db.update_document_hdc_fingerprint(id, fingerprint).await,
+        }
+    }
+
+    #[cfg(feature = "hdc")]
+    async fn list_document_hdc_fingerprints(
+        &self,
+        user_id: &str,
+        agent_id: Option<Uuid>,
+    ) -> Result<Vec<crate::workspace::DocumentHdcFingerprint>, WorkspaceError> {
+        match self {
+            #[cfg(feature = "postgres")]
+            Self::Repo(repo) => repo.list_document_hdc_fingerprints(user_id, agent_id).await,
+            Self::Db(db) => db.list_document_hdc_fingerprints(user_id, agent_id).await,
+        }
+    }
 }
 
 /// Default template seeded into HEARTBEAT.md on first access.
@@ -559,6 +585,9 @@ pub struct Workspace {
     /// reads from this cache instead of hitting the database on every turn.
     /// Populated by `WorkspacePool` in multi-tenant mode.
     admin_prompt_cache: Option<Arc<tokio::sync::RwLock<Option<String>>>>,
+    /// When true, compute and store HDC fingerprints on writes (shadow mode).
+    /// Requires the `hdc` feature flag at compile time.
+    hdc_fingerprint_shadow: bool,
 }
 
 impl Workspace {
@@ -580,6 +609,7 @@ impl Workspace {
             privacy_classifier: None,
             admin_prompt_enabled: false,
             admin_prompt_cache: None,
+            hdc_fingerprint_shadow: false,
         }
     }
 
@@ -602,6 +632,7 @@ impl Workspace {
             privacy_classifier: None,
             admin_prompt_enabled: false,
             admin_prompt_cache: None,
+            hdc_fingerprint_shadow: false,
         }
     }
 
@@ -740,6 +771,32 @@ impl Workspace {
         self
     }
 
+    /// Enable HDC fingerprint computation on writes (shadow mode).
+    ///
+    /// When enabled (and the `hdc` feature is compiled in), writes compute
+    /// and store an HDC fingerprint alongside the document. Failures are
+    /// non-fatal (logged at debug level).
+    pub fn with_hdc_fingerprint_shadow(mut self, enabled: bool) -> Self {
+        self.hdc_fingerprint_shadow = enabled;
+        self
+    }
+
+    /// Enable HDC search fusion on this workspace's default search config.
+    ///
+    /// - `shadow = true, live = false`: shadow mode — scores computed, no reranking
+    /// - `shadow = false, live = true`: live mode — scores computed AND reranking applied
+    /// - `shadow = false, live = false`: HDC search disabled
+    #[cfg(feature = "hdc")]
+    pub fn with_hdc_search_mode(mut self, shadow: bool, live: bool) -> Self {
+        let enabled = shadow || live;
+        let shadow_mode = if enabled { !live } else { true };
+        self.search_defaults = self
+            .search_defaults
+            .with_hdc(enabled)
+            .with_hdc_shadow_mode(shadow_mode);
+        self
+    }
+
     /// Clone the workspace configuration for a different primary user scope.
     ///
     /// This preserves search config, embeddings, shared read scopes, memory
@@ -814,6 +871,7 @@ impl Workspace {
             privacy_classifier: self.privacy_classifier.clone(),
             admin_prompt_enabled: self.admin_prompt_enabled,
             admin_prompt_cache: self.admin_prompt_cache.clone(),
+            hdc_fingerprint_shadow: self.hdc_fingerprint_shadow,
         }
     }
 
@@ -1092,11 +1150,94 @@ impl Workspace {
         self.reindex_document_with_metadata(doc.id, Some(&metadata))
             .await?;
 
+        // HDC fingerprint (shadow mode): compute from final patched content.
+        #[cfg(feature = "hdc")]
+        {
+            if self.hdc_fingerprint_shadow && !is_engine_runtime_path(&path) {
+                if let Err(e) = self
+                    .compute_and_store_hdc_fingerprint(doc.id, &new_content, &path)
+                    .await
+                {
+                    tracing::debug!("HDC fingerprint failed after patch (non-fatal): {e}");
+                }
+            }
+        }
+
         let updated = self.storage.get_document_by_id(doc.id).await?;
         Ok(PatchResult {
             document: updated,
             replacements: count,
         })
+    }
+
+    /// Check if content at `path` is a near-duplicate of existing documents.
+    ///
+    /// Returns the dedup decision (Unique, Similar, or Duplicate). The caller
+    /// decides how to handle it (block, warn, or proceed). This method is
+    /// gated behind `#[cfg(feature = "hdc")]` and requires the HDC crate.
+    ///
+    /// Identity files are always excluded from dedup checks. When overwriting
+    /// an existing path, the existing document at that path is excluded from
+    /// the candidate set to avoid self-matching.
+    #[cfg(feature = "hdc")]
+    pub async fn check_dedup(
+        &self,
+        path: &str,
+        content: &str,
+        config: &ironclaw_hdc::dedup::DedupConfig,
+    ) -> Result<ironclaw_hdc::dedup::DedupDecision<uuid::Uuid>, WorkspaceError> {
+        use ironclaw_hdc::codebook::Codebook;
+        use ironclaw_hdc::dedup::{DedupDecision, FingerprintCandidate, check_dedup};
+        use ironclaw_hdc::{DocumentEncodingInput, HdcVector, encode_document};
+
+        let path = normalize_path(path);
+
+        // Identity files are never dedup-checked.
+        if is_identity_path(&path) {
+            return Ok(DedupDecision::Unique);
+        }
+
+        // Compute fingerprint for the new content.
+        let mut codebook = Codebook::new();
+        let fingerprint = encode_document(
+            DocumentEncodingInput {
+                content,
+                tags: &[],
+                path: &path,
+            },
+            &mut codebook,
+        );
+
+        // Load existing fingerprints scoped to user/agent.
+        let existing = self
+            .storage
+            .list_document_hdc_fingerprints(&self.user_id, self.agent_id)
+            .await?;
+
+        // Find the ID of the existing document at this path (if overwriting).
+        let existing_doc_id = self
+            .storage
+            .get_document_by_path(&self.user_id, self.agent_id, &path)
+            .await
+            .ok()
+            .map(|d| d.id);
+
+        // Build candidate set, excluding self (the document at same path).
+        let candidates: Vec<FingerprintCandidate<uuid::Uuid>> = existing
+            .iter()
+            .filter(|e| Some(e.id) != existing_doc_id)
+            .filter_map(|e| {
+                HdcVector::from_bytes(&e.fingerprint)
+                    .ok()
+                    .map(|fp| FingerprintCandidate {
+                        id: e.id,
+                        path: e.path.clone(),
+                        fingerprint: fp,
+                    })
+            })
+            .collect();
+
+        Ok(check_dedup(fingerprint, &candidates, config))
     }
 
     /// Write (create or update) a file.
@@ -1155,6 +1296,20 @@ impl Workspace {
             let _ = self
                 .reindex_document_with_metadata(doc.id, Some(&metadata))
                 .await;
+
+            // Backfill missing fingerprint for unchanged content (shadow mode).
+            #[cfg(feature = "hdc")]
+            {
+                if self.hdc_fingerprint_shadow && doc.hdc_fingerprint.is_none() {
+                    if let Err(e) = self
+                        .compute_and_store_hdc_fingerprint(doc.id, content, &path)
+                        .await
+                    {
+                        tracing::debug!("HDC fingerprint backfill failed (non-fatal): {e}");
+                    }
+                }
+            }
+
             return Ok(doc);
         }
 
@@ -1175,6 +1330,19 @@ impl Workspace {
         self.storage.update_document(doc.id, content).await?;
         self.reindex_document_with_metadata(doc.id, Some(&metadata))
             .await?;
+
+        // HDC fingerprint (shadow mode): compute and store after successful write.
+        #[cfg(feature = "hdc")]
+        {
+            if self.hdc_fingerprint_shadow {
+                if let Err(e) = self
+                    .compute_and_store_hdc_fingerprint(doc.id, content, &path)
+                    .await
+                {
+                    tracing::debug!("HDC fingerprint failed (non-fatal): {e}");
+                }
+            }
+        }
 
         // Return updated doc
         self.storage.get_document_by_id(doc.id).await
@@ -1229,6 +1397,20 @@ impl Workspace {
         self.storage.update_document(doc.id, &new_content).await?;
         self.reindex_document_with_metadata(doc.id, Some(&metadata))
             .await?;
+
+        // HDC fingerprint (shadow mode): compute from final appended content.
+        #[cfg(feature = "hdc")]
+        {
+            if self.hdc_fingerprint_shadow && !is_engine_runtime_path(&path) {
+                if let Err(e) = self
+                    .compute_and_store_hdc_fingerprint(doc.id, &new_content, &path)
+                    .await
+                {
+                    tracing::debug!("HDC fingerprint failed after append (non-fatal): {e}");
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -1335,6 +1517,20 @@ impl Workspace {
         self.storage.update_document(doc.id, content).await?;
         self.reindex_document_with_metadata(doc.id, Some(&metadata))
             .await?;
+
+        // HDC fingerprint (shadow mode): compute and store after successful write.
+        #[cfg(feature = "hdc")]
+        {
+            if self.hdc_fingerprint_shadow && !is_engine_runtime_path(&path) {
+                if let Err(e) = self
+                    .compute_and_store_hdc_fingerprint(doc.id, content, &path)
+                    .await
+                {
+                    tracing::debug!("HDC fingerprint failed (non-fatal): {e}");
+                }
+            }
+        }
+
         let document = self.storage.get_document_by_id(doc.id).await?;
         Ok(WriteResult {
             document,
@@ -1396,6 +1592,20 @@ impl Workspace {
         self.storage.update_document(doc.id, &new_content).await?;
         self.reindex_document_with_metadata(doc.id, Some(&metadata))
             .await?;
+
+        // HDC fingerprint (shadow mode): compute from final appended content.
+        #[cfg(feature = "hdc")]
+        {
+            if self.hdc_fingerprint_shadow && !is_engine_runtime_path(&path) {
+                if let Err(e) = self
+                    .compute_and_store_hdc_fingerprint(doc.id, &new_content, &path)
+                    .await
+                {
+                    tracing::debug!("HDC fingerprint failed after layer append (non-fatal): {e}");
+                }
+            }
+        }
+
         let document = self.storage.get_document_by_id(doc.id).await?;
         Ok(WriteResult {
             document,
@@ -1610,6 +1820,20 @@ impl Workspace {
         self.storage.update_document(doc.id, &new_content).await?;
         self.reindex_document_with_metadata(doc.id, Some(&metadata))
             .await?;
+
+        // HDC fingerprint (shadow mode): compute from final appended memory.
+        #[cfg(feature = "hdc")]
+        {
+            if self.hdc_fingerprint_shadow {
+                if let Err(e) = self
+                    .compute_and_store_hdc_fingerprint(doc.id, &new_content, paths::MEMORY)
+                    .await
+                {
+                    tracing::debug!("HDC fingerprint failed after memory append (non-fatal): {e}");
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -2105,7 +2329,8 @@ impl Workspace {
             None
         };
 
-        if self.is_multi_scope() {
+        #[allow(unused_mut)]
+        let mut results = if self.is_multi_scope() {
             let results = self
                 .storage
                 .hybrid_search_multi(
@@ -2130,10 +2355,10 @@ impl Workspace {
                     }
                 }
             }
-            Ok(results
+            results
                 .into_iter()
                 .filter(|r| !excluded_doc_ids.contains(&r.document_id))
-                .collect())
+                .collect()
         } else {
             self.storage
                 .hybrid_search(
@@ -2143,8 +2368,94 @@ impl Workspace {
                     embedding.as_deref(),
                     &config,
                 )
-                .await
+                .await?
+        };
+
+        // Apply HDC fusion if enabled
+        #[cfg(feature = "hdc")]
+        if config.use_hdc {
+            self.apply_hdc_to_results(query, &config, &mut results)
+                .await;
         }
+
+        Ok(results)
+    }
+
+    /// Compute HDC similarity scores for search results and apply fusion.
+    #[cfg(feature = "hdc")]
+    async fn apply_hdc_to_results(
+        &self,
+        query: &str,
+        config: &SearchConfig,
+        results: &mut Vec<SearchResult>,
+    ) {
+        use ironclaw_hdc::{HdcVector, codebook::Codebook, encode_text};
+        use std::collections::HashMap;
+
+        // Encode query text
+        let mut codebook = Codebook::new();
+        let query_hv = encode_text(query, &mut codebook);
+
+        // Load fingerprints for scoped documents
+        let fingerprints = match self
+            .storage
+            .list_document_hdc_fingerprints(&self.user_id, self.agent_id)
+            .await
+        {
+            Ok(fps) => fps,
+            Err(e) => {
+                tracing::debug!("HDC search: failed to load fingerprints: {e}");
+                return;
+            }
+        };
+
+        if fingerprints.is_empty() {
+            return;
+        }
+
+        // Compute HDC scores for each document that has a fingerprint
+        let hdc_scores: HashMap<Uuid, f64> = fingerprints
+            .iter()
+            .filter_map(|fp| {
+                HdcVector::from_bytes(&fp.fingerprint)
+                    .ok()
+                    .map(|hv| (fp.id, query_hv.similarity(hv)))
+            })
+            .collect();
+
+        search::apply_hdc_fusion(results, &hdc_scores, config);
+    }
+
+    // ==================== HDC Fingerprinting ====================
+
+    /// Compute and store an HDC fingerprint for a document (shadow mode).
+    ///
+    /// Fail-open: errors are returned to the caller for debug-level logging
+    /// but must never block writes.
+    #[cfg(feature = "hdc")]
+    async fn compute_and_store_hdc_fingerprint(
+        &self,
+        doc_id: Uuid,
+        content: &str,
+        path: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        use ironclaw_hdc::codebook::Codebook;
+        use ironclaw_hdc::{DocumentEncodingInput, encode_document};
+
+        let mut codebook = Codebook::new();
+        let fingerprint = encode_document(
+            DocumentEncodingInput {
+                content,
+                tags: &[],
+                path,
+            },
+            &mut codebook,
+        );
+
+        self.storage
+            .update_document_hdc_fingerprint(doc_id, &fingerprint.to_bytes())
+            .await?;
+        Ok(())
     }
 
     // ==================== Indexing ====================

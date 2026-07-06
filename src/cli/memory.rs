@@ -10,6 +10,10 @@ use clap::Subcommand;
 use crate::workspace::{SearchConfig, Workspace};
 use ironclaw_embeddings::{EmbeddingCacheConfig, EmbeddingProvider};
 
+#[cfg(feature = "hdc")]
+#[path = "memory/hdc_backfill.rs"]
+mod hdc_backfill;
+
 /// Run a memory command using the Database trait (works with any backend).
 pub async fn run_memory_command_with_db(
     cmd: MemoryCommand,
@@ -17,6 +21,12 @@ pub async fn run_memory_command_with_db(
     embeddings: Option<Arc<dyn EmbeddingProvider>>,
     cache_config: EmbeddingCacheConfig,
 ) -> anyhow::Result<()> {
+    // HDC backfill needs the raw db handle before it's moved into Workspace.
+    #[cfg(feature = "hdc")]
+    if let MemoryCommand::Hdc(HdcCommand::Backfill(args)) = cmd {
+        return hdc_backfill::run_hdc_backfill(args, db).await;
+    }
+
     let mut workspace = Workspace::new_with_db("default", db);
     if let Some(emb) = embeddings {
         workspace = workspace.with_embeddings_cached(emb, cache_config);
@@ -32,6 +42,13 @@ pub async fn run_memory_command_with_db(
         } => write(&workspace, &path, content, append).await,
         MemoryCommand::Tree { path, depth } => tree(&workspace, &path, depth).await,
         MemoryCommand::Status => status(&workspace).await,
+        #[cfg(feature = "hdc")]
+        MemoryCommand::Hdc(hdc_cmd) => match hdc_cmd {
+            HdcCommand::Backfill(_) => unreachable!("handled above"),
+            HdcCommand::SearchCompare { query, limit } => {
+                search_compare(&workspace, &query, limit).await
+            }
+        },
     }
 }
 
@@ -79,6 +96,28 @@ pub enum MemoryCommand {
 
     /// Show workspace status (document count, index health)
     Status,
+
+    /// HDC (Hyperdimensional Computing) fingerprint management
+    #[cfg(feature = "hdc")]
+    #[command(subcommand)]
+    Hdc(HdcCommand),
+}
+
+/// HDC fingerprint subcommands.
+#[cfg(feature = "hdc")]
+#[derive(Subcommand, Debug, Clone)]
+pub enum HdcCommand {
+    /// Backfill HDC fingerprints for existing documents
+    Backfill(hdc_backfill::HdcBackfillArgs),
+    /// Compare search rankings: FTS vs vector vs HDC
+    SearchCompare {
+        /// Search query
+        query: String,
+
+        /// Maximum number of results
+        #[arg(short, long, default_value = "10")]
+        limit: usize,
+    },
 }
 
 /// Run a memory command (PostgreSQL backend).
@@ -104,6 +143,12 @@ pub async fn run_memory_command(
         } => write(&workspace, &path, content, append).await,
         MemoryCommand::Tree { path, depth } => tree(&workspace, &path, depth).await,
         MemoryCommand::Status => status(&workspace).await,
+        #[cfg(feature = "hdc")]
+        MemoryCommand::Hdc(_) => {
+            anyhow::bail!(
+                "HDC commands require the generic database path; use run_memory_command_with_db"
+            )
+        }
     }
 }
 
@@ -249,6 +294,88 @@ async fn status(workspace: &Workspace) -> anyhow::Result<()> {
         let marker = if exists { "+" } else { "-" };
         println!("    [{}] {}", marker, path);
     }
+
+    Ok(())
+}
+
+#[cfg(feature = "hdc")]
+async fn search_compare(workspace: &Workspace, query: &str, limit: usize) -> anyhow::Result<()> {
+    let config = SearchConfig::default()
+        .with_limit(limit.min(50))
+        .with_hdc(true)
+        .with_hdc_shadow_mode(true); // shadow: compute HDC but don't change ranking
+    let results = workspace.search_with_config(query, config).await?;
+
+    if results.is_empty() {
+        println!("No results found for: {}", query);
+        return Ok(());
+    }
+
+    println!(
+        "Search comparison for \"{}\" ({} results):\n",
+        query,
+        results.len()
+    );
+
+    // Header
+    println!(
+        "{:<4} {:<40} {:>5} {:>5} {:>5} {:>8} {:>6} {:>6}",
+        "#", "Path", "FTS", "Vec", "HDC", "HDC Sim", "Score", "Delta"
+    );
+    println!("{}", "-".repeat(90));
+
+    for (i, result) in results.iter().enumerate() {
+        let final_rank = i as u32 + 1;
+        let fts_str = result
+            .fts_rank
+            .map(|r| format!("{}", r))
+            .unwrap_or_else(|| "-".to_string());
+        let vec_str = result
+            .vector_rank
+            .map(|r| format!("{}", r))
+            .unwrap_or_else(|| "-".to_string());
+        let hdc_str = result
+            .hdc_rank
+            .map(|r| format!("{}", r))
+            .unwrap_or_else(|| "-".to_string());
+        let hdc_sim_str = result
+            .hdc_score
+            .map(|s| format!("{:.3}", s))
+            .unwrap_or_else(|| "-".to_string());
+
+        // Rank delta: difference between HDC rank and final rank
+        let delta_str = match result.hdc_rank {
+            Some(hdc_r) => {
+                let delta = hdc_r as i32 - final_rank as i32;
+                if delta > 0 {
+                    format!("+{}", delta)
+                } else if delta < 0 {
+                    format!("{}", delta)
+                } else {
+                    "0".to_string()
+                }
+            }
+            None => "-".to_string(),
+        };
+
+        // Truncate path for display
+        let path = if result.document_path.len() > 38 {
+            let end = crate::util::floor_char_boundary(&result.document_path, 35);
+            format!("{}...", &result.document_path[..end])
+        } else {
+            result.document_path.clone()
+        };
+
+        println!(
+            "{:<4} {:<40} {:>5} {:>5} {:>5} {:>8} {:>6.3} {:>6}",
+            final_rank, path, fts_str, vec_str, hdc_str, hdc_sim_str, result.score, delta_str,
+        );
+    }
+
+    println!();
+    println!(
+        "Legend: FTS=full-text rank, Vec=vector rank, HDC=HDC rank, Delta=HDC rank - final rank"
+    );
 
     Ok(())
 }

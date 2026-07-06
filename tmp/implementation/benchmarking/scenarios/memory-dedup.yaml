@@ -1,6 +1,6 @@
 schema_version: 1
-id: signal_memory.near_duplicate_preference
-feature: signal_content_addressing
+id: signal_records.near_duplicate_preference
+feature: signal_records
 feature_flag_id: flag.signal_records
 flag_default: "off"
 owner: src/workspace
@@ -36,5 +36,5 @@ metric_bounds:
   rate_values_max: 1.0
   latency_ms_min: 0
 artifacts:
-  retain_memory_bodies: local_only
+  retain_memory_bodies: synthetic_local_only
   retain_raw_private_memory: false

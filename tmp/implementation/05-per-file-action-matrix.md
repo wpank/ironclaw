@@ -1,7 +1,7 @@
 # Per-Feature Action And Measurement Matrix
 
-This matrix maps concepts to IronClaw-owned implementation targets. It is
-self-contained: concept notes are background only, not source dependencies.
+This matrix maps concepts to implementation targets inside this codebase.
+Concept notes are background, not source dependencies.
 
 ## Acceptance Pattern
 

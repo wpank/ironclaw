@@ -24,7 +24,7 @@ lifecycle state, and long-running coordination.
 - Subagent spawn must use existing Reborn runner/driver/executor paths.
 - Event projections and checkpoints should explain long-running work without a
   second agent loop.
-- Pheromone-style coordination should begin as local metadata, not as external
+- Pheromone-style coordination should begin as local metadata, not as delegated
   authority.
 
 Navigation: [README](README.md) | [Verification and Safety](verification-and-safety.md) |

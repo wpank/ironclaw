@@ -29,7 +29,7 @@ Primary IronClaw areas:
 | Replay-aware SSE | Reconnect and replay are infrastructure concerns, not per-widget logic. |
 | Numbered setup wizard | Setup should show step count, validation result, and recovery path. |
 
-Captured source-path names are listed in
+Captured context is summarized in
 [priority-matrix/references.md](priority-matrix/references.md) for provenance.
 
 ## Priority 1: REPL Feedback
@@ -58,7 +58,7 @@ Measurement:
 
 ## Priority 2: Approval And Error UX
 
-Approvals and failures are high-leverage because they interrupt user flow.
+Approvals and failures matter because they interrupt user flow.
 
 Recommendations:
 
@@ -203,7 +203,7 @@ Use:
 Do not carry forward:
 
 - External branding, palettes, and theme names.
-- Live source-repo links.
+- Unsupported live source links.
 - Full dashboard scope unless a current IronClaw workflow needs it.
 - Large copied code examples.
 

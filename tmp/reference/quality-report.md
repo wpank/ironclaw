@@ -11,15 +11,15 @@ inventory counts.
 | Check | Status |
 |---|---|
 | Local Markdown links | Validate with the Node command in [Validation Commands](#validation-commands). |
-| Captured-source language | Use provenance labels; do not imply external checkout access. |
-| Count-heavy claims | Avoid unless regenerated in the same pass and clearly marked as local. |
+| Captured-source language | Use provenance labels; do not imply captured labels are local files. |
+| Count-heavy claims | Avoid unless regenerated in the same pass and marked as local. |
 | Implementation status | Phrase absence as "no equivalent identified in the local pass" unless source inspection proves more. |
 | Examples | Keep as adaptation sketches unless backed by an existing fixture or test. |
 
 ## Editorial Standard
 
 - Keep indexes short and self-contained.
-- Prefer local links over external assumptions.
+- Prefer local links over unsupported assumptions.
 - Use `Signal`, `Store`, `Cell`, and `Graph` for normalized design language;
   use `Engram`, `Substrate`, and other captured terms only when quoting source
   labels.
@@ -38,7 +38,7 @@ inventory counts.
 | Background learning | Derived memories need taint, source links, confidence, and budget caps. |
 | Gate verification | Caller-level tests are required when a helper gates a side effect. |
 | Web projections | SSE/WebSocket reconnect behavior needs idempotency coverage. |
-| Captured citations | Bibliographic details should be verified before external publication. |
+| Captured citations | Bibliographic details should be verified before public citation use. |
 
 ## Validation Commands
 

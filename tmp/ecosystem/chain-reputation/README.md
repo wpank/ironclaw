@@ -4,7 +4,7 @@
 **Priority**: high for NEAR identity exploration, marketplace trust inputs, and future multi-agent delegation.
 **Scope**: architecture and validation guidance, not production-ready contract code.
 
-This folder captures source context from a prior chain-reputation exploration, but it must not assume an external repository is available. Constants, economics, gas numbers, external protocol choices, and security properties are candidate settings or validation targets until measured in IronClaw-owned code and deployed contracts.
+This folder captures source context from a prior chain-reputation exploration, but it must stand on its own without separate code access. Constants, economics, gas numbers, external protocol choices, and security properties are candidate settings or validation targets until measured in IronClaw-owned code and deployed contracts.
 
 ## Documents
 

@@ -36,6 +36,78 @@ use crate::workspace::Workspace;
 use crate::workspace::hygiene::HygieneConfig;
 use ironclaw_llm::{ChatMessage, CompletionRequest, LlmProvider, Reasoning};
 
+// ── HDC novelty detection ──────────────────────────────────────────────────
+
+/// HDC novelty detection configuration (mirrors heartbeat config fields).
+#[cfg(feature = "hdc")]
+#[derive(Debug, Clone)]
+pub struct HeartbeatHdcConfig {
+    pub enabled: bool,
+    pub decay_factor: f32,
+    pub repeated_threshold: f64,
+    pub novel_threshold: f64,
+    pub suppress_repeated: bool,
+}
+
+/// In-memory HDC state for novelty classification.
+#[cfg(feature = "hdc")]
+struct HeartbeatHdcState {
+    accumulator: ironclaw_hdc::bundle::DecayingBundleAccumulator,
+    codebook: ironclaw_hdc::codebook::Codebook,
+}
+
+/// Classification result for a heartbeat response.
+#[cfg(feature = "hdc")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NoveltyClassification {
+    /// Response is substantially different from recent history.
+    Novel,
+    /// Response falls between novel and repeated thresholds.
+    Uncertain,
+    /// Response is very similar to recent history (likely repeated content).
+    Repeated,
+}
+
+/// Check novelty of a heartbeat response against accumulated history.
+///
+/// Encodes the response text into a hypervector, compares against the
+/// decaying summary, classifies, then adds to the accumulator.
+#[cfg(feature = "hdc")]
+fn check_novelty(
+    response_text: &str,
+    state: &mut HeartbeatHdcState,
+    config: &HeartbeatHdcConfig,
+) -> NoveltyClassification {
+    let response_hv = ironclaw_hdc::encode_text(response_text, &mut state.codebook);
+
+    let classification = if state.accumulator.count() == 0 {
+        // First observation is always novel
+        NoveltyClassification::Novel
+    } else {
+        let summary = state.accumulator.finalize();
+        let similarity = response_hv.similarity(summary);
+
+        if similarity >= config.repeated_threshold {
+            NoveltyClassification::Repeated
+        } else if similarity <= config.novel_threshold {
+            NoveltyClassification::Novel
+        } else {
+            NoveltyClassification::Uncertain
+        }
+    };
+
+    // Always add to accumulator
+    state.accumulator.add(&response_hv);
+
+    tracing::debug!(
+        ?classification,
+        count = state.accumulator.count(),
+        "heartbeat HDC novelty check"
+    );
+
+    classification
+}
+
 /// Configuration for the heartbeat runner.
 #[derive(Debug, Clone)]
 pub struct HeartbeatConfig {
@@ -184,6 +256,10 @@ pub struct HeartbeatRunner {
     response_tx: Option<mpsc::Sender<OutgoingResponse>>,
     store: Option<SystemScope>,
     consecutive_failures: u32,
+    #[cfg(feature = "hdc")]
+    hdc_state: Option<HeartbeatHdcState>,
+    #[cfg(feature = "hdc")]
+    hdc_config: Option<HeartbeatHdcConfig>,
 }
 
 impl HeartbeatRunner {
@@ -202,6 +278,10 @@ impl HeartbeatRunner {
             response_tx: None,
             store: None,
             consecutive_failures: 0,
+            #[cfg(feature = "hdc")]
+            hdc_state: None,
+            #[cfg(feature = "hdc")]
+            hdc_config: None,
         }
     }
 
@@ -214,6 +294,33 @@ impl HeartbeatRunner {
     /// Set the system-scoped database store for persistent heartbeat conversations.
     pub fn with_store(mut self, store: SystemScope) -> Self {
         self.store = Some(store);
+        self
+    }
+
+    /// Configure HDC novelty detection.
+    ///
+    /// When enabled, heartbeat responses are encoded into hypervectors and
+    /// compared against a decaying summary. If `suppress_repeated` is true,
+    /// responses classified as Repeated will not trigger notifications.
+    #[cfg(feature = "hdc")]
+    pub fn with_hdc_config(mut self, config: HeartbeatHdcConfig) -> Self {
+        if config.enabled {
+            match ironclaw_hdc::bundle::DecayingBundleAccumulator::new(config.decay_factor) {
+                Ok(accumulator) => {
+                    self.hdc_state = Some(HeartbeatHdcState {
+                        accumulator,
+                        codebook: ironclaw_hdc::codebook::Codebook::new(),
+                    });
+                    self.hdc_config = Some(config);
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "HDC novelty detection disabled: invalid decay factor: {}",
+                        e
+                    );
+                }
+            }
+        }
         self
     }
 
@@ -283,7 +390,11 @@ impl HeartbeatRunner {
                 }
             });
 
-            match self.check_heartbeat().await {
+            let result = self.check_heartbeat().await;
+            #[cfg(feature = "hdc")]
+            let result = self.apply_hdc_novelty(result);
+
+            match result {
                 HeartbeatResult::Ok => {
                     tracing::trace!("Heartbeat OK");
                     self.consecutive_failures = 0;
@@ -399,6 +510,31 @@ impl HeartbeatRunner {
         HeartbeatResult::NeedsAttention(content.to_string())
     }
 
+    /// Apply HDC novelty classification to a NeedsAttention result.
+    ///
+    /// Returns `HeartbeatResult::Ok` (suppressing notification) when the
+    /// response is classified as Repeated and `suppress_repeated` is enabled.
+    /// Otherwise returns the original result unchanged.
+    #[cfg(feature = "hdc")]
+    fn apply_hdc_novelty(&mut self, result: HeartbeatResult) -> HeartbeatResult {
+        let HeartbeatResult::NeedsAttention(ref text) = result else {
+            return result;
+        };
+
+        let (Some(config), Some(state)) = (&self.hdc_config, &mut self.hdc_state) else {
+            return result;
+        };
+
+        let classification = check_novelty(text, state, config);
+
+        if config.suppress_repeated && classification == NoveltyClassification::Repeated {
+            tracing::debug!("heartbeat response suppressed: classified as Repeated");
+            return HeartbeatResult::Ok;
+        }
+
+        result
+    }
+
     /// Send a notification about heartbeat findings.
     async fn send_notification(&self, message: &str) {
         let Some(ref tx) = self.response_tx else {
@@ -510,6 +646,31 @@ pub fn spawn_heartbeat(
     if let Some(s) = store {
         runner = runner.with_store(s);
     }
+
+    tokio::spawn(async move {
+        runner.run().await;
+    })
+}
+
+/// Spawn the heartbeat runner with HDC novelty detection enabled.
+#[cfg(feature = "hdc")]
+pub fn spawn_heartbeat_with_hdc(
+    config: HeartbeatConfig,
+    hygiene_config: HygieneConfig,
+    workspace: Arc<Workspace>,
+    llm: Arc<dyn LlmProvider>,
+    response_tx: Option<mpsc::Sender<OutgoingResponse>>,
+    store: Option<SystemScope>,
+    hdc_config: HeartbeatHdcConfig,
+) -> tokio::task::JoinHandle<()> {
+    let mut runner = HeartbeatRunner::new(config, hygiene_config, workspace, llm);
+    if let Some(tx) = response_tx {
+        runner = runner.with_response_channel(tx);
+    }
+    if let Some(s) = store {
+        runner = runner.with_store(s);
+    }
+    runner = runner.with_hdc_config(hdc_config);
 
     tokio::spawn(async move {
         runner.run().await;
@@ -971,5 +1132,161 @@ mod tests {
         let config =
             HeartbeatConfig::default().with_fire_at(time, Some("Europe/London".to_string()));
         assert_eq!(config.resolved_tz(), chrono_tz::Europe::London);
+    }
+
+    // ==================== HDC novelty detection ====================
+
+    #[cfg(feature = "hdc")]
+    mod hdc_tests {
+        use super::super::*;
+
+        fn default_hdc_config() -> HeartbeatHdcConfig {
+            HeartbeatHdcConfig {
+                enabled: true,
+                decay_factor: 0.93,
+                repeated_threshold: 0.80,
+                novel_threshold: 0.60,
+                suppress_repeated: false,
+            }
+        }
+
+        fn make_hdc_state(decay: f32) -> HeartbeatHdcState {
+            HeartbeatHdcState {
+                accumulator: ironclaw_hdc::bundle::DecayingBundleAccumulator::new(decay).unwrap(),
+                codebook: ironclaw_hdc::codebook::Codebook::new(),
+            }
+        }
+
+        #[test]
+        fn first_observation_is_always_novel() {
+            let config = default_hdc_config();
+            let mut state = make_hdc_state(config.decay_factor);
+
+            let result = check_novelty(
+                "The server is down and needs attention",
+                &mut state,
+                &config,
+            );
+            assert_eq!(result, NoveltyClassification::Novel);
+            assert_eq!(state.accumulator.count(), 1);
+        }
+
+        #[test]
+        fn repeated_text_classified_as_repeated() {
+            let config = default_hdc_config();
+            let mut state = make_hdc_state(config.decay_factor);
+
+            let text = "The build is broken on main branch, CI is failing";
+
+            // Feed the same text multiple times to saturate the accumulator
+            for _ in 0..10 {
+                check_novelty(text, &mut state, &config);
+            }
+
+            // Same text again should be Repeated
+            let result = check_novelty(text, &mut state, &config);
+            assert_eq!(result, NoveltyClassification::Repeated);
+        }
+
+        #[test]
+        fn different_text_classified_as_novel() {
+            let config = default_hdc_config();
+            let mut state = make_hdc_state(config.decay_factor);
+
+            // Build up history with one topic
+            for _ in 0..10 {
+                check_novelty("The build is broken on main branch", &mut state, &config);
+            }
+
+            // Completely different text should be Novel
+            let result = check_novelty(
+                "Your calendar shows a dentist appointment tomorrow at 3pm",
+                &mut state,
+                &config,
+            );
+            assert_eq!(result, NoveltyClassification::Novel);
+        }
+
+        #[test]
+        fn accumulator_count_increments() {
+            let config = default_hdc_config();
+            let mut state = make_hdc_state(config.decay_factor);
+
+            check_novelty("first message", &mut state, &config);
+            check_novelty("second message", &mut state, &config);
+            check_novelty("third message", &mut state, &config);
+
+            assert_eq!(state.accumulator.count(), 3);
+        }
+
+        #[test]
+        fn hdc_state_creation_valid_decay() {
+            let state = make_hdc_state(0.93);
+            assert_eq!(state.accumulator.count(), 0);
+            assert!(state.codebook.is_empty());
+        }
+
+        #[test]
+        fn hdc_state_creation_invalid_decay_fails() {
+            // Decay factor of 0.0 should fail
+            let result = ironclaw_hdc::bundle::DecayingBundleAccumulator::new(0.0);
+            assert!(result.is_err());
+
+            // Decay factor of 1.0 should fail
+            let result = ironclaw_hdc::bundle::DecayingBundleAccumulator::new(1.0);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn similar_but_not_identical_text_is_uncertain() {
+            let config = default_hdc_config();
+            let mut state = make_hdc_state(config.decay_factor);
+
+            // Build up history with build failure messages
+            for _ in 0..5 {
+                check_novelty(
+                    "The build failed on main branch due to test failures in CI pipeline",
+                    &mut state,
+                    &config,
+                );
+            }
+
+            // Slightly varied message — similar topic, different wording
+            // This tests the "uncertain" zone between thresholds
+            let result = check_novelty(
+                "Build on main branch has test failures, CI pipeline reports errors",
+                &mut state,
+                &config,
+            );
+            // Similar content: should be Repeated or Uncertain (not Novel)
+            assert_ne!(result, NoveltyClassification::Novel);
+        }
+
+        #[test]
+        fn decay_allows_old_topics_to_become_novel_again() {
+            // Use aggressive decay so old observations are forgotten quickly
+            let config = HeartbeatHdcConfig {
+                decay_factor: 0.5, // very aggressive decay
+                ..default_hdc_config()
+            };
+            let mut state = make_hdc_state(config.decay_factor);
+
+            let old_text = "The build is broken on main branch";
+            let new_text = "Server disk space is running low, need cleanup";
+
+            // Add old topic
+            for _ in 0..3 {
+                check_novelty(old_text, &mut state, &config);
+            }
+
+            // Flood with different topic to push out old memory
+            for _ in 0..20 {
+                check_novelty(new_text, &mut state, &config);
+            }
+
+            // Now the old text should appear novel again (forgotten)
+            let result = check_novelty(old_text, &mut state, &config);
+            assert_eq!(result, NoveltyClassification::Novel);
+        }
     }
 }

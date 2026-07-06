@@ -594,6 +594,14 @@ impl AppBuilder {
                 );
             }
             ws = ws.with_memory_layers(self.config.workspace.memory_layers.clone());
+            ws = ws.with_hdc_fingerprint_shadow(self.config.workspace.hdc.fingerprint_shadow);
+            #[cfg(feature = "hdc")]
+            {
+                ws = ws.with_hdc_search_mode(
+                    self.config.workspace.hdc.search_shadow,
+                    self.config.workspace.hdc.search_live,
+                );
+            }
 
             // Memory tools must resolve by `ctx.user_id`, not a fixed startup
             // workspace. Even outside authenticated multi-tenant mode, some

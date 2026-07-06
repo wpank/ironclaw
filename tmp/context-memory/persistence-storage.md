@@ -1,6 +1,6 @@
-# Roko Persistence and Storage Layer
+# Captured Persistence and Storage Patterns
 
-**Source crate**: `roko-fs` (``crates/roko-fs/``)
+**Source corpus**: captured `roko-fs` crate (`crates/roko-fs/`)
 
 > **Companion documents**: [universal-engram.md](../core-concepts/universal-engram.md) (Engram struct, decay, content hashing), [budget-composition.md](budget-composition.md) (cache-aware prompt assembly that reads stored Engrams), [code-intelligence.md](code-intelligence.md) (hybrid search layer that writes Engrams), [schemas/02-storage-and-migrations.md](../implementation/schemas/02-storage-and-migrations.md) (backend migrations), [schemas/04-canonical-event-and-persistence-contract.md](../implementation/schemas/04-canonical-event-and-persistence-contract.md) (persistent event shapes).
 
@@ -9,15 +9,15 @@
 ## Table of Contents
 
 1. [Storage Philosophy: Why Append-Only JSONL](#1-storage-philosophy-why-append-only-jsonl)
-2. [The Store Trait — The Kernel Storage Contract](#2-the-store-trait--the-kernel-storage-contract)
-3. [The Engram — What Gets Stored](#3-the-engram--what-gets-stored)
-4. [FileSubstrate — The Crash-Safe JSONL Storage Engine](#4-filesubstrate--the-crash-safe-jsonl-storage-engine)
+2. [The Store Trait — The Kernel Storage Contract](#2-the-store-trait-the-kernel-storage-contract)
+3. [The Engram — What Gets Stored](#3-the-engram-what-gets-stored)
+4. [FileSubstrate — The Crash-Safe JSONL Storage Engine](#4-filesubstrate-the-crash-safe-jsonl-storage-engine)
 5. [Crash-Safe Write Protocols](#5-crash-safe-write-protocols)
-6. [The Directory Layout — `.roko/` Structure](#6-the-directory-layout--roko-structure)
-7. [Hot/Cold Tiering — The ColdStore Trait](#7-hotcold-tiering--the-coldstore-trait)
+6. [The Directory Layout — `.roko/` Structure](#6-the-directory-layout-roko-structure)
+7. [Hot/Cold Tiering — The ColdStore Trait](#7-hotcold-tiering-the-coldstore-trait)
 8. [The GC (Garbage Collection) Engine](#8-the-gc-garbage-collection-engine)
 9. [Specialized JSONL Sinks](#9-specialized-jsonl-sinks)
-10. [The Archiver — Compressing Old Data Into Summaries](#10-the-archiver--compressing-old-data-into-summaries)
+10. [The Archiver — Compressing Old Data Into Summaries](#10-the-archiver-compressing-old-data-into-summaries)
 11. [Crash Recovery Architecture](#11-crash-recovery-architecture)
 12. [The Observability Layer](#12-the-observability-layer)
 13. [Design Patterns Summary](#13-design-patterns-summary)
@@ -37,14 +37,14 @@
 
 Traditional databases optimize for mutable rows, indexes, and transactions. An agent also needs an audit trail: decisions, tool calls, observations, and intermediate results must remain explainable after the fact. Append-only storage is one way to preserve that history; it is a tradeoff, not a replacement for IronClaw's database-backed persistence.
 
-Roko uses **append-only JSONL** (JSON Lines) files — one JSON object per line, appended sequentially, never overwritten. This draws on a long tradition in systems engineering:
+The captured storage design uses **append-only JSONL** (JSON Lines) files — one JSON object per line, appended sequentially instead of updated in place. This draws on a long tradition in systems engineering:
 
 - **Log-structured file systems** (Rosenblum and Ousterhout, 1992) showed sequential writes yield higher throughput than random in-place updates [1].
 - **Write-ahead logging** (ARIES, Mohan et al., 1992) showed durability and crash recovery can be achieved by writing intentions to a sequential log before applying them [2, 3].
 - **Event sourcing** (Fowler, 2005) established storing state as an immutable append-only sequence of domain events, with state reconstructed by replaying the log [4, 5].
 - **ESAA-Conversational** (2026) independently validated event sourcing as the persistence backbone for AI coding agent memory [13].
 
-Roko's JSONL approach is a simplification of all three: the log *is* the data, the journal, and the event store.
+This JSONL approach is a simplification of all three: the log *is* the data, the journal, and the event store.
 
 ### 1.2 Properties of Append-Only JSONL
 
@@ -79,7 +79,7 @@ Example from `.roko/tool_audit.jsonl`:
 
 ## 2. The Store Trait — The Kernel Storage Contract
 
-Everything in roko flows through the `Store` trait. Full definition from `crates/roko-core/src/traits.rs`, lines 37-80:
+All captured storage operations flow through the `Store` trait. Full definition from `crates/roko-core/src/traits.rs`, lines 37-80:
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
@@ -113,7 +113,7 @@ PointerStore            — large payload offloading
 
 ## 3. The Engram — What Gets Stored
 
-The universal datum in roko is the **Engram** — a content-addressed, scored, decaying, lineage-tracked record. Every event, tool call, agent output, gate verdict, episode, and knowledge entry is an Engram. Full details on the Engram type — its seven scoring axes, `Decay` variants, and `ContentHash` computation — are in [universal-engram.md](../core-concepts/universal-engram.md). The struct definition from `crates/roko-core/src/engram.rs`, lines 62-98:
+The captured model stores an **Engram**: a content-addressed, scored, decaying, lineage-tracked record. Events, tool calls, agent outputs, gate verdicts, episodes, and knowledge entries share that representation. Full details on the Engram type — its seven scoring axes, `Decay` variants, and `ContentHash` computation — are in [universal-engram.md](../core-concepts/universal-engram.md). The struct definition from `crates/roko-core/src/engram.rs`, lines 62-98:
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
@@ -149,7 +149,7 @@ BLAKE3 is used for all content addressing: 10-20x faster than SHA-256 on modern 
 
 ## 4. FileSubstrate — The Crash-Safe JSONL Storage Engine
 
-`FileSubstrate` is the concrete `Store` implementation in `roko-fs` and the default production backend.
+`FileSubstrate` is the captured `Store` implementation in `roko-fs`.
 
 ### 4.1 Structure and Initialization
 
@@ -318,7 +318,7 @@ The `RokoLayout` struct (in `crates/roko-fs/src/layout.rs`) provides a typed pat
 
 ## 7. Hot/Cold Tiering — The ColdStore Trait
 
-Roko implements a two-tier storage architecture [12]. Active data stays in the fast in-memory index ("hot"). Aged-out data moves to compressed monthly archives ("cold").
+The captured design implements a two-tier storage architecture [12]. Active data stays in the fast in-memory index ("hot"). Aged-out data moves to compressed monthly archives ("cold").
 
 ### 7.1 The ColdStore Trait
 
@@ -704,11 +704,11 @@ classDiagram
     SubstrateMigrator ..> ArchiveColdSubstrate : writes to
 ```
 
-### 14.5 Roko vs IronClaw Storage Architecture
+### 14.5 Captured JSONL Pattern vs IronClaw Storage Architecture
 
 ```mermaid
 graph LR
-    subgraph Roko["Roko — roko-fs"]
+    subgraph SourceCorpus["Captured source corpus — roko-fs"]
         direction TB
         RHot["Hot Store\nFileSubstrate\nJSONL + HashMap"]
         RCold["Cold Store\nArchiveColdSubstrate\nMonthly JSONL"]
@@ -732,7 +732,7 @@ graph LR
 
     RHot -.->|"pattern adoption:\nRetentionPolicy\nToolAuditLog\ncontent-hash dedup\ntemporal decay"| IDB
 
-    style Roko fill:#f0f7ff,stroke:#2563eb
+    style SourceCorpus fill:#f0f7ff,stroke:#2563eb
     style IronClaw fill:#fff7f0,stroke:#ea580c
 ```
 
@@ -751,7 +751,7 @@ graph LR
 
 **Comparison with SQL-based approaches:**
 
-| Operation | roko FileSubstrate | PostgreSQL INSERT | libSQL INSERT |
+| Operation | Captured `FileSubstrate` | PostgreSQL INSERT | libSQL INSERT |
 |---|---|---|---|
 | Single record write | ~50,000 ops/sec | ~10,000-20,000 ops/sec | ~5,000-10,000 ops/sec |
 | Batch 100 records | ~2M records/sec | ~200,000-500,000 records/sec | ~50,000-100,000 records/sec |
@@ -776,7 +776,7 @@ Single-threaded sequential I/O with JSON parsing. Periodic compaction keeps reco
 
 | Format | Space overhead | Compressibility |
 |---|---|---|
-| JSONL (roko default) | ~2-4x raw data (key names repeated) | ~70-80% gzip ratio |
+| JSONL (captured default) | ~2-4x raw data (key names repeated) | ~70-80% gzip ratio |
 | MessagePack | ~1.2-1.5x raw data | ~60-70% gzip ratio |
 | SQLite B-tree | ~1.5-2x raw data | ~50-60% gzip ratio |
 | PostgreSQL JSONB | ~2-3x raw data | ~65-75% gzip ratio |
@@ -853,7 +853,7 @@ Default k=60. Two fusion strategies: `Rrf` (default) and `WeightedScore`. Docume
 
 ### 17.3 Architectural Comparison
 
-| Concern | Roko (roko-fs) | IronClaw (src/db/) |
+| Concern | Captured `roko-fs` Pattern | IronClaw (`src/db/`) |
 |---|---|---|
 | **Storage engine** | Append-only JSONL + in-memory HashMap | PostgreSQL / libSQL relational tables |
 | **Hot storage** | `FileSubstrate` (JSONL + in-memory index) | B-tree + vector indexes |
@@ -871,31 +871,31 @@ Default k=60. Two fusion strategies: `Rrf` (default) and `WeightedScore`. Docume
 | **Search** | In-memory filter + optional HDC similarity | Hybrid FTS + vector via RRF |
 | **Settings writes** | `atomic_write_json()` (write-tmp-rename) | Direct `std::fs::write` in `src/settings.rs:1319` |
 
-### 17.4 What Roko Gets Right That IronClaw Could Adopt
+### 17.4 Captured Patterns Worth Adopting
 
-**1. Formalized retention policies.** Roko's `RetentionPolicy` makes GC behavior explicit, configurable, and testable. IronClaw has the "LLM data is never deleted" invariant for core tables but no formalized policy for non-LLM data (cache entries, old WASM tool binaries, `repair_attempts`). A retention policy type would make GC behavior testable and auditable.
+**1. Formalized retention policies.** The captured `RetentionPolicy` makes GC behavior explicit, configurable, and testable. IronClaw has the "LLM data is never deleted" invariant for core tables but no formalized policy for non-LLM data (cache entries, old WASM tool binaries, `repair_attempts`). A retention policy type would make GC behavior testable and auditable.
 
 **2. Hot/cold tiering for workspace memory.** IronClaw's workspace accumulates `memory_chunks` rows over time. For the libSQL backend (a single SQLite file), unbounded growth degrades both FTS5 and vector index performance. A cold tier could archive low-relevance old chunks while keeping them retrievable.
 
 **3. Append-only audit logs for tool dispatches.** IronClaw routes all actions through `ToolDispatcher::dispatch()` and records `ActionRecord`s in `job_actions`. A complementary append-only JSONL audit log would improve live observability; tamper evidence requires hash chaining, signed checkpoints, or external log shipping.
 
-**4. Content-addressed deduplication for workspace chunks.** Roko's `ContentHash` makes `put()` idempotent. IronClaw's `memory_write` uses path-based addressing, and `content_sha256()` already exists in `src/workspace/document.rs`. Applying it at the chunk level would prevent duplicate chunks when the same content is written to different paths.
+**4. Content-addressed deduplication for workspace chunks.** The captured `ContentHash` makes `put()` idempotent. IronClaw's `memory_write` uses path-based addressing, and `content_sha256()` already exists in `src/workspace/document.rs`. Applying it at the chunk level would prevent duplicate chunks when the same content is written to different paths.
 
-**5. Temporal decay for memory relevance.** Roko's `Decay` model provides principled relevance reduction without deletion. IronClaw's `memory_search` could weight results by temporal decay, improving result relevance for long-lived agents. This also improves cache behavior described in [budget-composition.md](budget-composition.md) §2 ("The U-Shaped Attention Curve") — decayed results land lower in the budget auction.
+**5. Temporal decay for memory relevance.** The captured `Decay` model provides relevance reduction without deletion. IronClaw's `memory_search` could weight results by temporal decay, improving result relevance for long-lived agents. This also improves cache behavior described in [budget-composition.md](budget-composition.md) §2 ("The U-Shaped Attention Curve") — decayed results land lower in the budget auction.
 
 **6. Crash-safe settings writes.** `src/settings.rs` writes settings via direct `std::fs::write` (line 1319). The write-tmp-rename pattern would protect against corruption if the process is killed during a settings update.
 
-### 17.5 What IronClaw Gets Right That Roko Cannot Match
+### 17.5 Where IronClaw's Existing Architecture Is Stronger
 
-**1. Multi-user isolation.** IronClaw's database model natively supports multiple users with scope isolation. Roko's `.roko/` directory is single-user.
+**1. Multi-user isolation.** IronClaw's database model natively supports multiple users with scope isolation. The captured `.roko/` directory layout is single-user.
 
-**2. ACID transactions.** PostgreSQL backend provides full transaction support. Roko's append-only model has no rollback.
+**2. ACID transactions.** The PostgreSQL backend provides full transaction support. The captured append-only model has no rollback.
 
-**3. Rich query capabilities.** SQL joins, aggregations, and complex filters with database-level optimization. Roko's in-memory scan is O(N) over the entire dataset.
+**3. Rich query capabilities.** SQL joins, aggregations, and complex filters get database-level optimization. The captured in-memory scan is O(N) over the full dataset.
 
-**4. Native hybrid search.** IronClaw's hybrid FTS + vector search via RRF with configurable fusion strategies is more mature as an information retrieval system than roko's HDC similarity search.
+**4. Native hybrid search.** IronClaw's hybrid FTS + vector search via RRF with configurable fusion strategies is already production-integrated. The captured HDC similarity search is useful as an additional structural signal, not a replacement.
 
-**5. Horizontal scalability.** PostgreSQL streaming replication and Turso edge sync provide paths to horizontal scaling that flat-file JSONL cannot match.
+**5. Horizontal scalability.** PostgreSQL streaming replication and Turso edge sync provide paths to horizontal scaling. Flat-file JSONL is not a substitute for those deployment models.
 
 ---
 
@@ -948,7 +948,7 @@ Migration notes:
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
-Aligns with Ebbinghaus forgetting curve research [8] applied in roko's `Decay::HalfLife` variant.
+Aligns with Ebbinghaus forgetting curve research [8] applied in the captured `Decay::HalfLife` variant.
 
 ### 18.7 Migration Parity Runbook
 
@@ -982,7 +982,7 @@ Any new persistence operation under this plan must preserve PostgreSQL/libSQL pa
 
 [7] StoneFly, "Content Addressable Storage: CAS, Deduplication Explained." https://stonefly.com/blog/content-addressable-storage-enterprise-guide/
 
-[8] H. Ebbinghaus, *Über das Gedächtnis: Untersuchungen zur experimentellen Psychologie*, Leipzig: Duncker & Humblot, 1885. The original forgetting curve research showing exponential memory decay with time, which roko's `Decay::Ebbinghaus` variant models.
+[8] H. Ebbinghaus, *Über das Gedächtnis: Untersuchungen zur experimentellen Psychologie*, Leipzig: Duncker & Humblot, 1885. The original forgetting curve research showing exponential memory decay with time, which the captured `Decay::Ebbinghaus` variant models.
 
 [9] P. O'Neil, E. Cheng, D. Gawlick, and E. O'Neil, "The Log-Structured Merge-Tree (LSM-Tree)," *Acta Informatica*, vol. 33, no. 4, pp. 351-385, 1996. See also: Y. Zhang et al., "Rethinking LSM-tree based Key-Value Stores: A Survey," arXiv:2507.09642, Jul. 2025. https://arxiv.org/html/2507.09642v1
 
@@ -1010,6 +1010,5 @@ Any new persistence operation under this plan must preserve PostgreSQL/libSQL pa
 
 ---
 
-**Source root**: ````
-**Module map**: `crates/roko-fs/src` — `file_substrate.rs`, `cold_substrate.rs`, `gc.rs`, `archive.rs`, `atomic.rs`, `layout.rs`, `trace_sink.rs`, `tool_audit.rs`, `metrics.rs`, `tool_metrics_sink.rs`, `pointer.rs`, `bandit.rs`, `observability.rs`
+**Captured module map**: `crates/roko-fs/src` — `file_substrate.rs`, `cold_substrate.rs`, `gc.rs`, `archive.rs`, `atomic.rs`, `layout.rs`, `trace_sink.rs`, `tool_audit.rs`, `metrics.rs`, `tool_metrics_sink.rs`, `pointer.rs`, `bandit.rs`, `observability.rs`
 **Last updated**: 2026-07-03

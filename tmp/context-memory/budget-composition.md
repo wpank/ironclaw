@@ -1,6 +1,6 @@
 # Budget-Constrained Prompt Composition
 
-**Source provenance**: captured `roko-compose` crate (`crates/roko-compose/src/`)
+**Source provenance**: captured source-corpus crate `roko-compose` (`crates/roko-compose/src/`)
 **Priority**: MEDIUM — enhances system prompt building and context management
 **Key modules**: `prompt.rs`, `auction.rs`, `scorer.rs`, `budget.rs`, `system_prompt_builder.rs`, `attention.rs`, `foraging.rs`, `strategy.rs`, `context_provider.rs`, `budget_predictor.rs`, `cost_attribution.rs`
 
@@ -46,9 +46,9 @@ Prompt composition is the process of assembling the text that gets sent to a lar
 - **Memory** (relevant past experiences, knowledge entries, heuristics)
 - **Conversation history** (prior turns, user instructions, error feedback)
 - **Skills and playbooks** (domain-specific techniques, learned strategies)
-- **Coordination signals** (peer agent pheromones, dependency outputs)
+- **Coordination signals** (peer-agent outputs, dependency handoffs)
 
-When the total token cost of all these components exceeds the model's context window, the system must make triage decisions. Naive approaches — fixed priority ordering, round-robin, or truncating at the end — waste tokens on low-value content while starving high-value content of space. Worse, research shows that simply filling the context window degrades output quality because LLMs attend unevenly to content at different positions.
+When the total token cost of all these components exceeds the model's context window, the system must make triage decisions. Simple approaches — fixed priority ordering, round-robin, or truncating at the end — often spend tokens on low-value content while starving high-value content of space. Research on long-context retrieval also shows that filling the context window is not enough, because models attend unevenly to content at different positions.
 
 **Budget-constrained prompt composition** treats prompt assembly as a formal resource-allocation problem. Rather than ad hoc concatenation, it applies:
 
@@ -67,7 +67,7 @@ The captured `roko-compose` material describes this pipeline. This document keep
 
 Large language models attend unevenly to content at different positions in the prompt. Liu et al. (2024) demonstrate a U-shaped attention curve in their paper "Lost in the Middle: How Language Models Use Long Contexts": models attend most strongly to content at the **beginning** (primacy effect) and **end** (recency effect) of the context window, with significantly degraded attention to content in the **middle**.
 
-This is not a minor effect. The degradation can be severe enough that a model shown 10 relevant documents performs worse at retrieval when the answer is in document 5 than when shown only a single relevant document. The middle of the context window is an attention dead zone.
+The degradation can be large enough that a model shown 10 relevant documents performs worse at retrieval when the answer is in document 5 than when shown only a single relevant document. The middle of the context window is a lower-attention region, not a neutral holding area.
 
 > **Citation**: Liu, N. F., Lin, K., Hewitt, J., Paranjape, A., Bevilacqua, M., Petroni, F., & Liang, P. (2024). Lost in the Middle: How Language Models Use Long Contexts. *Transactions of the Association for Computational Linguistics*, 12, 157-173. [ACL Anthology](https://aclanthology.org/2024.tacl-1.9/)
 
@@ -105,7 +105,7 @@ xychart-beta
     line [0.715, 0.643, 0.590, 0.551, 0.519, 0.495, 0.487, 0.494, 0.524, 0.589, 0.667]
 ```
 
-The curve shows the primacy peak at the start (0.715), the trough at middle (0.495 — a 31% drop), and the recency peak at the end (0.667). **Implication**: place critical content at start or end; never put must-read content in the middle.
+The curve shows the primacy peak at the start (0.715), the trough at middle (0.495 — a 31% drop), and the recency peak at the end (0.667). **Implication**: prefer start or end placement for must-read content; reserve the middle for material that can tolerate lower attention.
 
 ### 2.4 Placement Zones
 
@@ -134,7 +134,7 @@ pub const fn placement_adjusted_score(base_score: f64, placement: Placement) -> 
     match placement {
         Placement::Start  => base_score,         // 1.00x -- full attention zone
         Placement::End    => base_score * 0.95,  // 0.95x -- strong attention zone
-        Placement::Middle => base_score * 0.70,  // 0.70x -- attention dead zone
+        Placement::Middle => base_score * 0.70,  // 0.70x -- lower-attention region
     }
 }
 ```
@@ -307,7 +307,7 @@ Each prompt section belongs to a cognitive subsystem that "bids" for its inclusi
 
 ### 6.1 Background: Why an Auction?
 
-When total content exceeds the token budget, the system must decide which sections to include. Roko borrows the VCG idea of pricing the **externality** a selected section imposes on excluded sections, but the implementation shown below is a greedy, density-based approximation. Treat the payment as a useful diagnostic and learning signal, not as a formal mechanism-design proof.
+When total content exceeds the token budget, the system must decide which sections to include. The captured allocator borrows the VCG idea of pricing the **externality** a selected section imposes on excluded sections, but the implementation shown below is a greedy, density-based approximation. Treat the payment as a useful diagnostic and learning signal, not as a formal mechanism-design proof.
 
 > **Citations**:
 > - Vickrey, W. (1961). Counterspeculation, Auctions, and Competitive Sealed Tenders. *The Journal of Finance*, 16(1), 8-37. [Wiley](https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1540-6261.1961.tb02789.x)
@@ -588,7 +588,7 @@ The `PromptComposer` implements the `Compose` trait. It takes a set of `Signal<P
 flowchart TD
     S1["STEP 1: Decode\nDecode all input sections\nfrom signal bodies.\nDrop any that fail to decode\n(provenance-tainted or wrong kind)."] --> S2
     S2["STEP 2: Partition\nSplit into Critical\nand Optional sections.\nCritical sections must fit\nor composition errors."] --> S3
-    S3["STEP 3: Budget check\nIf Critical sections alone exceed\nthe budget, return an error.\nSafety rules must never be silently dropped."] --> S4
+    S3["STEP 3: Budget check\nIf Critical sections alone exceed\nthe budget, return an error.\nSafety rules fail closed instead of being silently dropped."] --> S4
     S4["STEP 4: Score\nCompute bid density for each\nOptional section:\nbid = score × learned_multiplier\ndensity = bid / estimated_tokens"] --> S5
     S5["STEP 5: Dedup (COMP-04)\nIf HDC dedup is enabled,\nremove near-duplicate candidates\n(cosine similarity > threshold).\nPrevent redundant token usage."] --> S6
     S6["STEP 6: Forage (COMP-03)\nIf MultiPatchForager is configured,\napply MVT stopping rule\nto limit candidates per source.\nPrevent over-retrieval from one source."] --> S7
@@ -1138,7 +1138,7 @@ Memory docs are retrieved in `executor/context.rs` via `RetrievalEngine::retriev
 
 Persist learning state through IronClaw-owned storage, not ad hoc files in the
 user's home directory. The implementation should add typed DB/workspace methods
-with PostgreSQL and libSQL parity, then expose a small repository facade to the
+with PostgreSQL and libSQL parity, then expose a small storage facade to the
 prompt composer.
 
 | Logical record | Content | Update Frequency |
@@ -1151,7 +1151,7 @@ Add the persistence API to the shared DB/workspace facade first, then implement 
 
 ### 19.8 Mapping IronClaw Layers to 9-Layer Model
 
-| Roko Layer | IronClaw Equivalent | Source | Cache Tier | Placement |
+| Source-Corpus Layer | IronClaw Equivalent | Source | Cache Tier | Placement |
 |------------|-------------------|--------|------------|-----------|
 | 1. Role identity | CodeAct preamble + marker | `CODEACT_PREAMBLE` + `CODEACT_SYSTEM_PROMPT_MARKER` | Role | Start |
 | 2. Conventions | (Not yet present) | Future: project CLAUDE.md injection | Role | Start |
@@ -1177,7 +1177,7 @@ Add the persistence API to the shared DB/workspace facade first, then implement 
 | `RetrievalEngine` budget integration | ~80 | None | Wraps existing call |
 | Skills auction integration | ~60 | None | Extends existing pipeline |
 | Anthropic cache_control wiring | ~80 | LLM crate | Minor change to API call builder |
-| `LearningState` persistence | ~120 | `serde_json`, `tokio::fs` | Both already in project |
+| `LearningState` persistence | ~180 | DB backends | Add shared facade plus PostgreSQL/libSQL parity |
 | `BudgetPredictor` (EMA) | ~100 | None | Simple EMA math |
 | `SectionInfluence` (lift tracking) | ~80 | None | Simple counters |
 | Tests (unit + integration) | ~300 | None | Test through caller per CLAUDE.md |
@@ -1200,7 +1200,7 @@ Add the persistence API to the shared DB/workspace facade first, then implement 
 
 ## 21. Captured Source Identifier Reference {#21-source-reference}
 
-All source references below are captured-source identifiers, not links to an accessible external checkout:
+All source references below are captured-source identifiers; do not treat them as paths in this workspace.
 
 | Module | Captured identifier | What It Contains |
 |--------|-----------|-----------------|

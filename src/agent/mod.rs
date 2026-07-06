@@ -61,6 +61,8 @@ pub(crate) use dispatcher::strip_suggestions;
 pub use heartbeat::{
     HeartbeatConfig, HeartbeatResult, HeartbeatRunner, spawn_heartbeat, spawn_multi_user_heartbeat,
 };
+#[cfg(feature = "hdc")]
+pub use heartbeat::{HeartbeatHdcConfig, NoveltyClassification, spawn_heartbeat_with_hdc};
 pub use router::{MessageIntent, Router};
 pub use routine::{Routine, RoutineAction, RoutineRun, Trigger};
 pub use routine_engine::{RoutineEngine, SandboxReadiness};

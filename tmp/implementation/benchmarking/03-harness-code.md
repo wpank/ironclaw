@@ -1,8 +1,8 @@
 # Benchmark Harness Code
 
-This is a compact implementation sketch for `ironclaw-bench`. Keep the real
-runner small: load a scenario, execute baseline and candidate through adapters,
-write JSONL, compare bounded metrics, emit a verdict.
+This is a compact implementation sketch for `ironclaw-bench`. Keep the runner
+small: load a scenario, execute baseline and candidate through adapters, write
+JSONL, compare bounded metrics, emit a verdict.
 
 ## JSONL Event
 
@@ -91,8 +91,8 @@ pub trait ScenarioAdapter {
 }
 ```
 
-Adapters must call the production boundary under test: provider wrapper,
-workspace facade, heartbeat routine, gate caller, or web handler.
+Adapters must call the caller boundary under test: provider wrapper, workspace
+facade, heartbeat routine, gate caller, or web handler.
 
 ## Report Shape
 

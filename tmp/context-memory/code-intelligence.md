@@ -1,6 +1,6 @@
 # Code Intelligence: Multi-Modal Source Indexing, Graph Ranking, and Hybrid Search
 
-**Source reference**: captured source crates `roko-index`, `roko-lang-rust`, `roko-lang-typescript`, `roko-lang-go`, `roko-core`
+**Source reference**: captured source-corpus crates `roko-index`, `roko-lang-rust`, `roko-lang-typescript`, `roko-lang-go`, `roko-core`
 
 **Priority**: HIGH — multi-modal code indexing, PageRank, HDC fingerprints, hybrid search. This is one of the most directly applicable systems to IronClaw's code-aware tool execution. The goal is to give the agent structural context — symbols, callers, dependencies, and ranked slices — instead of raw text matches alone.
 
@@ -30,15 +30,15 @@
 
 ## 1. Introduction
 
-Code intelligence gives an AI agent structural understanding of a codebase — not just the ability to search for text patterns, but genuine knowledge of what symbols exist, how they relate to each other through typed dependency edges, which symbols are structurally important (measured by PageRank), and which symbols are structurally similar (measured by hyperdimensional fingerprints). The term encompasses a family of techniques from compiler front-ends, information retrieval, and graph theory, adapted specifically for the problem of assembling minimal, high-relevance context windows for large language models.
+Code intelligence gives a coding agent structural metadata about a codebase: what symbols exist, how they relate through typed dependency edges, which symbols are structurally important (measured by PageRank), and which symbols are structurally similar (measured by hyperdimensional fingerprints). The term encompasses techniques from compiler front-ends, information retrieval, and graph theory, adapted for assembling compact, high-relevance context windows for large language models.
 
 ### The Context Assembly Problem
 
-The fundamental problem is **context assembly**. Given a natural-language task description ("add error handling to `process_input`"), an AI coding agent must decide which source code fragments to include in its prompt. Without code intelligence, the agent falls back to text search (grep), which produces noisy results: 20–50 candidate files, roughly 50,000 tokens of raw source text, with no structural understanding of how the matched symbols relate to each other. The LLM must then spend its own capacity figuring out which function is the right one, what it calls, what calls it, and what types it depends on.
+The core problem is **context assembly**. Given a natural-language task description ("add error handling to `process_input`"), a coding agent must decide which source code fragments to include in its prompt. Without a code index, the agent often falls back to text search, which can produce noisy results: 20-50 candidate files, roughly 50,000 tokens of raw source text, with no structural understanding of how the matched symbols relate to each other. The model must then spend its own capacity figuring out which function is the right one, what it calls, what calls it, and what types it depends on.
 
-With code intelligence, the agent can request a ranked, graph-expanded, budget-constrained context that focuses on the target function, callers, and type dependencies instead of dumping whole files. The target is fewer irrelevant tokens, faster inference, and better use of model attention; exact savings must be measured per repository and task mix.
+With code intelligence, the agent can request a ranked, graph-expanded, budget-constrained context that focuses on the target function, callers, and type dependencies instead of dumping whole files. The target is fewer irrelevant tokens, faster inference, and better use of model attention; exact savings must be measured per codebase and task mix.
 
-This matters especially in IronClaw because the agent works on its own codebase (during self-improvement tasks), on user project code via the per-project sandbox (engine v2), and on WASM skill development tasks. In each case the agent today relies on `file_read`, `grep_tool`, and `glob_tool` to explore code — a process that costs 10–75× more tokens than structural context assembly would for the same tasks.
+This matters especially in IronClaw because the agent works on its own codebase, on user project code via the per-project sandbox (engine v2), and on WASM skill development tasks. In each case the agent today relies on `file_read`, `grep_tool`, and `glob_tool` to explore code. Structural context assembly should reduce token use on those workflows, but the claimed range must be validated with local traces.
 
 ### Why Four Indexing Modes?
 
@@ -100,7 +100,7 @@ graph TB
 
 ## 2. Architecture Overview
 
-The code intelligence system spans five captured-source crates:
+The code intelligence system spans five captured source-corpus crate families:
 
 | Crate / File | Role |
 |---|---|
@@ -118,7 +118,7 @@ The code intelligence system spans five captured-source crates:
 | `crates/roko-index/src/sqlite.rs` | `SqliteIndex` — persistent storage (feature-gated) |
 | `crates/roko-index/src/workspace.rs` | `WorkspaceIndex`, `CodeIndex` trait, `SearchStrategy`, RRF merge, context assembly, overlays, privacy |
 
-The separation is deliberate: `roko-index` contains zero language-specific logic. All language knowledge lives in `roko-lang-*` crates that implement the `LanguageProvider` trait from `roko-core`. Adding Python support means implementing `PythonLanguageProvider`; every downstream module (graph, HDC, search, context assembly) works unchanged.
+In the captured source corpus, `roko-index` contains no language-specific logic. Language knowledge lives in `roko-lang-*` crates that implement the `LanguageProvider` trait from `roko-core`. Adding Python support means implementing `PythonLanguageProvider`; downstream modules (graph, HDC, search, context assembly) consume the same `SourceFile` output type.
 
 ---
 
@@ -209,7 +209,7 @@ pub struct Import {
 
 > **Canonical reference**: trait definitions, per-language parsing logic, and polyglot detection are documented in full in [Language Support](language-support.md). This section summarizes the layer boundary and the data types that flow into the indexing engine.
 
-The code intelligence system accepts `SourceFile` values produced by `LanguageProvider` implementations. The analysis engine — graph builder, PageRank scorer, HDC fingerprinter, and search — operates entirely on these language-neutral structures. Adding a new language means implementing `LanguageProvider` + `BuildSystem` in `roko-lang-*`; no indexing code changes.
+The code intelligence system accepts `SourceFile` values produced by `LanguageProvider` implementations. The analysis engine — graph builder, PageRank scorer, HDC fingerprinter, and search — operates on these language-neutral structures. Adding a new language means implementing `LanguageProvider` + `BuildSystem` in the chosen provider module; the indexing path should not need language-specific branches.
 
 Supported languages: **Rust** (dual-mode: heuristic regex and tree-sitter), **TypeScript/JavaScript**, **Go**.
 
@@ -459,7 +459,7 @@ PR(v) = (1 - d) / N  +  d × SUM( PR(u) / out_degree(u) )
 
 Where `d = 0.85` (damping factor) and `N` = total nodes. The damping factor models the "random surfer": with probability `d` (85%) the surfer follows an edge; with probability `1-d` (15%) the surfer teleports to a uniformly random node.
 
-Full implementation (`crates/roko-index/src/graph.rs` lines 589–622):
+Captured formulation (`crates/roko-index/src/graph.rs` lines 589–622):
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
@@ -586,7 +586,7 @@ Properties:
 let ctx_vec = vector_from_seed(context);  // context = file content bytes
 ```
 
-**Final composition** (`crates/roko-index/src/hdc.rs`):
+**Captured composition** (`crates/roko-index/src/hdc.rs`):
 
 ```rust
 pub fn fingerprint_symbol(symbol: &Symbol, context: &[u8]) -> HdcFingerprint {
@@ -740,7 +740,7 @@ flowchart LR
     TRUNC --> OUT[Merged Vec of SearchResult]
 ```
 
-Full implementation (`crates/roko-index/src/workspace.rs` lines 1430–1464):
+Captured implementation summary (`crates/roko-index/src/workspace.rs` lines 1430–1464):
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
@@ -835,7 +835,7 @@ pub struct PrivacyConfig {
 }
 ```
 
-Privacy redaction happens after search/ranking but before context assembly. Sensitive data is never sent to the LLM, even if it appears in the index. The `apply_privacy()` function replaces matching patterns with `[REDACTED]` in code slices and the `is_excluded_symbol` / `is_excluded_file` predicates filter results.
+Privacy redaction happens after search/ranking but before context assembly. Sensitive data should not leave the tool boundary even if it appears in the index; enforce this with caller-level tests. The `apply_privacy()` function replaces matching patterns with `[REDACTED]` in code slices and the `is_excluded_symbol` / `is_excluded_file` predicates filter results.
 
 ---
 
@@ -956,7 +956,7 @@ static GO_PROVIDER: GoLanguageProvider = GoLanguageProvider;
 
 The standard IR evaluation suite applies directly to code search:
 
-**Precision@k**: Fraction of the top-k results that are genuinely relevant. For code search, "relevant" means the result is in the same call graph component as the query symbol.
+**Precision@k**: Fraction of the top-k results that are actually relevant. For code search, "relevant" means the result is in the same call graph component as the query symbol.
 
 ```
 Precision@k = |relevant ∩ retrieved_top_k| / k
@@ -1149,7 +1149,7 @@ IronClaw's workspace already implements both Reciprocal Rank Fusion and weighted
 
 The `rrf_k` default of 60 matches the constant from the original RRF paper [1]. The existing code handles hybrid matches, normalization to [0, 1], min-score filtering, and limit truncation.
 
-**Extension needed**: Add HDC fingerprint results as a third `RankedResult` stream. The existing `fuse_results` dispatcher can be extended to accept `N` ranked lists rather than being fixed to two.
+**Extension needed**: Add HDC fingerprint results as a third `RankedResult` stream. Extend the existing `fuse_results` dispatcher to accept `N` ranked lists rather than being fixed to two.
 
 #### Dual-Backend Persistence — `src/db/`
 
@@ -1204,7 +1204,7 @@ The `PatternPrivacyClassifier` already redacts SSNs, credit card numbers, and au
 
 #### Tool System — `src/tools/`
 
-The `Tool` trait pattern used by `memory_search`, `memory_write`, `memory_read`, and `memory_tree` provides the exact template for the three new code intelligence tools:
+The `Tool` trait pattern used by `memory_search`, `memory_write`, `memory_read`, and `memory_tree` provides a close template for the three new code intelligence tools:
 
 ```rust
 // src/tools/tool.rs
@@ -1265,7 +1265,7 @@ If extracted, the crate should keep core indexing modules independent from the h
 
 ### Mapping to Existing IronClaw Modules
 
-| roko-index Component | IronClaw Mapping | Module Path |
+| Captured Component | IronClaw Mapping | Module Path |
 |---|---|---|
 | `WorkspaceIndex::load()` | Project indexing on file open/change | `crates/ironclaw_code_index/src/search.rs` |
 | `CodeIndex` trait | `code_search`, `code_graph`, `code_symbols` tools | `src/tools/builtin/code_*.rs` |
@@ -1347,13 +1347,13 @@ All three tools are `ToolDomain::Orchestrator` (safe to run in the agent process
 
 1. **Path traversal**: `WorkspaceIndex::load()` calls `std::fs::canonicalize()`. All file paths in the index are canonical absolute paths. Tool parameter `file_pattern` globs are validated against the project root — no `../` escapes.
 
-2. **Privacy by default**: All code slices assembled for LLM context pass through `apply_privacy()` before leaving the tool. The default `PatternPrivacyClassifier` redacts SSNs, credit cards, and auth tokens. Operators can configure additional patterns via `ConfigurablePrivacyClassifier`.
+2. **Privacy by default**: All code slices assembled for model context must pass through `apply_privacy()` before leaving the tool. The default `PatternPrivacyClassifier` redacts SSNs, credit cards, and auth tokens. Operators can configure additional patterns via `ConfigurablePrivacyClassifier`.
 
-3. **No `.env` indexing**: The `PrivacyConfig::ignore_files` list includes `.env`, `.env.*`, `*.pem`, `*.key` by default. These files are never indexed.
+3. **Sensitive file exclusions**: The `PrivacyConfig::ignore_files` list includes `.env`, `.env.*`, `*.pem`, `*.key` by default. Keep these exclusions enforced at indexing and incremental-update call sites.
 
-4. **Rate limiting**: Code search tools are read-only and do not require rate limiting at the tool level. The `ToolRateLimitConfig` is left at `Never` for these tools. If the index is shared across multiple agents, the `RwLock` on `WorkspaceIndex` serializes writes (incremental updates) while allowing concurrent reads.
+4. **Rate limiting**: Code search tools are read-only, so no tool-specific rate limit is proposed initially. If the index is shared across multiple agents, the `RwLock` on `WorkspaceIndex` serializes writes (incremental updates) while allowing concurrent reads; revisit rate limits if searches become a shared-resource bottleneck.
 
-5. **Dispatch requirement**: All three tools must be invoked through `ToolDispatcher::dispatch()`, never by direct call from handler code. This gives the audit trail (`ActionRecord`), parameter redaction, and output sanitization for free. See `.claude/rules/tools.md`.
+5. **Dispatch requirement**: All three tools must be invoked through `ToolDispatcher::dispatch()`, never by direct call from handler code. That preserves the existing audit trail (`ActionRecord`), parameter redaction, and output sanitization paths. See `.claude/rules/tools.md`.
 
 ---
 
@@ -1387,7 +1387,7 @@ The theoretical basis for FTS5's default ranking function. BM25 models term freq
 
 [8] Y. Malkov and D. Yashunin. "Efficient and Robust Approximate Nearest Neighbor Search Using Hierarchical Navigable Small World Graphs." *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 42(4), 824–836, 2020. https://doi.org/10.1109/TPAMI.2018.2889473
 
-HNSW (Hierarchical Navigable Small World) is the approximate nearest neighbor algorithm recommended for scaling HDC fingerprint search beyond 50K symbols. At 5K symbols, brute-force scan at ~50 ns per comparison takes ~0.25 ms — acceptable. At 500K symbols, brute-force takes ~25 ms; HNSW reduces this to ~1 ms with recall > 0.95.
+HNSW (Hierarchical Navigable Small World) is the approximate nearest neighbor algorithm recommended for scaling HDC fingerprint search beyond 50K symbols. At 5K symbols, brute-force scan at ~50 ns per comparison takes ~0.25 ms — acceptable. At 500K symbols, brute-force takes ~25 ms; HNSW should target ~1 ms lookup with recall above 0.95 on a local benchmark corpus.
 
 [9] D. Sculley. "Web-Scale k-Means Clustering." In *Proceedings of the 19th International Conference on World Wide Web* (WWW '10), pp. 1177–1178. ACM, 2010.
 
@@ -1418,7 +1418,7 @@ Mini-batch k-means for clustering code symbols by HDC fingerprint — useful for
 
 | Path | Role in integration |
 |---|---|
-| `src/workspace/search.rs` | Existing RRF implementation to extend; confirm line numbers in the current checkout before editing |
+| `src/workspace/search.rs` | Existing RRF implementation to extend; confirm line numbers in the local codebase before editing |
 | `src/workspace/privacy.rs` | `PatternPrivacyClassifier` for code-slice redaction |
 | `src/tools/tool.rs` | `Tool` trait template for the three new tools |
 | `src/tools/builtin/memory.rs` | Pattern to follow: `WorkspaceResolver`, tool struct, `execute()` |

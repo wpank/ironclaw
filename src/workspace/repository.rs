@@ -255,7 +255,7 @@ impl Repository {
             .query(
                 r#"
                 SELECT id, user_id, agent_id, path, content,
-                       created_at, updated_at, metadata
+                       created_at, updated_at, metadata, hdc_fingerprint
                 FROM memory_documents
                 WHERE user_id = $1 AND agent_id IS NOT DISTINCT FROM $2
                 ORDER BY updated_at DESC
@@ -271,6 +271,10 @@ impl Repository {
     }
 
     fn row_to_document(&self, row: &tokio_postgres::Row) -> MemoryDocument {
+        // hdc_fingerprint is not selected by all queries; use try_get to
+        // gracefully handle rows where the column is absent.
+        let hdc_fingerprint: Option<Vec<u8>> = row.try_get("hdc_fingerprint").unwrap_or(None);
+
         MemoryDocument {
             id: row.get("id"),
             user_id: row.get("user_id"),
@@ -280,6 +284,7 @@ impl Repository {
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
             metadata: row.get("metadata"),
+            hdc_fingerprint,
         }
     }
 
@@ -1023,5 +1028,78 @@ impl Repository {
                 reason: format!("Failed to prune versions: {e}"),
             })?;
         Ok(result)
+    }
+
+    /// Update the HDC fingerprint on a document.
+    ///
+    /// Validates that the fingerprint is exactly 1280 bytes.
+    #[cfg(feature = "hdc")]
+    pub async fn update_document_hdc_fingerprint(
+        &self,
+        id: Uuid,
+        fingerprint: &[u8],
+    ) -> Result<(), WorkspaceError> {
+        if fingerprint.len() != 1280 {
+            return Err(WorkspaceError::SearchFailed {
+                reason: format!(
+                    "HDC fingerprint must be exactly 1280 bytes, got {}",
+                    fingerprint.len()
+                ),
+            });
+        }
+        let conn = self.conn().await?;
+        let updated = conn
+            .execute(
+                "UPDATE memory_documents SET hdc_fingerprint = $1 WHERE id = $2",
+                &[&fingerprint, &id],
+            )
+            .await
+            .map_err(|e| WorkspaceError::SearchFailed {
+                reason: format!("Failed to update HDC fingerprint: {e}"),
+            })?;
+        if updated == 0 {
+            return Err(WorkspaceError::SearchFailed {
+                reason: format!("Document {id} not found for HDC fingerprint update"),
+            });
+        }
+        Ok(())
+    }
+
+    /// List all documents with HDC fingerprints for a given user/agent scope.
+    #[cfg(feature = "hdc")]
+    pub async fn list_document_hdc_fingerprints(
+        &self,
+        user_id: &str,
+        agent_id: Option<Uuid>,
+    ) -> Result<Vec<crate::workspace::DocumentHdcFingerprint>, WorkspaceError> {
+        let conn = self.conn().await?;
+        let rows = conn
+            .query(
+                r#"
+                SELECT id, path, hdc_fingerprint
+                FROM memory_documents
+                WHERE user_id = $1
+                  AND agent_id IS NOT DISTINCT FROM $2::uuid
+                  AND hdc_fingerprint IS NOT NULL
+                "#,
+                &[&user_id, &agent_id],
+            )
+            .await
+            .map_err(|e| WorkspaceError::SearchFailed {
+                reason: format!("Failed to list HDC fingerprints: {e}"),
+            })?;
+
+        let mut results = Vec::with_capacity(rows.len());
+        for row in rows {
+            let id: Uuid = row.get(0);
+            let path: String = row.get(1);
+            let fingerprint: Vec<u8> = row.get(2);
+            results.push(crate::workspace::DocumentHdcFingerprint {
+                id,
+                path,
+                fingerprint,
+            });
+        }
+        Ok(results)
     }
 }

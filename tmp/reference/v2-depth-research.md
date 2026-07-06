@@ -1,8 +1,8 @@
 # v2 Depth Research Guide
 
 This is a curated guide to the captured `docs/v2-depth/*` material. The listed
-paths are provenance labels, not checkout paths. Use this guide to decide which
-local concept docs and implementation owners to read next.
+paths are provenance labels, not local files. Use this guide to decide which
+concept docs and implementation owners to read next.
 
 ## How To Use It
 

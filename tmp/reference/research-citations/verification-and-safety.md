@@ -12,7 +12,7 @@ capability security, information-flow control, and safe interruption.
 | Adams and MacKay (2007), BOCPD | Online changepoint detection. | Candidate for regime changes in pass rates or provider health. |
 | Killick et al. (2012), PELT | Retrospective changepoint detection. | Postmortem analysis, not necessarily runtime gate. |
 | Lightman et al. (2024), process supervision | Step-level verification can improve reasoning quality. | Supports structured gate feedback. |
-| Huang et al. (2024), self-correction limits | LLM self-correction is unreliable without external signal. | Supports caller-owned verification. |
+| Huang et al. (2024), self-correction limits | LLM self-correction is unreliable without independent signal. | Supports caller-owned verification. |
 | Dennis and Van Horn (1966) | Capability security foundations. | Background for tool authority and sandbox design. |
 | Denning (1976) | Lattice model for secure information flow. | Background for taint and declassification ideas. |
 | Orseau and Armstrong (2016) | Safely interruptible agents. | Relevant to cancellation and stop paths. |

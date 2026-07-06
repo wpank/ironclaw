@@ -1,8 +1,8 @@
 # Benchmarking And Quantification
 
-Benchmarks decide whether an experimental feature can move from local/shadow to
-canary or default. A feature is not better unless it improves one target metric
-and keeps every guardrail inside budget.
+Benchmarks decide whether an experimental feature can move from local or shadow
+to canary or default. A feature is not better unless it improves one target
+metric and passes every guardrail.
 
 | File | Purpose |
 | --- | --- |

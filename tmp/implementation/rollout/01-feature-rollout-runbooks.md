@@ -31,14 +31,14 @@ Flag: `experimental.cascade_router`, default `off`.
 
 Runbook:
 
-1. Local: run `scenarios/cascade-router.yaml`.
+1. Local: run `../benchmarking/scenarios/cascade-router.yaml`.
 2. Shadow: log candidate provider and reward while static routing acts.
 3. Canary: allow candidate only for low-risk eligible requests.
 4. Limited/default: expand only if cost improves and quality/safety guardrails
    pass.
 
-Rollback: set `enabled=false`; `SmartRoutingProvider` or equivalent static
-router is authoritative.
+Rollback: set `enabled=false`; the static provider router remains
+authoritative.
 
 ## Progressive Gates
 
@@ -46,7 +46,7 @@ Flag: `experimental.progressive_gates`, default `off`.
 
 Runbook:
 
-1. Local: run `scenarios/gate-pipeline.yaml`.
+1. Local: run `../benchmarking/scenarios/gate-pipeline.yaml`.
 2. Shadow: run gates after existing validation and record verdicts only.
 3. Canary: block only code-generation/tool-building flows covered by tests.
 4. Default: keep rung selection bounded by task complexity.
@@ -59,7 +59,8 @@ Flag: `experimental.dream_consolidation`, default `off`.
 
 Runbook:
 
-1. Local: run `scenarios/dream-consolidation.yaml` with deterministic LLM.
+1. Local: run `../benchmarking/scenarios/dream-consolidation.yaml` with a
+   deterministic LLM fixture.
 2. Shadow: generate redacted derived memories but hide them from retrieval.
 3. Canary: expose promoted memories only above confidence threshold.
 4. Limited/default: enforce background budget and taint propagation.
@@ -73,7 +74,7 @@ Flag: `experimental.provider_conductor`, default `off`.
 
 Runbook:
 
-1. Local: run `scenarios/provider-degradation.yaml`.
+1. Local: run `../benchmarking/scenarios/provider-degradation.yaml`.
 2. Observe: record health signals without changing circuit state.
 3. Canary: bias away from predicted failures for eligible providers.
 4. Default: allow active pre-trip only after false-positive and oscillation
@@ -88,7 +89,7 @@ Flag: `experimental.signal_records`, default `off`.
 
 Runbook:
 
-1. Local: run `scenarios/memory-dedup.yaml`.
+1. Local: run `../benchmarking/scenarios/memory-dedup.yaml`.
 2. Shadow: write candidate signal rows without changing retrieval ranking.
 3. Canary: enable soft dedupe for eligible workspaces.
 4. Default: keep exact hash identity and near-duplicate decisions auditable.

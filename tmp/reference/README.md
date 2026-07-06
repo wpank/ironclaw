@@ -1,9 +1,8 @@
 # Reference
 
 Reference docs for the captured Roko material and its IronClaw adaptation
-notes. These files are local summaries, not evidence of external repository
-state. Treat captured paths and crate names as provenance labels unless a local
-IronClaw file or reference doc verifies the claim.
+notes. Treat captured paths and crate names as provenance labels; verify
+implementation claims against local IronClaw files or reference docs.
 
 ## Start Here
 
@@ -25,12 +24,11 @@ IronClaw file or reference doc verifies the claim.
 
 - `roko-*`, `docs/v1/*`, `docs/v2/*`, `docs/v2-depth/*`, and `plans/*`
   names are captured-source labels.
-- Do not use those labels as checkout paths, dependency paths, or proof of
-  current upstream state.
+- Do not use those labels as file paths or implementation evidence.
 - Prefer IronClaw-owned modules, existing composition roots, DB parity,
   `ToolDispatcher`, and caller-level tests when translating a captured idea.
 - Avoid exact counts, savings claims, or implementation-status claims unless
-  they were regenerated from the current checkout.
+  they were regenerated from local IronClaw evidence.
 
 ## Reference Shape
 

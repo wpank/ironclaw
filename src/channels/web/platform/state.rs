@@ -257,6 +257,14 @@ impl WorkspacePool {
             }
         }
         ws = ws.with_memory_layers(memory_layers);
+        ws = ws.with_hdc_fingerprint_shadow(self.workspace_config.hdc.fingerprint_shadow);
+        #[cfg(feature = "hdc")]
+        {
+            ws = ws.with_hdc_search_mode(
+                self.workspace_config.hdc.search_shadow,
+                self.workspace_config.hdc.search_live,
+            );
+        }
         ws
     }
 

@@ -1,8 +1,7 @@
 # Canonical Event And Persistence Contract
 
-This is the source of truth for durable experimental telemetry. It covers
-benchmark events, rollout events, caller-level gate verdicts, feature exposure,
-and rollback decisions.
+This file defines durable experimental telemetry: benchmark events, rollout
+events, caller-level gate verdicts, feature exposure, and rollback decisions.
 
 ## Canonical Metric Event
 

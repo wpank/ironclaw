@@ -1,8 +1,8 @@
 # References
 
-This file records strategy provenance without requiring access to any source
-repository. References below are captured source-path names from the analyzed
-corpus, included only to preserve traceability.
+This file records strategy provenance from the local source corpus. It preserves
+the concepts that informed the strategy without requiring external code access
+or live source links.
 
 ## Companion Strategy Files
 
@@ -18,20 +18,20 @@ corpus, included only to preserve traceability.
 
 ## Captured Context
 
-| Strategy area | Captured concept or path name | IronClaw interpretation |
+| Strategy area | Local source-corpus concept | IronClaw interpretation |
 |---------------|--------------------------------|-------------------------|
-| CLI visual language | `crates/roko-cli/src/inline/symbols.rs` | Use consistent status symbols and labels, not external branding. |
-| Streaming phases | `crates/roko-cli/src/inline/primitives/streaming.rs` | Show phase-specific progress instead of generic "thinking". |
-| Tool call rendering | `crates/roko-cli/src/inline/primitives/tool_call.rs` | Collapse tool calls by default with clear expansion affordance. |
-| Progress tree | `crates/roko-cli/src/inline/primitives/progress_tree.rs` | Use hierarchical progress only for real multi-step plans. |
-| Gate display | `crates/roko-cli/src/inline/primitives/gate_block.rs` | Surface verification rungs with bounded diagnostics. |
-| Error block | `crates/roko-cli/src/inline/primitives/error_block.rs` | Include location, retry state, and next action in failures. |
-| Session summary | `crates/roko-cli/src/inline/primitives/session_summary.rs` | Summarize cost, tool count, and outcome at turn/session end. |
-| TUI status bar | `crates/roko-cli/src/tui/widgets/status_bar.rs` | Keep compact status sections for branch, state, counts, and shortcuts. |
-| Toasts and approvals | `crates/roko-cli/src/tui/modals/notification.rs`, `approval.rs` | Make transient notifications and approval gates visually distinct. |
-| SSE events | `crates/roko-serve/src/events.rs`, `routes/sse.rs` | Prefer typed lifecycle events and replay-aware SSE infrastructure. |
-| Setup wizard | `crates/roko-cli/src/commands/setup.rs` | Use numbered setup steps with clear validation and recovery. |
-| Memory decay/dedup | Captured "universal engram" notes | Archive stale memory and merge exact duplicates; do not delete. |
+| CLI visual language | Compact status-symbol set | Use consistent status symbols and labels, not external branding. |
+| Streaming phases | Phase-specific streaming primitives | Show phase-specific progress instead of generic "thinking". |
+| Tool call rendering | Collapsed tool-call display | Collapse tool calls by default with clear expansion affordance. |
+| Progress tree | Hierarchical progress display | Use hierarchy only for real multi-step plans. |
+| Gate display | Gate block with rung, status, and duration | Surface verification rungs with bounded diagnostics. |
+| Error block | Structured failure display | Include location, retry state, and next action in failures. |
+| Session summary | Turn/session summary | Summarize cost, tool count, and outcome at turn/session end. |
+| TUI status bar | Compact persistent status layout | Keep compact status sections for branch, state, counts, and shortcuts. |
+| Toasts and approvals | Separate notification and approval patterns | Make transient notifications and approval gates visually distinct. |
+| SSE events | Typed lifecycle events and replay-aware streams | Prefer typed lifecycle events and replay-aware SSE infrastructure. |
+| Setup wizard | Numbered setup flow | Use numbered setup steps with clear validation and recovery. |
+| Memory decay/dedup | Captured memory-hygiene notes | Archive stale memory and merge exact duplicates; do not delete. |
 | Online routing | Captured LinUCB/router notes | Learn model routing only after shadow-mode episode collection. |
 | HDC | Captured hyperdimensional-computing notes | Consider HDC as an optional retrieval signal after benchmarks. |
 | Gates | Captured verification pipeline notes | Add verification rungs incrementally through existing boundaries. |
@@ -64,7 +64,7 @@ These are conceptual anchors, not implementation instructions.
 
 ## Stale Reference Policy
 
-- Do not add live source-repo URLs to these strategy files.
-- Captured path names are acceptable when they explain source traceability.
+- Do not add unsupported source URLs to these strategy files.
+- Keep provenance at the concept level unless a local IronClaw path is needed.
 - If a linked internal file moves, update this file in the same branch.
 - If implementation changes feature status, check `FEATURE_PARITY.md` and relevant subsystem docs.

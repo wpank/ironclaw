@@ -288,6 +288,10 @@ pub struct MemoryDocument {
     pub updated_at: DateTime<Utc>,
     /// Flexible metadata.
     pub metadata: serde_json::Value,
+    /// HDC (Hyperdimensional Computing) fingerprint for near-duplicate detection.
+    /// 1280 bytes when present. Never serialized to JSON — internal DB-only field.
+    #[serde(default, skip_serializing)]
+    pub hdc_fingerprint: Option<Vec<u8>>,
 }
 
 impl MemoryDocument {
@@ -307,6 +311,7 @@ impl MemoryDocument {
             created_at: now,
             updated_at: now,
             metadata: serde_json::Value::Object(serde_json::Map::new()),
+            hdc_fingerprint: None,
         }
     }
 
@@ -335,6 +340,19 @@ impl MemoryDocument {
     pub fn is_identity_document(&self) -> bool {
         is_identity_path(&self.path)
     }
+}
+
+/// HDC fingerprint associated with a memory document.
+///
+/// Used for bulk retrieval of fingerprints for near-duplicate detection.
+#[derive(Debug, Clone)]
+pub struct DocumentHdcFingerprint {
+    /// Document ID.
+    pub id: Uuid,
+    /// File path within the workspace.
+    pub path: String,
+    /// HDC fingerprint bytes (1280 bytes).
+    pub fingerprint: Vec<u8>,
 }
 
 /// An entry in a workspace directory listing.
@@ -830,5 +848,16 @@ mod tests {
         assert_eq!(result[0].path, "a.md");
         assert_eq!(result[1].path, "m.md");
         assert_eq!(result[2].path, "z.md");
+    }
+
+    #[test]
+    fn test_hdc_fingerprint_not_serialized() {
+        let mut doc = MemoryDocument::new("user1", None, "test.md");
+        doc.hdc_fingerprint = Some(vec![0u8; 1280]);
+        let json = serde_json::to_value(&doc).unwrap();
+        assert!(
+            json.get("hdc_fingerprint").is_none(),
+            "hdc_fingerprint must never appear in serialized output"
+        );
     }
 }

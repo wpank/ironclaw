@@ -473,7 +473,7 @@ impl Tool for MemoryWriteTool {
                 },
                 "force": {
                     "type": "boolean",
-                    "description": "Skip privacy classification and write directly to the specified layer without redirect. Use when you're certain the content belongs in the target layer.",
+                    "description": "Skip privacy classification (layer redirect) and deduplication blocking. Use when you're certain the content belongs in the target layer or you want to write despite a duplicate warning.",
                     "default": false
                 },
                 "metadata": {
@@ -773,6 +773,72 @@ impl Tool for MemoryWriteTool {
             }
         }
 
+        // HDC dedup check: run before write for non-append, non-identity writes.
+        // Identity paths (IDENTITY.md, SOUL.md, AGENTS.md, etc.) and HEARTBEAT.md
+        // are excluded — they are system files that should never be blocked by dedup.
+        // Gated by cfg(feature = "hdc") and config dedup_mode != Off.
+        #[cfg(feature = "hdc")]
+        let dedup_decision = {
+            use crate::config::{HdcConfig, HdcDedupMode};
+            use crate::workspace::is_identity_path;
+            let hdc_config = HdcConfig::resolve().unwrap_or_default();
+            let is_system_path =
+                is_identity_path(&resolved_path) || resolved_path == paths::HEARTBEAT;
+            if hdc_config.dedup_mode != HdcDedupMode::Off && !force && !append && !is_system_path {
+                match ironclaw_hdc::dedup::DedupConfig::new(
+                    hdc_config.similar_threshold,
+                    hdc_config.duplicate_threshold,
+                ) {
+                    Ok(dedup_cfg) => {
+                        match workspace
+                            .check_dedup(&resolved_path, content, &dedup_cfg)
+                            .await
+                        {
+                            Ok(decision) => Some((decision, hdc_config.dedup_mode)),
+                            Err(e) => {
+                                // Fail-open: dedup check failure must not block writes.
+                                tracing::debug!("HDC dedup check failed: {e}");
+                                None
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::debug!("HDC DedupConfig invalid: {e}");
+                        None
+                    }
+                }
+            } else {
+                None
+            }
+        };
+
+        // If dedup found a duplicate and mode is "block", reject the write.
+        #[cfg(feature = "hdc")]
+        if let Some((ref decision, ref mode)) = dedup_decision {
+            use ironclaw_hdc::dedup::DedupDecision;
+            if let DedupDecision::Duplicate {
+                id,
+                path: existing_path,
+                similarity,
+            } = decision
+            {
+                if *mode == crate::config::HdcDedupMode::Block {
+                    let output = serde_json::json!({
+                        "status": "blocked",
+                        "path": resolved_path,
+                        "dedup": {
+                            "decision": "duplicate",
+                            "existing_path": existing_path,
+                            "existing_id": id.to_string(),
+                            "similarity": similarity,
+                            "retry": "Pass force=true to write anyway."
+                        }
+                    });
+                    return Ok(ToolOutput::success(output, start.elapsed()));
+                }
+            }
+        }
+
         // When a layer is specified, route through layer-aware methods for ALL targets.
         // Otherwise, use default workspace methods (which include injection scanning).
         let layer_result = if let Some(layer_name) = layer {
@@ -891,6 +957,40 @@ impl Tool for MemoryWriteTool {
         }
         if !synced_docs.is_empty() {
             output["synced"] = serde_json::json!(synced_docs);
+        }
+
+        // Attach dedup warning for Similar decisions (write succeeded but content is similar).
+        #[cfg(feature = "hdc")]
+        if let Some((ref decision, _)) = dedup_decision {
+            use ironclaw_hdc::dedup::DedupDecision;
+            match decision {
+                DedupDecision::Similar {
+                    id,
+                    path: existing_path,
+                    similarity,
+                } => {
+                    output["dedup"] = serde_json::json!({
+                        "decision": "similar",
+                        "existing_path": existing_path,
+                        "existing_id": id.to_string(),
+                        "similarity": similarity,
+                    });
+                }
+                DedupDecision::Duplicate {
+                    id,
+                    path: existing_path,
+                    similarity,
+                } => {
+                    // In "warn" mode, duplicates still get written but with a warning.
+                    output["dedup"] = serde_json::json!({
+                        "decision": "duplicate",
+                        "existing_path": existing_path,
+                        "existing_id": id.to_string(),
+                        "similarity": similarity,
+                    });
+                }
+                DedupDecision::Unique => {}
+            }
         }
 
         Ok(ToolOutput::success(output, start.elapsed()))

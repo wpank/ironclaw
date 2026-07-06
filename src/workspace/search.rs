@@ -50,6 +50,12 @@ pub struct SearchConfig {
     /// Ignored by `Rrf` fusion. For env-based config via
     /// `WorkspaceSearchConfig::resolve`, defaults are per-strategy.
     pub vector_weight: f32,
+    /// Whether to use HDC for search ranking (default false).
+    pub use_hdc: bool,
+    /// Weight for HDC signal in fusion formula (default 0.2).
+    pub hdc_weight: f32,
+    /// Shadow mode: compute HDC scores but don't affect final ranking (default true).
+    pub hdc_shadow_mode: bool,
 }
 
 impl Default for SearchConfig {
@@ -64,6 +70,9 @@ impl Default for SearchConfig {
             fusion_strategy: FusionStrategy::default(),
             fts_weight: 0.5,
             vector_weight: 0.5,
+            use_hdc: false,
+            hdc_weight: 0.2,
+            hdc_shadow_mode: true,
         }
     }
 }
@@ -126,6 +135,28 @@ impl SearchConfig {
         }
         self
     }
+
+    /// Enable HDC search signal.
+    pub fn with_hdc(mut self, enabled: bool) -> Self {
+        self.use_hdc = enabled;
+        self
+    }
+
+    /// Set the HDC weight for fusion.
+    ///
+    /// Non-finite (NaN, ±inf) or negative values are ignored.
+    pub fn with_hdc_weight(mut self, weight: f32) -> Self {
+        if weight.is_finite() && weight >= 0.0 {
+            self.hdc_weight = weight;
+        }
+        self
+    }
+
+    /// Set HDC shadow mode (compute scores without affecting ranking).
+    pub fn with_hdc_shadow_mode(mut self, shadow: bool) -> Self {
+        self.hdc_shadow_mode = shadow;
+        self
+    }
 }
 
 /// A search result with hybrid scoring.
@@ -145,6 +176,10 @@ pub struct SearchResult {
     pub fts_rank: Option<u32>,
     /// Rank in vector results (1-based, None if not in vector results).
     pub vector_rank: Option<u32>,
+    /// Rank in HDC results (1-based, None if HDC not used or document has no fingerprint).
+    pub hdc_rank: Option<u32>,
+    /// HDC normalized Hamming similarity score (0.0-1.0, None if HDC not used).
+    pub hdc_score: Option<f64>,
 }
 
 impl SearchResult {
@@ -273,6 +308,8 @@ pub fn reciprocal_rank_fusion(
             score: info.score,
             fts_rank: info.fts_rank,
             vector_rank: info.vector_rank,
+            hdc_rank: None,
+            hdc_score: None,
         })
         .collect();
 
@@ -376,6 +413,8 @@ pub fn weighted_score_fusion(
             score: info.score,
             fts_rank: info.fts_rank,
             vector_rank: info.vector_rank,
+            hdc_rank: None,
+            hdc_score: None,
         })
         .collect();
 
@@ -404,6 +443,71 @@ pub fn weighted_score_fusion(
     results.truncate(config.limit);
 
     results
+}
+
+/// Apply HDC scores to search results and optionally re-rank.
+///
+/// When `config.hdc_shadow_mode` is true, HDC scores are computed and attached
+/// to results but the ranking is not modified. When false, HDC contributes to
+/// the final score using `config.hdc_weight`.
+#[cfg(feature = "hdc")]
+pub fn apply_hdc_fusion(
+    results: &mut Vec<SearchResult>,
+    hdc_scores: &HashMap<Uuid, f64>,
+    config: &SearchConfig,
+) {
+    use tracing::debug;
+
+    if hdc_scores.is_empty() {
+        return;
+    }
+
+    // Assign HDC ranks (sorted by score descending)
+    let mut hdc_ranked: Vec<(&Uuid, &f64)> = hdc_scores.iter().collect();
+    hdc_ranked.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap_or(std::cmp::Ordering::Equal));
+    let hdc_rank_map: HashMap<Uuid, u32> = hdc_ranked
+        .iter()
+        .enumerate()
+        .map(|(i, item)| (*item.0, i as u32 + 1))
+        .collect();
+
+    // Attach HDC rank and score to results
+    for result in results.iter_mut() {
+        result.hdc_rank = hdc_rank_map.get(&result.document_id).copied();
+        result.hdc_score = hdc_scores.get(&result.document_id).copied();
+    }
+
+    // If NOT shadow mode, modify final ranking with HDC fusion
+    if !config.hdc_shadow_mode {
+        for result in results.iter_mut() {
+            if let Some(hdc_score) = result.hdc_score {
+                result.score += config.hdc_weight * hdc_score as f32;
+            }
+        }
+        // Re-normalize after adding HDC contribution
+        if let Some(max_score) = results.iter().map(|r| r.score).reduce(f32::max)
+            && max_score > 0.0
+        {
+            for result in results.iter_mut() {
+                result.score /= max_score;
+            }
+        }
+        results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+    }
+
+    debug!(
+        "HDC search fusion: {} docs scored, top-5: {:?}",
+        hdc_scores.len(),
+        hdc_ranked
+            .iter()
+            .take(5)
+            .map(|(id, score)| (id, score))
+            .collect::<Vec<_>>()
+    );
 }
 
 #[cfg(test)]

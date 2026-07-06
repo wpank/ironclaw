@@ -1,10 +1,10 @@
 # Cognitive Architecture
 
-**Source sets**: `roko-core`, `roko-runtime`, `roko-orchestrator`, `roko-std`, `roko-primitives`, `roko-daimon`, `roko-neuro`, `roko-dreams`, `roko-compose`, `roko-gate`, `roko-learn`, `roko-conductor`
-**Source docs**: `docs/v1/00-architecture/`, `docs/v1/13-coordination/`, `docs/v2-depth/11-memory/`
+**Captured source-corpus labels**: `roko-core`, `roko-runtime`, `roko-orchestrator`, `roko-std`, `roko-primitives`, `roko-daimon`, `roko-neuro`, `roko-dreams`, `roko-compose`, `roko-gate`, `roko-learn`, `roko-conductor`
+**Captured doc labels**: `docs/v1/00-architecture/`, `docs/v1/13-coordination/`, `docs/v2-depth/11-memory/`
 **Priority**: HIGH — formalizes IronClaw's reactive/reflective/background split and provides the theoretical foundation for self-improving multi-agent coordination
 
-> **Self-contained implementation note**: Roko path-like references are provenance identifiers pointing to the captured source corpus. Use [implementation/README.md](../implementation/README.md) and [implementation/05-per-file-action-matrix.md](../implementation/05-per-file-action-matrix.md) for IronClaw-native build plans; use [benchmarking/README.md](../implementation/benchmarking/README.md) and [benchmarking/02-feature-playbooks.md](../implementation/benchmarking/02-feature-playbooks.md) for measurement plans.
+> **Self-contained implementation note**: Path-like references are provenance labels from the captured source corpus, not checkout requirements. Use [implementation/README.md](../implementation/README.md) and [implementation/05-per-file-action-matrix.md](../implementation/05-per-file-action-matrix.md) for IronClaw-native build plans; use [benchmarking/README.md](../implementation/benchmarking/README.md) and [benchmarking/02-feature-playbooks.md](../implementation/benchmarking/02-feature-playbooks.md) for measurement plans.
 
 **Related documents in this category:**
 - [Universal Engram](./universal-engram.md) — the data type the Gamma tier indexes and Delta tier consolidates.
@@ -17,10 +17,10 @@
 
 1. [What This Document Covers](#1-what-this-document-covers)
 2. [Theoretical Foundations](#2-theoretical-foundations)
-3. [Three Cognitive Speeds (Gamma / Theta / Delta)](#3-three-cognitive-speeds-gamma--theta--delta)
+3. [Three Cognitive Speeds (Gamma / Theta / Delta)](#3-three-cognitive-speeds-gamma-theta-delta)
 4. [The Five-Layer Architecture](#4-the-five-layer-architecture)
 5. [The Universal Cognitive Loop](#5-the-universal-cognitive-loop)
-6. [Cognitive Cross-Cuts (Neuro / Daimon / Dreams)](#6-cognitive-cross-cuts-neuro--daimon--dreams)
+6. [Cognitive Cross-Cuts (Neuro / Daimon / Dreams)](#6-cognitive-cross-cuts-neuro-daimon-dreams)
 7. [Stigmergic Coordination and Digital Pheromones](#7-stigmergic-coordination-and-digital-pheromones)
 8. [SINR Interference Model](#8-sinr-interference-model)
 9. [Morphogenetic Specialization (Turing Reaction-Diffusion)](#9-morphogenetic-specialization-turing-reaction-diffusion)
@@ -35,7 +35,7 @@
 
 ## 1. What This Document Covers
 
-This document describes the cognitive architecture specified in the roko codebase — a multi-layered system that separates agent processing into distinct speeds, coordination mechanisms, and organizational layers, drawing from neuroscience, cognitive science, cybernetics, and biological self-organization. Each subsystem is documented with its theoretical foundations, the Rust code implementing it, and a concrete mapping to IronClaw's existing architecture with full integration code.
+This document distills the captured cognitive-architecture material into IronClaw design guidance: three processing speeds, five ownership layers, stigmergic coordination, morphogenetic specialization, and collective-quality metrics. It keeps the implementation-relevant formulas, risks, and hook points self-contained.
 
 ### What Is a Cognitive Architecture?
 
@@ -43,19 +43,19 @@ The term "cognitive architecture" in the AI agent context means the structural f
 
 Classical cognitive architectures from AI research (ACT-R, SOAR, CLARION) demonstrated that fixed structural commitments — how memory is organized, how production rules fire, how learning modifies future behavior — matter more for long-term capability than any single inference improvement. The same principle applies to LLM-based agents: the harness wrapping the LLM determines the agent's practical capability.
 
-This is roko's core thesis: "the scaffold IS the product" (from `docs/v1/00-architecture/00-vision-and-thesis.md`). Evidence supports this claim: Lee et al. (2026) demonstrated +7.7 points from harness optimization alone with 4x fewer tokens (Meta-Harness, arXiv:2603.28052); Jimenez et al. (2024) showed the same model achieving 30-65% solve rates depending on harness (SWE-bench); and Zaharia et al. (2024) argued that SOTA performance comes from compound AI systems, not individual models.
+The captured architecture's core thesis is that the scaffold is part of the product: prompts, memory, tools, gates, routing, and background work determine practical capability at least as much as the base model. External agent-systems literature makes the same broad point: model performance varies substantially with harness design, and compound AI systems can outperform single-model pipelines when their boundaries are well engineered.
 
 ### How Biological Cognition Inspires the Design
 
 The architecture does not attempt to replicate the brain. Instead, it identifies specific computational problems that biological nervous systems have solved over 500 million years of evolution, and adapts those solutions for software agents:
 
-- **Multiple timescales**: The brain processes sensory input in milliseconds, maintains working memory over seconds, and consolidates long-term knowledge during sleep over hours. Roko separates processing into three analogous speeds (Gamma/Theta/Delta), allowing the agent to react quickly to environmental changes while still stepping back periodically for deeper reflection.
+- **Multiple timescales**: The brain processes sensory input in milliseconds, maintains working memory over seconds, and consolidates long-term knowledge during sleep over hours. The captured design separates processing into three analogous speeds (Gamma/Theta/Delta), allowing the agent to react quickly while still stepping back periodically for deeper reflection.
 
-- **Prediction-error driven attention**: The brain allocates expensive neural computation to surprising inputs and coasts on cached predictions for expected ones. Roko's tier-routing system implements this — most processing ticks use zero-cost heuristic checks (T0), escalating to expensive LLM inference only when surprise is detected.
+- **Prediction-error driven attention**: The brain allocates expensive neural computation to surprising inputs and coasts on cached predictions for expected ones. The tier-routing design mirrors this: most processing ticks use zero-cost heuristic checks (T0), escalating to model inference only when surprise is detected.
 
-- **Indirect coordination**: Social insects build elaborate structures without centralized planning, using environmental traces (pheromones) as coordination signals. Roko applies this stigmergic principle to multi-agent coordination, replacing direct inter-agent messaging with a shared pheromone environment.
+- **Indirect coordination**: Distributed systems can coordinate through durable environmental traces rather than direct messages. The captured design applies this stigmergic principle to multi-agent coordination with shared digital pheromones.
 
-- **Spontaneous specialization**: Embryonic cells differentiate into specialized tissues from identical starting conditions through reaction-diffusion dynamics. Roko uses the same mathematical mechanism (Turing/Gierer-Meinhardt) to produce emergent role differentiation among initially homogeneous agents.
+- **Spontaneous specialization**: Reaction-diffusion dynamics can produce differentiated roles from initially similar agents. The captured design adapts the Turing/Gierer-Meinhardt mechanism as a long-horizon specialization model.
 
 ---
 
@@ -67,13 +67,13 @@ The cognitive architecture draws from six research traditions. These are not dec
 
 The three cognitive speeds are named after neural oscillation bands documented in Buzsaki's "Rhythms of the Brain" (Oxford University Press, 2006, ISBN 978-0-19-530106-9). The mammalian brain operates at multiple frequency bands simultaneously, each supporting distinct cognitive functions:
 
-| Brain Rhythm | Frequency | Cognitive Function | Roko Mapping |
+| Brain Rhythm | Frequency | Cognitive Function | Captured Mapping |
 |---|---|---|---|
 | **Gamma** (30-100 Hz) | Fast | Sensory processing, attention binding, feature integration | Reactive: perceive environment changes and act immediately |
 | **Theta** (4-8 Hz) | Medium | Working memory maintenance, spatial navigation, planning | Reflective: step back, re-plan, evaluate progress |
 | **Delta** (0.5-4 Hz) | Slow | Deep sleep, memory consolidation, synaptic homeostasis | Consolidation: replay episodes, synthesize knowledge, prune |
 
-The mapping is functional, not literal. The names capture the computational role: Gamma for fast environmental scanning, Theta for deliberate evaluation, Delta for deep offline processing. Buzsaki's key insight is that these rhythms are nested — gamma oscillations ride on top of theta waves — and cross-frequency coupling coordinates local and global processing. Roko implements an analogous nesting where Gamma ticks occur within Theta cycles, which occur within Delta epochs.
+The mapping is functional, not literal. The names capture the computational role: Gamma for fast environmental scanning, Theta for deliberate evaluation, Delta for deep offline processing. Buzsaki's key insight is that these rhythms are nested — gamma oscillations ride on top of theta waves — and cross-frequency coupling coordinates local and global processing. The captured design implements an analogous nesting where Gamma ticks occur within Theta cycles, which occur within Delta epochs.
 
 **Why this matters for IronClaw**: IronClaw currently has an implicit two-speed model (interactive agent turns vs. background heartbeat). The three-speed model makes the intermediate reflective speed explicit, enabling the agent to periodically step back and reassess its approach mid-conversation without waiting for the next heartbeat cycle.
 
@@ -86,9 +86,9 @@ Daniel Kahneman's "Thinking, Fast and Slow" (Farrar, Straus and Giroux, 2011, IS
 
 Ron Sun's CLARION architecture (Sun 2002, "Duality of the Mind", Lawrence Erlbaum Associates) extends this with a sub-conceptual level below System 1 — implicit pattern matching operating through distributed representations rather than explicit rules.
 
-Roko maps these to three inference tiers:
+The captured design maps these to three inference tiers:
 
-| Cognitive Level | Kahneman | CLARION | Roko Tier | Characteristics |
+| Cognitive Level | Kahneman | CLARION | Captured Tier | Characteristics |
 |---|---|---|---|---|
 | Sub-conceptual | — | Sub-conceptual (implicit) | **T0** | No LLM call. Threshold checks, regex matches, cache lookups. |
 | System 1 | Fast, automatic | Bottom-up processing | **T1** | Fast model (Haiku-class). Quick analysis with limited tool access. |
@@ -100,7 +100,7 @@ Roko maps these to three inference tiers:
 
 Karl Friston's Free Energy Principle (Friston, K., 2010, "The free-energy principle: a unified brain theory?", Nature Reviews Neuroscience, 11(2), pp. 127-138, DOI: 10.1038/nrn2787) proposes that self-organizing systems minimize the divergence between their predictions and their observations. The prediction error — the surprise signal — drives learning, attention, and action.
 
-Roko uses this as the theoretical basis for tier routing. The Expected Free Energy (EFE) formula:
+The captured design uses this as the theoretical basis for tier routing. The Expected Free Energy (EFE) formula:
 
 ```
 G(pi) = E_q[ log q(s|pi) - log p(o,s|pi) ]
@@ -113,13 +113,13 @@ Where:
 
 This decomposes naturally into routing decisions: high-certainty situations (low epistemic value) route to fast processing (T0/T1), while high-uncertainty situations (high epistemic value) route to deep reasoning (T2).
 
-In practice, roko approximates EFE through four observable signals: prediction accuracy from calibration streams, confidence from Score axes, novelty from observations, and Daimon arousal state.
+In practice, the design approximates EFE through four observable signals: prediction accuracy from calibration streams, confidence from Score axes, novelty from observations, and Daimon arousal state.
 
 ### 2.4 Beer's Viable System Model (Beer 1972)
 
-Stafford Beer's Viable System Model ("Brain of the Firm", Allen Lane, 1972; 2nd ed. Wiley, 1981, ISBN 978-0-471-27687-0) identifies five recursive subsystems required for any viable organization. Drawing on neurophysiology and cybernetics — particularly Ross Ashby's Law of Requisite Variety (1956) — Beer showed that any self-regulating system must have enough internal variety to match the variety of its environment. Roko's five architectural layers map directly to Beer's VSM:
+Stafford Beer's Viable System Model ("Brain of the Firm", Allen Lane, 1972; 2nd ed. Wiley, 1981, ISBN 978-0-471-27687-0) identifies five recursive subsystems required for any viable organization. Drawing on neurophysiology and cybernetics — particularly Ross Ashby's Law of Requisite Variety (1956) — Beer argued that any self-regulating system must have enough internal variety to match the variety of its environment. The captured five-layer taxonomy maps onto Beer's VSM as follows:
 
-| Beer VSM | Roko Layer | Function |
+| Beer VSM | Captured Layer | Function |
 |---|---|---|
 | System 1: Operations | L0 Runtime | Primary activities — process lifecycle, I/O |
 | System 2: Coordination | L1 Framework | Anti-oscillation — model routing, tool dispatch |
@@ -160,7 +160,7 @@ Where `a` = activator concentration, `h` = inhibitor concentration, `rho` = prod
 
 ## 3. Three Cognitive Speeds (Gamma / Theta / Delta)
 
-The three cognitive speeds are the heartbeat of the architecture. Every agent operates at all three timescales concurrently, managed by an adaptive clock that modulates cadence based on the agent's emotional/motivational state.
+The three cognitive speeds are the heartbeat of the architecture. In the captured design, each agent can operate across all three timescales, managed by an adaptive clock that modulates cadence from recent outcomes and self-state.
 
 **Source**: `docs/v1/00-architecture/10-three-cognitive-speeds.md`
 **Implementation**: `crates/roko-core/src/operating_frequency.rs`
@@ -214,7 +214,7 @@ graph LR
 
 Gamma is the agent's heartbeat. Every 5-15 seconds, one complete cognitive loop tick executes: perceive the environment, select relevant information, compose a prompt, act, verify, and persist.
 
-The critical design decision: **most Gamma ticks are T0 (zero LLM cost)**. Roko specifies 16 T0 probes — zero-LLM diagnostic checks that determine whether the environment has changed enough to warrant model inference. If nothing surprising is detected, the tick completes without invoking any model. The agent "coasts" on existing heuristics.
+The critical design decision: **most Gamma ticks are T0 (zero LLM cost)**. The captured design specifies 16 T0 probes — zero-LLM diagnostic checks that determine whether the environment has changed enough to warrant model inference. If nothing surprising is detected, the tick completes without invoking any model.
 
 The 16 T0 probes cover the complete diagnostic surface:
 
@@ -237,7 +237,7 @@ The 16 T0 probes cover the complete diagnostic surface:
 | 15 | `metric_anomaly` | Is any tracked metric outside 2-sigma bounds? |
 | 16 | `heartbeat_timeout` | Has the expected heartbeat interval elapsed? |
 
-If all 16 probes return "no change," the tick completes at T0 cost ($0). This is how approximately 80% of ticks are suppressed — the FrugalGPT-inspired zero-cost majority (Chen et al. 2023, arXiv:2305.05176).
+If all 16 probes return "no change," the tick completes at T0 cost ($0). The 80% suppression rate is a target to validate, inspired by cascade-routing work such as FrugalGPT (Chen et al. 2023, arXiv:2305.05176).
 
 When a T0 probe detects surprise above threshold, the tick escalates:
 1. Probe reports surprise → escalate to T1 (fast model)
@@ -291,7 +291,7 @@ From `crates/roko-core/src/operating_frequency.rs:`
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
-Key behavior: when the Daimon reports low confidence (<0.3), combined with high arousal (>0.25) or low dominance (<-0.1), substantial tasks are promoted from Theta to Delta — giving the agent more time and deeper reasoning. The `is_substantial()` method checks for tasks estimated at 30+ minutes, high reasoning level, deep context weight, or hardened quality profile.
+Key behavior: when the Daimon reports low confidence (<0.3), combined with high arousal (>0.25) or low dominance (<-0.1), substantial tasks are candidates for promotion from Theta to Delta. The `is_substantial()` method checks for tasks estimated at 30+ minutes, high reasoning level, deep context weight, or hardened quality profile.
 
 ### 3.8 Adaptive Clock Scheduler (Source Code)
 
@@ -323,7 +323,7 @@ pub struct OperatingFrequencyScheduleContext {
 
 ## 4. The Five-Layer Architecture
 
-Roko's crates are organized into five architectural layers with strictly downward dependencies. Each layer maps to one of Beer's VSM subsystems.
+The captured modules are organized into five architectural layers with strictly downward dependencies. Each layer maps to one of Beer's VSM subsystems.
 
 **Source**: `docs/v1/00-architecture/12-five-layer-taxonomy.md`
 
@@ -412,7 +412,7 @@ Cross-cutting crates are NOT layer-bound. They are injected as `&dyn Trait` obje
 
 ### 4.4 IronClaw Layer Mapping
 
-| Roko Layer | IronClaw Equivalent | Notes |
+| Captured Layer | IronClaw Equivalent | Notes |
 |---|---|---|
 | L0 Runtime | `src/db/`, `src/workspace/`, tokio runtime | Database + workspace = Store/Substrate; tokio = process lifecycle |
 | L1 Framework | `src/tools/`, `src/evaluation/`, `src/estimation/` | Tool dispatch, scoring, model routing |
@@ -424,7 +424,7 @@ Cross-cutting crates are NOT layer-bound. They are injected as `&dyn Trait` obje
 
 ## 5. The Universal Cognitive Loop
 
-Every agent in roko runs the same seven-step cognitive loop at each of the three speeds. What changes between speeds is the scope of perception, the budget available for composition, and the persistence cadence — not the loop structure itself.
+The captured design uses the same seven-step cognitive loop at each of the three speeds. What changes between speeds is the scope of perception, the budget available for composition, and the persistence cadence — not the loop structure itself.
 
 **Source**: `docs/v1/00-architecture/09-universal-cognitive-loop.md`
 
@@ -502,7 +502,7 @@ Three cognitive subsystems are injected across multiple layers rather than livin
 
 ### 6.1 Neuro — Knowledge Management
 
-`roko-neuro` provides persistent, tier-based knowledge management with HDC encoding for similarity search.
+The captured Neuro component provides persistent, tier-based knowledge management with HDC encoding for similarity search.
 
 **Six Knowledge Types**:
 
@@ -510,7 +510,7 @@ Three cognitive subsystems are injected across multiple layers rather than livin
 |---|---|---|
 | **Insight** | General observation that proved useful | "This codebase uses builder pattern extensively" |
 | **Heuristic** | Procedural rule from experience | "When tests fail with E0599, check trait imports first" |
-| **Warning** | Known pitfall or anti-pattern | "Never use --no-verify with this repo's hooks" |
+| **Warning** | Known pitfall or anti-pattern | "Workspace hooks reject bypassed validation" |
 | **CausalLink** | Cause-effect relationship | "Upgrading alloy requires rustc 1.91+" |
 | **StrategyFragment** | Reusable strategic approach | "For large refactors, use worktrees for parallel branches" |
 | **AntiKnowledge** | Explicitly falsified knowledge | "Hypothesis X was tested and disproved" |
@@ -528,7 +528,7 @@ Knowledge can be encoded as 10,240-bit HDC vectors (Kanerva, P., 2009, "Hyperdim
 
 ### 6.2 Daimon — Motivation and Focus
 
-`roko-daimon` provides the agent's self-model: a PAD (Pleasure-Arousal-Dominance) vector (Mehrabian, A. & Russell, J. A., 1974, "An Approach to Environmental Psychology", MIT Press) that biases assessment, action gating, and cadence selection.
+The captured Daimon component provides the agent's self-model: a PAD (Pleasure-Arousal-Dominance) vector (Mehrabian, A. & Russell, J. A., 1974, "An Approach to Environmental Psychology", MIT Press) that biases assessment, action gating, and cadence selection.
 
 **PAD Dimensions**:
 
@@ -549,11 +549,11 @@ Knowledge can be encoded as 10,240-bit HDC vectors (Kanerva, P., 2009, "Hyperdim
 | **Coasting** | P neutral, A-, D+ | Easy work. Extended Gamma, T0-heavy. |
 | **Resting** | P neutral, A-, D neutral | Idle. Delta consolidation mode. |
 
-**Somatic Markers** (Damasio, A., 1994, "Descartes' Error", Putnam): Emotional signals from past experience bias decision-making before analytical reasoning. In roko, somatic markers are score modifiers applied to Router selections — negative markers for tools/approaches that previously failed, positive for those that succeeded.
+**Somatic Markers** (Damasio, A., 1994, "Descartes' Error", Putnam): Emotional signals from past experience bias decision-making before analytical reasoning. Here, somatic markers are score modifiers applied to router selections — negative markers for tools/approaches that previously failed, positive for those that succeeded.
 
 ### 6.3 Dreams — Offline Learning
 
-`roko-dreams` provides offline learning during idle time at Delta frequency:
+The captured Dreams component provides offline learning during idle time at Delta frequency:
 
 | Phase | Neuroscience Inspiration | What Happens |
 |---|---|---|
@@ -567,7 +567,7 @@ The **Hypnagogia Engine** generates creative hypotheses during the transition be
 
 ## 7. Stigmergic Coordination and Digital Pheromones
 
-Roko's multi-agent coordination uses stigmergy: indirect coordination through environment modification. Rather than agents communicating directly, they deposit and sense digital pheromones — coordination signals that decay over time, can be confirmed or contradicted, and drive emergent task allocation.
+The captured multi-agent coordination design uses stigmergy: indirect coordination through environment modification. Rather than agents communicating directly, they deposit and sense digital pheromones — coordination signals that decay over time, can be confirmed or contradicted, and can drive task allocation.
 
 **Source**: `docs/v1/13-coordination/04-pheromone-kinds.md`, `docs/v2-depth/11-memory/12-pheromone-mechanics-and-interference.md`
 **Implementation**: `crates/roko-orchestrator/src/coordination.rs`
@@ -807,7 +807,7 @@ The Hill coefficient controls steepness: n=1 gives a hyperbolic curve, n=2 gives
 
 Note: habituation is asymmetric — the threshold increases at half the learning rate (0.025) compared to reinforcement's decrease rate (0.05). This produces a bias toward responsiveness: it takes twice as many non-responses to undo one successful response.
 
-This produces **emergent division of labor**: an agent that succeeds at handling Threats develops lower Threat thresholds, making it more likely to respond to future Threats — specializing as a "threat responder" without explicit role assignment.
+This can produce **emergent division of labor**: an agent that succeeds at handling Threats develops lower Threat thresholds, making it more likely to respond to future Threats — specializing as a "threat responder" without explicit role assignment.
 
 ---
 
@@ -1052,7 +1052,7 @@ The two reinforce each other: morphogenetic specialization determines the agent'
 
 ## 10. C-Factor: Collective Intelligence Measurement
 
-For multi-agent scenarios, roko measures collective intelligence across five axes using the c-factor metric, based on Woolley, A. W. et al. (2010, "Evidence for a Collective Intelligence Factor in the Performance of Human Groups", Science, 330(6004), pp. 686-688, DOI: 10.1126/science.1193147), who showed that group performance across varied tasks loads onto a single collective factor, analogous to the "g factor" in individual intelligence.
+For multi-agent scenarios, the captured design measures group process quality across five axes using a c-factor-inspired metric. It is based on Woolley, A. W. et al. (2010, "Evidence for a Collective Intelligence Factor in the Performance of Human Groups", Science, 330(6004), pp. 686-688, DOI: 10.1126/science.1193147), which found that group performance across varied tasks loads onto a collective factor analogous to individual g-factor.
 
 **Source**: `docs/v1/00-architecture/14-c-factor-collective-intelligence.md`
 
@@ -1263,7 +1263,7 @@ Delta tick triggered by OperatingFrequencyScheduler
     Replay the 5 highest-prediction-error episodes from last session
     Episode: "Tried to use --no-verify flag, hook blocked it"
       → High prediction error (expected success, got failure)
-      → Extract Heuristic: "This repo requires hook compliance"
+      → Extract Heuristic: "This workspace requires hook compliance"
     Episode: "Added memory_write call in handler, dispatch-exempt needed"
       → Medium prediction error
       → Extract Warning: "Handler mutations need dispatch-exempt annotation"
@@ -1385,7 +1385,7 @@ No explicit role assignment was ever made. The specialization emerged entirely f
 
 **Target file**: `src/workspace/pheromone.rs`
 
-The pheromone system overlays on IronClaw's existing `memory_write`/`memory_search` tools using a namespaced tagging convention. It implements the full decay model, confirmation extension, and Alpha paradox from the roko source.
+The pheromone system can overlay IronClaw's existing `memory_write`/`memory_search` tools using a namespaced tagging convention. Start with the decay model, confirmation extension, and Alpha paradox from the captured source; validate retrieval noise before enabling ranking effects.
 
 > Captured implementation omitted. Rebuild IronClaw code locally in owner modules with caller-level tests.
 
@@ -1510,8 +1510,7 @@ cargo deny check bans
 
 | Citation | Contribution |
 |---|---|
-| Lee, Y. et al. (2026). "Meta-Harness: Harness Optimization for SWE-bench". arXiv:2603.28052. | +7.7 pts from harness optimization alone, 4x fewer tokens. |
-| Jimenez, C. E. et al. (2024). "SWE-bench: Can Language Models Resolve Real-World GitHub Issues?" | Same model, 30-65% solve rate depending on harness. |
+| Jimenez, C. E. et al. (2024). "SWE-bench: Can Language Models Resolve Real-World Issues?" | Same model family shows materially different solve rates under different harnesses. |
 | Zaharia, M. et al. (2024). "The Shift from Models to Compound AI Systems". | Compound AI Systems thesis: SOTA from systems, not models. |
 | Khattab, O. et al. (2024). "DSPy: Compiling Declarative Language Model Calls into State-of-the-Art Pipelines". | Compiler-optimized prompt pipelines outperform manual prompt engineering. |
 | Boden, M. A. (2004). "The Creative Mind: Myths and Mechanisms". 2nd ed. Routledge. | Computational creativity: exploratory, combinational, transformational. Foundation for REM imagination. |
@@ -1563,6 +1562,6 @@ cargo deny check bans
 | Over-engineering cognitive speeds for single-agent use | Low | Start with simple Gamma/Theta classification; Delta is just the existing heartbeat |
 | Pheromone system adding noise to workspace retrieval | Medium | Use separate `pheromone::` namespace; aggressive evaporation threshold (0.01); monitor search result quality |
 | Morphogenetic parameters failing to converge | Medium | Monte Carlo validation shows convergence at beta/alpha >= 2.0 for groups <= 50; monitor `StabilityState` |
-| C-factor becoming a Goodhart metric | Low | Treat as covariate per roko design; never optimize directly; log `CFactorDecoupled` events |
+| C-factor becoming a Goodhart metric | Low | Treat as a covariate; never optimize directly; log `CFactorDecoupled` events |
 | Layer discipline breaking existing code | Low | Enforce incrementally; grandfather existing violations; use `// dispatch-exempt: <reason>` pattern already in use |
-| Alpha pheromone decay formula confusion | Low | Use verified divisor-based formula from roko source: `divisor = 1 + 0.1 × confirmations`, not the alternative floor-based formula sometimes described in docs |
+| Alpha pheromone decay formula confusion | Low | Use the divisor-based formula from the captured source: `divisor = 1 + 0.1 × confirmations`, not the alternative floor-based formula sometimes described in docs |

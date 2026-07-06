@@ -1,6 +1,6 @@
 # Core Concepts
 
-This category covers foundational concepts from the captured source corpus and translates them into IronClaw-native design options: a universal data representation, a fast similarity engine, supporting mathematical tools, and the architectural framework that ties them together. Captured `roko-*` paths are provenance labels only, not live checkout requirements.
+This category covers foundational concepts from the captured source corpus and translates them into IronClaw-native design options: a universal data representation, a fast similarity engine, supporting mathematical tools, and the architectural framework that ties them together. Captured `roko-*` paths are provenance labels only, not required implementation inputs.
 
 ## Documents
 

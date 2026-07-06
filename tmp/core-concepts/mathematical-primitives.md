@@ -1,6 +1,6 @@
 # Mathematical Primitives for AI Agent Intelligence
 
-**Source provenance**: `roko-primitives` crate (`crates/roko-primitives/src/`)
+**Captured source-corpus label**: `roko-primitives` (`crates/roko-primitives/src/`)
 **Priority**: LOW for general use — HIGH for specialized analytics, loop detection, multi-source consistency
 **Relevant task identifiers**: TA-06 (manifolds), TA-09 (TDA), TA-10 (robust statistics), TA-13 (sheaves), TA-14 (tropical algebra)
 **Captured source identifiers**: `crates/roko-primitives/src/`
@@ -29,7 +29,7 @@ Captured paths are provenance labels only. Rebuild any useful primitive as IronC
 
 ## Overview and Motivation
 
-The `roko-primitives` crate contains pure mathematical tools spanning topology, differential geometry, abstract algebra, and robust statistics. These are not standard software engineering tools — they are research-grade constructions adapted for agent intelligence. The crate has zero internal workspace dependencies (`#![deny(unsafe_code)]`, no async, no I/O) and can be imported independently of any platform.
+The captured primitives material contains pure mathematical tools spanning topology, differential geometry, abstract algebra, and robust statistics. These are specialized analytical tools for agent intelligence, not default dependencies for ordinary product work. The useful property to preserve in IronClaw is purity: no async, no I/O, no global state, and caller-level tests around any side effect that consumes the result.
 
 **The key question these tools answer**: *How do you rigorously analyze the behavior of an AI agent and the data it processes, going beyond simple averages and counts?*
 
@@ -43,14 +43,14 @@ Standard monitoring answers "what" (latency = 300ms). These tools answer "why" a
 | **Tropical Algebra** | What are the exact *decision boundaries*? | Analyze routing logic, adversarial robustness | `src/tools/dispatch.rs` |
 | **Robust Statistics** | What is the *true center* under noise and outliers? | Reliable metric aggregation | `src/estimation/`, `src/evaluation/` |
 
-All modules are pure functions with no side effects: no I/O, no async, no global state. This makes them trivially testable and safe to call from any context in IronClaw.
+All adapted modules should remain pure functions with no side effects: no I/O, no async, no global state. That keeps them easy to test and safe to call from hot paths, background jobs, and evaluation code.
 
 ---
 
 ## Architecture Overview
 
 ```
-roko-primitives crate
+captured primitives material
 ├── tda.rs          (575 lines) — Topological Data Analysis
 │   ├── takens_embedding()
 │   ├── vietoris_rips()
@@ -601,7 +601,7 @@ let avg_latency = latencies.iter().sum::<f64>() / latencies.len() as f64;
 let spread = { /* arithmetic std dev */ };
 
 // AFTER: robust to outliers
-use roko_primitives::robust_stats::{trimmed_mean, mad, median};
+use crate::robust_stats::{mad, median, trimmed_mean};
 let avg_latency = trimmed_mean(&latencies, 0.1)
     .unwrap_or_else(|| median(&latencies).unwrap_or(0.0));
 let spread = mad(&latencies).unwrap_or(0.0);
@@ -663,7 +663,7 @@ flowchart TD
         DISP["Tool Dispatcher\nsrc/tools/dispatch.rs"]
     end
 
-    subgraph "Mathematical Primitives (roko-primitives)"
+    subgraph "Mathematical Primitives (captured corpus)"
         TDA["TDA\ntakens_embedding\nvietoris_rips\npersistence_landscape"]
         SHF["Cellular Sheaves\nCellularSheaf\ninconsistency_score\nmost_inconsistent"]
         RIM["Riemannian Geometry\nMetricTensor\ngeodesic_rk4\nfrechet_mean"]
@@ -701,13 +701,13 @@ flowchart TD
 ```toml
 # Cargo.toml addition
 [dependencies]
-# Rebuild the needed primitives locally; do not depend on an external captured-source checkout.
+# Rebuild the needed primitives locally in the owning IronClaw crate/module.
 ```
 
 **Replace in `src/evaluation/` metric aggregation**:
 
 ```rust
-use roko_primitives::robust_stats::hodges_lehmann;
+use crate::robust_stats::hodges_lehmann;
 
 pub fn aggregate_eval_scores(scores: &[f64]) -> f64 {
     if scores.len() < 3 {
@@ -720,7 +720,7 @@ pub fn aggregate_eval_scores(scores: &[f64]) -> f64 {
 **Replace in `src/workspace/` search score fusion**:
 
 ```rust
-use roko_primitives::robust_stats::trimmed_mean;
+use crate::robust_stats::trimmed_mean;
 
 pub fn fuse_relevance_scores(scores_per_backend: &[Vec<f64>]) -> Vec<f64> {
     let n_results = scores_per_backend[0].len();
@@ -844,7 +844,7 @@ if robustness < MIN_ROBUSTNESS {
 | Tropical algebra | 698 | O(T × d) per eval | O(T × d) | Tier 4 — long-term | Low |
 | HDC + Codebook | 1262 | O(D/64) per op | O(D/8) per vector | Integrated | Zero |
 
-**Total crate**: ~4,682 lines. Zero `unsafe`, zero async, zero I/O.
+**Captured size**: ~4,682 lines. The IronClaw adaptation should preserve zero `unsafe`, zero async, and zero I/O unless a specific caller-level test justifies otherwise.
 
 **Dependencies**:
 ```toml

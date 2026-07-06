@@ -69,7 +69,7 @@ Tests:
 Do not:
 
 - Run archival during an active turn.
-- Hide archived entries in a way that makes recovery impossible.
+- Hide archived entries behind metadata that operators cannot reverse.
 
 ## PR 4: Metacognitive Monitor
 
